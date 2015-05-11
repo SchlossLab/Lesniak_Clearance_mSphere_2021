@@ -29,7 +29,7 @@ $(REFS)silva.bacteria.align :
 
 #get the v4 region of the alignment
 $(REFS)silva.v4.align : $(REFS)silva.bacteria.align
-	mothur "#pcr.seqs(fasta=$(REFS)silva.bacteria.align, start=11894, end=25319, keepdots=F, mothurors=8);\
+	mothur "#pcr.seqs(fasta=$(REFS)silva.bacteria.align, start=11894, end=25319, keepdots=F, processors=8);\
 			unique.seqs(fasta=current);"; \
 	mv $(REFS)silva.bacteria.pcr.unique.align $(REFS)silva.v4.align; \
 	rm $(REFS)silva.bacteria.pcr.*
@@ -46,7 +46,7 @@ $(REFS)trainset10_082014.v4.tax $(REFS)trainset10_082014.v4.fasta : \
 						$(REFS)trainset10_082014.pds.tax \
 						$(REFS)trainset10_082014.pds.fasta \
 						$(REFS)silva.v4.align
-	mothur "#align.seqs(fasta=$(REFS)trainset10_082014.pds.fasta, reference=$(REFS)silva.v4.align, mothurors=8);\
+	mothur "#align.seqs(fasta=$(REFS)trainset10_082014.pds.fasta, reference=$(REFS)silva.v4.align, processors=8);\
 		screen.seqs(fasta=current, taxonomy=$(REFS)trainset10_082014.pds.tax, start=1968, end=11550);\
 		degap.seqs(fasta=current)"; \
 	mv $(REFS)trainset10_082014.pds.good.ng.fasta $(REFS)trainset10_082014.v4.fasta; \
