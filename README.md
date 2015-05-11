@@ -1,9 +1,7 @@
-Effect of C. difficile colonization on recovery of gut microbiota in antibiotic-treated mice
+Effect of *C. difficile* colonization on recovery of gut microbiota in antibiotic-treated mice
 =======
 
-Research project initialization and organization following reproducible research
-guidelines as modified for use with typical microbial ecology projects
-
+Abstract goes here...
 
 Overview
 --------
