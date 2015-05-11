@@ -78,25 +78,25 @@ $(REFS)HMP_MOCK.v4.fasta : $(REFS)HMP_MOCK.fasta $(REFS)silva.v4.align
 
 # build the files file. probably should replace this chunk eventually
 # with pulling data off of the SRA
-data/process/abxD0.files : code/make_files_file.R data/process/abx_cdiff_metadata.tsv
+data/process/abx_time.files : code/make_files_file.R data/process/abx_cdiff_metadata.tsv
 	R -e "source('code/make_files_file.R')"
 
 
 # need to get the fastq files. probably should replace this chunk eventually
 # with pulling data off of the SRA
-data/raw/get_data : code/get_fastqs.sh data/process/abxD0.files
-	bash code/get_fastqs.sh data/process/abxD0.files;\
+data/raw/get_data : code/get_fastqs.sh data/process/abx_time.files
+	bash code/get_fastqs.sh data/process/abx_time.files;\
 	touch data/raw/get_data
 
-BASIC_STEM = data/process/abxD0.trim.contigs.good.unique.good.filter.unique.precluster
+BASIC_STEM = data/process/abx_time.trim.contigs.good.unique.good.filter.unique.precluster
 
 
 # need to get the CFU on the day after antibiotic treatment along with the
 # part of the experiment that each sample belongs to
 
-data/process/abxD1.counts : code/make_counts_file.R data/process/abxD0.files\
-							data/process/abx_cdiff_metadata.tsv
-	R -e "source('code/make_counts_file.R')"
+#data/process/abxD1.counts : code/make_counts_file.R data/process/abx_time.files\
+#							data/process/abx_cdiff_metadata.tsv
+#	R -e "source('code/make_counts_file.R')"
 
 
 # here we go from the raw fastq files and the files file to generate a fasta,
@@ -119,9 +119,9 @@ $(BASIC_STEM).pick.pick.pick.an.unique_list.shared $(BASIC_STEM).pick.pick.pick.
 										$(BASIC_STEM).pick.pick.fasta\
 										$(BASIC_STEM).pick.v4.wang.pick.taxonomy
 	mothur code/get_shared_otus.batch;\
-	rm data/process/abxD0.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
-	rm data/process/abxD0.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
-	rm data/process/abxD0.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
+	rm data/process/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
+	rm data/process/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
+	rm data/process/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
 	rm data/process/*.an.*rabund
 
 
@@ -133,9 +133,9 @@ $(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.cons.taxonomy $(BASIC_STEM).pick.v4.wa
 										$(BASIC_STEM).pick.pick.fasta\
 										$(BASIC_STEM).pick.v4.wang.pick.taxonomy
 	mothur code/get_shared_phyla.batch;\
-	rm data/process/abxD0.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
-	rm data/process/abxD0.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
-	rm data/process/abxD0.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
+	rm data/process/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
+	rm data/process/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
+	rm data/process/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
 	rm data/process/*.tx.*rabund;
 
 
@@ -167,6 +167,3 @@ write.paper : $(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.subsample.shared\
 		$(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.subsample.shared\
 		$(BASIC_STEM).pick.pick.pick.error.summary\
 		data/process/abxD1.counts
-
-
-
