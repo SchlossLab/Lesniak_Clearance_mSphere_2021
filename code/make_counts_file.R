@@ -6,16 +6,16 @@
 # difficile on the day after challenge
 #
 # Dependencies...
-# * data/process/abxD0.files
-# * data/process/abx_cdiff_metadata.tsv
+# * data/mothur/abxD0.files
+# * data/mothur/abx_cdiff_metadata.tsv
 #
 # Output...
-# * data/process/abxD1.counts
+# * data/mothur/abxD1.counts
 #
 ################################################################################
 
 #extract the names of the samples that represented the day of challenge
-fecal_files <- read.table(file="data/process/abxD0.files", header=F)
+fecal_files <- read.table(file="data/mothur/abxD0.files", header=F)
 fecal_samples <- fecal_files$V1
 fecal_samples <- fecal_samples[!grepl("mock", fecal_samples)]
 fecal_samples <- unique(fecal_samples)
@@ -23,7 +23,7 @@ fecal_samples <- unique(fecal_samples)
 day0_samples <- fecal_samples[grepl("D0", fecal_samples)]
 day1_samples <- gsub("D0", "D1", day0_samples)
 
-all_metadata <- read.table(file="data/process/abx_cdiff_metadata.tsv", header=T)
+all_metadata <- read.table(file="data/mothur/abx_cdiff_metadata.tsv", header=T)
 all_metadata <- all_metadata[,c("CFU", "abx", "dose", "delayed")]
 day1_metadata <- all_metadata[day1_samples,]
 
@@ -73,4 +73,4 @@ new_metadata <- new_metadata[,!(colnames(new_metadata) %in% "delayed")]
 rownames(new_metadata) <- gsub("D1", "D0", rownames(new_metadata))
 
 #output metadata file
-write.table(new_metadata, file="data/process/abxD1.counts", quote=FALSE, sep="\t")
+write.table(new_metadata, file="data/mothur/abxD1.counts", quote=FALSE, sep="\t")

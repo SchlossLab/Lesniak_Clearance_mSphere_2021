@@ -29,7 +29,7 @@ $(REFS)silva.bacteria.align :
 
 #get the v4 region of the alignment
 $(REFS)silva.v4.align : $(REFS)silva.bacteria.align
-	mothur "#pcr.seqs(fasta=$(REFS)silva.bacteria.align, start=11894, end=25319, keepdots=F, processors=8);\
+	mothur "#pcr.seqs(fasta=$(REFS)silva.bacteria.align, start=11894, end=25319, keepdots=F, mothurors=8);\
 			unique.seqs(fasta=current);"; \
 	mv $(REFS)silva.bacteria.pcr.unique.align $(REFS)silva.v4.align; \
 	rm $(REFS)silva.bacteria.pcr.*
@@ -46,7 +46,7 @@ $(REFS)trainset10_082014.v4.tax $(REFS)trainset10_082014.v4.fasta : \
 						$(REFS)trainset10_082014.pds.tax \
 						$(REFS)trainset10_082014.pds.fasta \
 						$(REFS)silva.v4.align
-	mothur "#align.seqs(fasta=$(REFS)trainset10_082014.pds.fasta, reference=$(REFS)silva.v4.align, processors=8);\
+	mothur "#align.seqs(fasta=$(REFS)trainset10_082014.pds.fasta, reference=$(REFS)silva.v4.align, mothurors=8);\
 		screen.seqs(fasta=current, taxonomy=$(REFS)trainset10_082014.pds.tax, start=1968, end=11550);\
 		degap.seqs(fasta=current)"; \
 	mv $(REFS)trainset10_082014.pds.good.ng.fasta $(REFS)trainset10_082014.v4.fasta; \
@@ -78,24 +78,24 @@ $(REFS)HMP_MOCK.v4.fasta : $(REFS)HMP_MOCK.fasta $(REFS)silva.v4.align
 
 # build the files file. probably should replace this chunk eventually
 # with pulling data off of the SRA
-data/process/abx_time.files : code/make_files_file.R data/process/abx_cdiff_metadata.tsv
+data/mothur/abx_time.files : code/make_files_file.R data/mothur/abx_cdiff_metadata.tsv
 	R -e "source('code/make_files_file.R')"
 
 
 # need to get the fastq files. probably should replace this chunk eventually
 # with pulling data off of the SRA
-data/raw/get_data : code/get_fastqs.sh data/process/abx_time.files
-	bash code/get_fastqs.sh data/process/abx_time.files;\
+data/raw/get_data : code/get_fastqs.sh data/mothur/abx_time.files
+	bash code/get_fastqs.sh data/mothur/abx_time.files;\
 	touch data/raw/get_data
 
-BASIC_STEM = data/process/abx_time.trim.contigs.good.unique.good.filter.unique.precluster
+BASIC_STEM = data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster
 
 
 # need to get the CFU on the day after antibiotic treatment along with the
 # part of the experiment that each sample belongs to
 
-#data/process/abxD1.counts : code/make_counts_file.R data/process/abx_time.files\
-#							data/process/abx_cdiff_metadata.tsv
+#data/mothur/abxD1.counts : code/make_counts_file.R data/mothur/abx_time.files\
+#							data/mothur/abx_cdiff_metadata.tsv
 #	R -e "source('code/make_counts_file.R')"
 
 
@@ -108,7 +108,7 @@ $(BASIC_STEM).uchime.pick.pick.count_table $(BASIC_STEM).pick.pick.fasta $(BASIC
 										data/references/trainset10_082014.v4.fasta\
 										data/references/trainset10_082014.v4.tax
 	mothur code/get_good_seqs.batch;\
-	rm data/process/*.map
+	rm data/mothur/*.map
 
 
 
@@ -119,10 +119,10 @@ $(BASIC_STEM).pick.pick.pick.an.unique_list.shared $(BASIC_STEM).pick.pick.pick.
 										$(BASIC_STEM).pick.pick.fasta\
 										$(BASIC_STEM).pick.v4.wang.pick.taxonomy
 	mothur code/get_shared_otus.batch;\
-	rm data/process/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
-	rm data/process/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
-	rm data/process/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
-	rm data/process/*.an.*rabund
+	rm data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
+	rm data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
+	rm data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
+	rm data/mothur/*.an.*rabund
 
 
 
@@ -133,10 +133,10 @@ $(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.cons.taxonomy $(BASIC_STEM).pick.v4.wa
 										$(BASIC_STEM).pick.pick.fasta\
 										$(BASIC_STEM).pick.v4.wang.pick.taxonomy
 	mothur code/get_shared_phyla.batch;\
-	rm data/process/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
-	rm data/process/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
-	rm data/process/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
-	rm data/process/*.tx.*rabund;
+	rm data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
+	rm data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
+	rm data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
+	rm data/mothur/*.tx.*rabund;
 
 
 # now we want to get the sequencing error as seen in the mock community samples
@@ -148,12 +148,12 @@ $(BASIC_STEM).pick.pick.pick.error.summary : code/get_error.batch\
 
 
 # rarefy the number of reads to 1625 sequences per library for the alpha and beta diversity analyses and modeling
-$(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.subsample.shared $(BASIC_STEM).pick.pick.pick.an.unique_list.groups.ave-std.summary $(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist : $(BASIC_STEM).pick.pick.pick.an.unique_list.shared
-	mothur "#dist.shared(shared=$^, calc=thetayc, subsample=1625, iters=100); summary.single(shared=$^, subsample=1625, calc=nseqs-sobs-shannon-invsimpson, iters=100); sub.sample(shared=$^, size=1625)";\
-	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.groups.summary;\
-	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.dist;\
-	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.std.dist;\
-	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.*.rabund
+#$(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.subsample.shared #$(BASIC_STEM).pick.pick.pick.an.unique_list.groups.ave-std.summary #$(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist : #$(BASIC_STEM).pick.pick.pick.an.unique_list.shared
+#	mothur "#dist.shared(shared=$^, calc=thetayc, subsample=1625, iters=100); summary.single(shared=$^, subsample=1625, calc=nseqs-sobs-shannon-invsimpson, iters=100); sub.sample(shared=$^, size=1625)";\
+#	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.groups.summary;\
+#	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.dist;\
+#	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.std.dist;\
+#	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.*.rabund
 
 # rarefy the number of reads to 1625 sequences per library for the barcarts
 $(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.subsample.shared : $(BASIC_STEM).pick.v4.wang.pick.pick.tx.shared
@@ -166,4 +166,4 @@ write.paper : $(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.subsample.shared\
 		$(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.cons.taxonomy\
 		$(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.subsample.shared\
 		$(BASIC_STEM).pick.pick.pick.error.summary\
-		data/process/abxD1.counts
+		data/mothur/abxD1.counts

@@ -6,15 +6,15 @@
 # command from within mothur.
 #
 # Dependencies...
-# * data/process/abx_cdiff_metadata.tsv
+# * data/mothur/abx_cdiff_metadata.tsv
 # * fastq files stored in ../../cdiff_fastqs/
 #
 # Output...
-# * data/process/abx_time.files
+# * data/mothur/abx_time.files
 #
 ################################################################################
 
-metadata <- read.table(file="data/process/abx_cdiff_metadata.tsv", header=T)
+metadata <- read.table(file="data/mothur/abx_cdiff_metadata.tsv", header=T)
 samples <- rownames(metadata)
 
 #get the list of fastq file names
@@ -34,7 +34,7 @@ find_files <- function(stub, files=fastqs){
 }
 
 files_lines <- lapply(samples, find_files)
-write(unlist(files_lines), "data/process/abxD0.files")
+write(unlist(files_lines), "data/mothur/abxD0.files")
 
 
 r1_mock <- fastqs[grep("mock[^17].*R1.*fastq", fastqs)]
@@ -42,4 +42,4 @@ r2_mock <- fastqs[grep("mock[^17].*R2.*fastq", fastqs)]
 stub_mock <- gsub("(.*)_S.*", "\\1", r1_mock)
 
 lines_mock <- apply(cbind(stub_mock, r1_mock, r2_mock), 1, paste, collapse="\t")
-write(lines_mock, "data/process/abx_time.files", append=T)
+write(lines_mock, "data/mothur/abx_time.files", append=T)
