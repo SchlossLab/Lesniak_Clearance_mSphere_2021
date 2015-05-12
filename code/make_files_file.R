@@ -14,7 +14,7 @@
 #
 ################################################################################
 
-metadata <- read.table(file="data/mothur/abx_cdiff_metadata.tsv", header=T)
+metadata <- read.table(file="data/raw/abx_cdiff_metadata.tsv", header=T)
 samples <- rownames(metadata)
 
 #get the list of fastq file names
