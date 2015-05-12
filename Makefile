@@ -79,7 +79,7 @@ references : $(REFS)HMP_MOCK.v4.fasta $(REFS)trainset10_082014.v4.tax $(REFS)tra
 
 # build the files file. probably should replace this chunk eventually
 # with pulling data off of the SRA
-data/mothur/abx_time.files : code/make_files_file.R data/mothur/abx_cdiff_metadata.tsv
+data/mothur/abx_time.files : code/make_files_file.R data/raw/abx_cdiff_metadata.tsv
 	R -e "source('code/make_files_file.R')"
 
 
