@@ -47,7 +47,7 @@ $(REFS)trainset10_082014.v4.tax $(REFS)trainset10_082014.v4.fasta : \
 						$(REFS)trainset10_082014.pds.fasta \
 						$(REFS)silva.v4.align
 	mothur "#align.seqs(fasta=$(REFS)trainset10_082014.pds.fasta, reference=$(REFS)silva.v4.align, processors=8);\
-		screen.seqs(fasta=current, taxonomy=$(REFS)trainset10_082014.pds.tax, start=1968, end=11550);\
+		screen.seqs(fasta=current, taxonomy=$(REFS)trainset10_082014.pds.tax, start=1, end=13425);\
 		degap.seqs(fasta=current)"; \
 	mv $(REFS)trainset10_082014.pds.good.ng.fasta $(REFS)trainset10_082014.v4.fasta; \
 	mv $(REFS)trainset10_082014.pds.good.tax $(REFS)trainset10_082014.v4.tax;\
@@ -67,6 +67,7 @@ $(REFS)HMP_MOCK.v4.fasta : $(REFS)HMP_MOCK.fasta $(REFS)silva.v4.align
 	rm $(REFS)HMP_MOCK.align.report;\
 	rm $(REFS)HMP_MOCK.flip.accnos
 
+references : $(REFS)HMP_MOCK.v4.fasta $(REFS)trainset10_082014.v4.tax $(REFS)trainset10_082014.v4.fasta $(REFS)silva.v4.align
 
 ################################################################################
 #
