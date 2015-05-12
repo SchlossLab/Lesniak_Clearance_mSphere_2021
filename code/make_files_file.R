@@ -34,7 +34,7 @@ find_files <- function(stub, files=fastqs){
 }
 
 files_lines <- lapply(samples, find_files)
-write(unlist(files_lines), "data/mothur/abxD0.files")
+write(unlist(files_lines), "data/mothur/abx_time.files")
 
 
 r1_mock <- fastqs[grep("mock[^17].*R1.*fastq", fastqs)]

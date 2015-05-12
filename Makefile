@@ -71,8 +71,7 @@ references : $(REFS)HMP_MOCK.v4.fasta $(REFS)trainset10_082014.v4.tax $(REFS)tra
 
 ################################################################################
 #
-#	Part 2: Run data through mothur
-#
+#	Part 2: Get fastq files
 #
 ################################################################################
 
@@ -88,6 +87,16 @@ data/mothur/abx_time.files : code/make_files_file.R data/raw/abx_cdiff_metadata.
 data/raw/get_data : code/get_fastqs.sh data/mothur/abx_time.files
 	bash code/get_fastqs.sh data/mothur/abx_time.files;\
 	touch data/raw/get_data
+
+
+
+################################################################################
+#
+#	Part 3: Run data through mothur
+#
+################################################################################
+
+
 
 BASIC_STEM = data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster
 
