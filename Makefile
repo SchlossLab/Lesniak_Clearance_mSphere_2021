@@ -14,8 +14,10 @@
 #
 ################################################################################
 
-#Location of reference files
+#Location of files
 REFS = data/references/
+RAW = data/raw/
+MOTHUR = data/mothur/
 
 #get the silva reference alignment
 $(REFS)silva.bacteria.align :
@@ -51,9 +53,9 @@ $(REFS)trainset10_082014.v4.tax $(REFS)trainset10_082014.v4.fasta : \
 		degap.seqs(fasta=current)"; \
 	mv $(REFS)trainset10_082014.pds.good.ng.fasta $(REFS)trainset10_082014.v4.fasta; \
 	mv $(REFS)trainset10_082014.pds.good.tax $(REFS)trainset10_082014.v4.tax;\
-	rm data/references/trainset10_082014.pds.align*;\
-	rm data/references/trainset10_082014.pds.bad.accnos;\
-	rm data/references/trainset10_082014.pds.flip.accnos;
+	rm $(REFS)trainset10_082014.pds.align*;\
+	rm $(REFS)trainset10_082014.pds.bad.accnos;\
+	rm $(REFS)trainset10_082014.pds.flip.accnos;
 
 $(REFS)HMP_MOCK.fasta :
 	wget --no-check-certificate -N -P $(REFS) https://raw.githubusercontent.com/SchlossLab/Kozich_MiSeqSOP_AEM_2013/master/data/references/HMP_MOCK.fasta
@@ -78,21 +80,21 @@ references : $(REFS)HMP_MOCK.v4.fasta $(REFS)trainset10_082014.v4.tax $(REFS)tra
 
 # build the files file. probably should replace this chunk eventually
 # with pulling data off of the SRA
-data/mothur/abx_time.files : code/make_files_file.R data/raw/abx_cdiff_metadata.tsv
+$(MOTHUR)abx_time.files : code/make_files_file.R $(RAW)abx_cdiff_metadata.tsv
 	R -e "source('code/make_files_file.R')"
 
 
 # need to get the fastq files. probably should replace this chunk eventually
 # with pulling data off of the SRA
-data/raw/get_data : code/get_fastqs.sh data/mothur/abx_time.files
-	bash code/get_fastqs.sh data/mothur/abx_time.files;\
-	touch data/raw/get_data
+$(RAW)get_data : code/get_fastqs.sh $(MOTHUR)abx_time.files
+	bash code/get_fastqs.sh $(MOTHUR)abx_time.files;\
+	touch $(RAW)get_data
 
 # need to get the CFU on the day after antibiotic treatment along with the
 # part of the experiment that each sample belongs to
 #
-#data/mothur/abxD1.counts : code/make_counts_file.R data/mothur/abx_time.files\
-#							data/mothur/abx_cdiff_metadata.tsv
+#$(MOTHUR)abxD1.counts : code/make_counts_file.R $(MOTHUR)abx_time.files\
+#							$(MOTHUR)abx_cdiff_metadata.tsv
 #	R -e "source('code/make_counts_file.R')"
 
 
@@ -103,18 +105,18 @@ data/raw/get_data : code/get_fastqs.sh data/mothur/abx_time.files
 #
 ################################################################################
 
-BASIC_STEM = data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster
+BASIC_STEM = $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster
 
 # here we go from the raw fastq files and the files file to generate a fasta,
 # taxonomy, and count_table file that has had the chimeras removed as well as
 # any non bacterial sequences
 $(BASIC_STEM).uchime.pick.pick.count_table $(BASIC_STEM).pick.pick.fasta $(BASIC_STEM).pick.v4.wang.pick.taxonomy : code/get_good_seqs.batch\
-										data/raw/get_data\
-										data/references/silva.v4.align\
-										data/references/trainset10_082014.v4.fasta\
-										data/references/trainset10_082014.v4.tax
+										$(RAW)get_data\
+										$(REFS)silva.v4.align\
+										$(REFS)trainset10_082014.v4.fasta\
+										$(REFS)trainset10_082014.v4.tax
 	mothur code/get_good_seqs.batch;\
-	rm data/mothur/*.map
+	rm $(MOTHUR)*.map
 
 
 
@@ -125,10 +127,10 @@ $(BASIC_STEM).pick.pick.pick.an.unique_list.shared $(BASIC_STEM).pick.pick.pick.
 										$(BASIC_STEM).pick.pick.fasta\
 										$(BASIC_STEM).pick.v4.wang.pick.taxonomy
 	mothur code/get_shared_otus.batch;\
-	rm data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
-	rm data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
-	rm data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
-	rm data/mothur/*.an.*rabund
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
+	rm $(MOTHUR)*.an.*rabund
 
 
 
@@ -139,10 +141,10 @@ $(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.cons.taxonomy $(BASIC_STEM).pick.v4.wa
 										$(BASIC_STEM).pick.pick.fasta\
 										$(BASIC_STEM).pick.v4.wang.pick.taxonomy
 	mothur code/get_shared_phyla.batch;\
-	rm data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
-	rm data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
-	rm data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
-	rm data/mothur/*.tx.*rabund;
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
+	rm $(MOTHUR)*.tx.*rabund;
 
 
 # now we want to get the sequencing error as seen in the mock community samples
@@ -172,4 +174,4 @@ write.paper : $(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.subsample.shared\
 		$(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.cons.taxonomy\
 		$(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.subsample.shared\
 		$(BASIC_STEM).pick.pick.pick.error.summary\
-		data/mothur/abxD1.counts
+		$(MOTHUR)abxD1.counts
