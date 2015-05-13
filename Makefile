@@ -88,6 +88,13 @@ data/raw/get_data : code/get_fastqs.sh data/mothur/abx_time.files
 	bash code/get_fastqs.sh data/mothur/abx_time.files;\
 	touch data/raw/get_data
 
+# need to get the CFU on the day after antibiotic treatment along with the
+# part of the experiment that each sample belongs to
+#
+#data/mothur/abxD1.counts : code/make_counts_file.R data/mothur/abx_time.files\
+#							data/mothur/abx_cdiff_metadata.tsv
+#	R -e "source('code/make_counts_file.R')"
+
 
 
 ################################################################################
@@ -96,18 +103,7 @@ data/raw/get_data : code/get_fastqs.sh data/mothur/abx_time.files
 #
 ################################################################################
 
-
-
 BASIC_STEM = data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster
-
-
-# need to get the CFU on the day after antibiotic treatment along with the
-# part of the experiment that each sample belongs to
-
-#data/mothur/abxD1.counts : code/make_counts_file.R data/mothur/abx_time.files\
-#							data/mothur/abx_cdiff_metadata.tsv
-#	R -e "source('code/make_counts_file.R')"
-
 
 # here we go from the raw fastq files and the files file to generate a fasta,
 # taxonomy, and count_table file that has had the chimeras removed as well as
