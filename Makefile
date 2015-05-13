@@ -164,9 +164,15 @@ $(BASIC_STEM).pick.pick.pick.error.summary : code/get_error.batch\
 #	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.*.rabund
 
 # rarefy the number of reads to 1625 sequences per library for the barcarts
-$(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.subsample.shared : $(BASIC_STEM).pick.v4.wang.pick.pick.tx.shared
-		mothur "#sub.sample(shared=$^, size=1625)";
+#$(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.subsample.shared : #$(BASIC_STEM).pick.v4.wang.pick.pick.tx.shared
+#		mothur "#sub.sample(shared=$^, size=1625)";
 
+
+################################################################################
+#
+#	Part 4: Write the paper
+#
+################################################################################
 
 write.paper : $(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.subsample.shared\
 		$(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.cons.taxonomy\
