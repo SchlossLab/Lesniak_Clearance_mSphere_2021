@@ -19,9 +19,11 @@ samples <- rownames(metadata)
 
 #get the list of fastq file names
 fastqs <- list.files("../../cdiff_fastqs/", pattern="*.fastq")
+have_data <- file.info(paste("../../cdiff_fastqs/", fastqs, sep=""))$size != 0
+good_fastqs <- fastqs[have_data]
 
 #need a function that will build the files file line for each stub
-find_files <- function(stub, files=fastqs){
+find_files <- function(stub, files=good_fastqs){
     pattern <- paste0(stub, ".*R1.*fastq")  #use the stub to create a search pattern
     r1_file <- files[grep(pattern, files)]  #find all of the possible R1 files
     r2_file <- gsub("R1", "R2", r1_file)    #find all of the possible R2 files
@@ -37,8 +39,8 @@ files_lines <- lapply(samples, find_files)
 write(unlist(files_lines), "data/mothur/abx_time.files")
 
 
-r1_mock <- fastqs[grep("mock[^17].*R1.*fastq", fastqs)]
-r2_mock <- fastqs[grep("mock[^17].*R2.*fastq", fastqs)]
+r1_mock <- good_fastqs[grep("mock[^17].*R1.*fastq", good_fastqs)]
+r2_mock <- good_fastqs[grep("mock[^17].*R2.*fastq", good_fastqs)]
 stub_mock <- gsub("(.*)_S.*", "\\1", r1_mock)
 
 lines_mock <- apply(cbind(stub_mock, r1_mock, r2_mock), 1, paste, collapse="\t")
