@@ -24,7 +24,7 @@ good_fastqs <- fastqs[have_data]
 
 #need a function that will build the files file line for each stub
 find_files <- function(stub, files=good_fastqs){
-    pattern <- paste0(stub, ".*R1.*fastq")  #use the stub to create a search pattern
+    pattern <- paste0(stub, "_.*R1.*fastq")  #use the stub to create a search pattern
     r1_file <- files[grep(pattern, files)]  #find all of the possible R1 files
     r2_file <- gsub("R1", "R2", r1_file)    #find all of the possible R2 files
     label <- rep(stub, length(r1_file))     #make a vector of the sample name
