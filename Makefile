@@ -14,8 +14,10 @@
 #
 ################################################################################
 
-#Location of reference files
+#Location of files
 REFS = data/references/
+RAW = data/raw/
+MOTHUR = data/mothur/
 
 #get the silva reference alignment
 $(REFS)silva.bacteria.align :
@@ -47,13 +49,13 @@ $(REFS)trainset10_082014.v4.tax $(REFS)trainset10_082014.v4.fasta : \
 						$(REFS)trainset10_082014.pds.fasta \
 						$(REFS)silva.v4.align
 	mothur "#align.seqs(fasta=$(REFS)trainset10_082014.pds.fasta, reference=$(REFS)silva.v4.align, processors=8);\
-		screen.seqs(fasta=current, taxonomy=$(REFS)trainset10_082014.pds.tax, start=1968, end=11550);\
+		screen.seqs(fasta=current, taxonomy=$(REFS)trainset10_082014.pds.tax, start=1, end=13425);\
 		degap.seqs(fasta=current)"; \
 	mv $(REFS)trainset10_082014.pds.good.ng.fasta $(REFS)trainset10_082014.v4.fasta; \
 	mv $(REFS)trainset10_082014.pds.good.tax $(REFS)trainset10_082014.v4.tax;\
-	rm data/references/trainset10_082014.pds.align*;\
-	rm data/references/trainset10_082014.pds.bad.accnos;\
-	rm data/references/trainset10_082014.pds.flip.accnos;
+	rm $(REFS)trainset10_082014.pds.align*;\
+	rm $(REFS)trainset10_082014.pds.bad.accnos;\
+	rm $(REFS)trainset10_082014.pds.flip.accnos;
 
 $(REFS)HMP_MOCK.fasta :
 	wget --no-check-certificate -N -P $(REFS) https://raw.githubusercontent.com/SchlossLab/Kozich_MiSeqSOP_AEM_2013/master/data/references/HMP_MOCK.fasta
@@ -67,48 +69,54 @@ $(REFS)HMP_MOCK.v4.fasta : $(REFS)HMP_MOCK.fasta $(REFS)silva.v4.align
 	rm $(REFS)HMP_MOCK.align.report;\
 	rm $(REFS)HMP_MOCK.flip.accnos
 
+references : $(REFS)HMP_MOCK.v4.fasta $(REFS)trainset10_082014.v4.tax $(REFS)trainset10_082014.v4.fasta $(REFS)silva.v4.align
 
 ################################################################################
 #
-#	Part 2: Run data through mothur
-#
+#	Part 2: Get fastq files
 #
 ################################################################################
 
 
 # build the files file. probably should replace this chunk eventually
 # with pulling data off of the SRA
-data/process/abxD0.files : code/make_files_file.R data/process/abx_cdiff_metadata.tsv
+$(MOTHUR)abx_time.files : code/make_files_file.R $(RAW)abx_cdiff_metadata.tsv
 	R -e "source('code/make_files_file.R')"
 
 
 # need to get the fastq files. probably should replace this chunk eventually
 # with pulling data off of the SRA
-data/raw/get_data : code/get_fastqs.sh data/process/abxD0.files
-	bash code/get_fastqs.sh data/process/abxD0.files;\
-	touch data/raw/get_data
-
-BASIC_STEM = data/process/abxD0.trim.contigs.good.unique.good.filter.unique.precluster
-
+$(RAW)get_data : code/get_fastqs.sh $(MOTHUR)abx_time.files
+	bash code/get_fastqs.sh $(MOTHUR)abx_time.files;\
+	touch $(RAW)get_data
 
 # need to get the CFU on the day after antibiotic treatment along with the
 # part of the experiment that each sample belongs to
+#
+#$(MOTHUR)abxD1.counts : code/make_counts_file.R $(MOTHUR)abx_time.files\
+#							$(MOTHUR)abx_cdiff_metadata.tsv
+#	R -e "source('code/make_counts_file.R')"
 
-data/process/abxD1.counts : code/make_counts_file.R data/process/abxD0.files\
-							data/process/abx_cdiff_metadata.tsv
-	R -e "source('code/make_counts_file.R')"
 
+
+################################################################################
+#
+#	Part 3: Run data through mothur
+#
+################################################################################
+
+BASIC_STEM = $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster
 
 # here we go from the raw fastq files and the files file to generate a fasta,
 # taxonomy, and count_table file that has had the chimeras removed as well as
 # any non bacterial sequences
 $(BASIC_STEM).uchime.pick.pick.count_table $(BASIC_STEM).pick.pick.fasta $(BASIC_STEM).pick.v4.wang.pick.taxonomy : code/get_good_seqs.batch\
-										data/raw/get_data\
-										data/references/silva.v4.align\
-										data/references/trainset10_082014.v4.fasta\
-										data/references/trainset10_082014.v4.tax
+										$(RAW)get_data\
+										$(REFS)silva.v4.align\
+										$(REFS)trainset10_082014.v4.fasta\
+										$(REFS)trainset10_082014.v4.tax
 	mothur code/get_good_seqs.batch;\
-	rm data/process/*.map
+	rm $(MOTHUR)*.map
 
 
 
@@ -119,10 +127,10 @@ $(BASIC_STEM).pick.pick.pick.an.unique_list.shared $(BASIC_STEM).pick.pick.pick.
 										$(BASIC_STEM).pick.pick.fasta\
 										$(BASIC_STEM).pick.v4.wang.pick.taxonomy
 	mothur code/get_shared_otus.batch;\
-	rm data/process/abxD0.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
-	rm data/process/abxD0.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
-	rm data/process/abxD0.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
-	rm data/process/*.an.*rabund
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
+	rm $(MOTHUR)*.an.*rabund
 
 
 
@@ -133,10 +141,10 @@ $(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.cons.taxonomy $(BASIC_STEM).pick.v4.wa
 										$(BASIC_STEM).pick.pick.fasta\
 										$(BASIC_STEM).pick.v4.wang.pick.taxonomy
 	mothur code/get_shared_phyla.batch;\
-	rm data/process/abxD0.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
-	rm data/process/abxD0.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
-	rm data/process/abxD0.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
-	rm data/process/*.tx.*rabund;
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
+	rm $(MOTHUR)*.tx.*rabund;
 
 
 # now we want to get the sequencing error as seen in the mock community samples
@@ -148,17 +156,23 @@ $(BASIC_STEM).pick.pick.pick.error.summary : code/get_error.batch\
 
 
 # rarefy the number of reads to 1625 sequences per library for the alpha and beta diversity analyses and modeling
-$(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.subsample.shared $(BASIC_STEM).pick.pick.pick.an.unique_list.groups.ave-std.summary $(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist : $(BASIC_STEM).pick.pick.pick.an.unique_list.shared
-	mothur "#dist.shared(shared=$^, calc=thetayc, subsample=1625, iters=100); summary.single(shared=$^, subsample=1625, calc=nseqs-sobs-shannon-invsimpson, iters=100); sub.sample(shared=$^, size=1625)";\
-	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.groups.summary;\
-	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.dist;\
-	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.std.dist;\
-	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.*.rabund
+#$(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.subsample.shared #$(BASIC_STEM).pick.pick.pick.an.unique_list.groups.ave-std.summary #$(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist : #$(BASIC_STEM).pick.pick.pick.an.unique_list.shared
+#	mothur "#dist.shared(shared=$^, calc=thetayc, subsample=1625, iters=100); summary.single(shared=$^, subsample=1625, calc=nseqs-sobs-shannon-invsimpson, iters=100); sub.sample(shared=$^, size=1625)";\
+#	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.groups.summary;\
+#	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.dist;\
+#	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.std.dist;\
+#	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.*.rabund
 
 # rarefy the number of reads to 1625 sequences per library for the barcarts
-$(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.subsample.shared : $(BASIC_STEM).pick.v4.wang.pick.pick.tx.shared
-		mothur "#sub.sample(shared=$^, size=1625)";
+#$(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.subsample.shared : #$(BASIC_STEM).pick.v4.wang.pick.pick.tx.shared
+#		mothur "#sub.sample(shared=$^, size=1625)";
 
+
+################################################################################
+#
+#	Part 4: Write the paper
+#
+################################################################################
 
 write.paper : $(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.subsample.shared\
 		$(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.cons.taxonomy\
@@ -166,7 +180,4 @@ write.paper : $(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.subsample.shared\
 		$(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.cons.taxonomy\
 		$(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.subsample.shared\
 		$(BASIC_STEM).pick.pick.pick.error.summary\
-		data/process/abxD1.counts
-
-
-
+		$(MOTHUR)abxD1.counts
