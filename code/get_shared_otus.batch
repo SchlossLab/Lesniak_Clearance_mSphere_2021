@@ -1,5 +1,6 @@
-set.current(inputdir=data/mothur, outputdir=data/mothur, processors=4)
+set.current(inputdir=data/mothur, outputdir=data/mothur)
 remove.groups(count=abx_time.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.count_table, fasta=abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.fasta, taxonomy=abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.taxonomy, groups=mock2-mock3-mock4-mock5-mock6-mock8-mock9)
-cluster.split(fasta=current, count=current, taxonomy=current, splitmethod=classify, taxlevel=4)
+cluster.split(fasta=current, count=current, taxonomy=current, splitmethod=classify, classic=T, taxlevel=5, cluster=F, processors=8)
+cluster.split(file=abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.file, processors=2, classic=TRUE)
 make.shared(list=current, count=current, label=0.03)
 classify.otu(list=current, count=current, taxonomy=current, label=0.03)
