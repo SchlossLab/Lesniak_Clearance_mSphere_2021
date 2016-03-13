@@ -22,5 +22,4 @@ read some papers in the field
 get U grant 
 
 
-subsample to 1816 seqs
-filter.shared minpercsamp 1
+
