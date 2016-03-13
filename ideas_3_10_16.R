@@ -20,3 +20,7 @@ ask jenior about his minimal cdiff community things, see if we find specific bug
 
 read some papers in the field
 get U grant 
+
+
+subsample to 1816 seqs
+filter.shared minpercsamp 1
