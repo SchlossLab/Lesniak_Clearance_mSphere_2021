@@ -17,10 +17,18 @@ simpson <- read.table(file = "data/mothur/abx_time.trim.contigs.good.unique.good
 simpgroup <- simpson[, colnames(simpson) %in% c("group", "invsimpson")]
 fullSimpson <- merge(metadata, simpgroup)
 
-plot(blankplot)
-for(i in 1:5){
-day0 <- mean(fullSimpson[fullSimpson$cage==i&fullSimpson$day==0,'invsimpson']
-day1 <- fullSimpson[fullSimpson$cage==i&fullSimpson$day==0,'invsimpson']
+#Niel's suggested code 
+#plot(blankplot)
+#for(i in 1:5){
+#day0 <- mean(fullSimpson[fullSimpson$cage==i&fullSimpson$day==0,'invsimpson']
+#day1 <- fullSimpson[fullSimpson$cage==i&fullSimpson$day==0,'invsimpson']
 
-points(simp, type='l')
+#points(simp, type='l')
+#}
+
+dayAvg <- list()
+for (l in day){
+  dayl <- mean(fullSimpson[fullSimpson$cage==j&fullSimpson$day==l, 'invsimpson'])
+  dayAvg <- c(dayAvg, dayl)
+  l = l + 1
 }
