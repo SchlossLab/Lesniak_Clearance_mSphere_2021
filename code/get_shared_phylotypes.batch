@@ -1,0 +1,5 @@
+set.current(inputdir=data/mothur, outputdir=data/mothur, processors=8)
+remove.groups(count=abx_time.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.count_table, fasta=abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.fasta, taxonomy=abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.taxonomy, groups=mock2-mock3-mock4-mock5-mock6-mock8-mock9)
+phylotype(taxonomy=current, label=1-5)
+make.shared(list=current, count=current)
+classify.otu(list=current, count=current, taxonomy=current)

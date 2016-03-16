@@ -80,15 +80,15 @@ references : $(REFS)HMP_MOCK.v4.fasta $(REFS)trainset10_082014.v4.tax $(REFS)tra
 
 # build the files file. probably should replace this chunk eventually
 # with pulling data off of the SRA
-$(MOTHUR)abx_time.files : code/make_files_file.R $(RAW)abx_cdiff_metadata.tsv
-	R -e "source('code/make_files_file.R')"
+#$(MOTHUR)abx_time.files : code/make_files_file.R $(RAW)abx_cdiff_metadata.tsv
+#	R -e "source('code/make_files_file.R')"
 
 
 # need to get the fastq files. probably should replace this chunk eventually
 # with pulling data off of the SRA
-$(RAW)get_data : code/get_fastqs.sh $(MOTHUR)abx_time.files
-	bash code/get_fastqs.sh $(MOTHUR)abx_time.files;\
-	touch $(RAW)get_data
+#$(RAW)get_data : code/get_fastqs.sh $(MOTHUR)abx_time.files
+#	bash code/get_fastqs.sh $(MOTHUR)abx_time.files;\
+#	touch $(RAW)get_data
 
 # need to get the CFU on the day after antibiotic treatment along with the
 # part of the experiment that each sample belongs to
@@ -135,14 +135,22 @@ $(BASIC_STEM).pick.pick.pick.an.unique_list.shared $(BASIC_STEM).pick.pick.pick.
 
 # here we go from the good sequences and generate a shared file and a
 # cons.taxonomy file based on phylum-level data
-$(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.cons.taxonomy $(BASIC_STEM).pick.v4.wang.pick.pick.tx.shared : code/get_shared_phyla.batch\
+$(BASIC_STEM).genus.cons.taxonomy $(BASIC_STEM).phylum.cons.taxonomy $(BASIC_STEM).genus.shared $(BASIC_STEM).phyla.shared : code/get_shared_phylotypes.batch\
 										$(BASIC_STEM).uchime.pick.pick.count_table\
 										$(BASIC_STEM).pick.pick.fasta\
 										$(BASIC_STEM).pick.v4.wang.pick.taxonomy
-	mothur code/get_shared_phyla.batch;\
+	mothur code/get_shared_phylotypes.batch;
+	grep "^1" $(BASIC_STEM).pick.v4.wang.pick.pick.tx.shared > $(BASIC_STEM).genus.shared
+	grep "^5" $(BASIC_STEM).pick.v4.wang.pick.pick.tx.shared > $(BASIC_STEM).phylum.shared
+	mv $(BASIC_STEM).pick.v4.wang.pick.pick.tx.1.cons.taxonomy $(BASIC_STEM).genus.cons.taxonomy
+	mv $(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.cons.taxonomy $(BASIC_STEM).phylum.cons.taxonomy
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.tx.*.cons.tax.summary
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.tx.5.cons.tax.summary
 	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.uchime.pick.pick.pick.count_table;\
 	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta;\
 	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.taxonomy;\
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.equalized.tree.sum
+	rm $(MOTHUR)abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.v4.wang.pick.pick.equalized.taxonomy
 	rm $(MOTHUR)*.tx.*rabund;
 
 
@@ -154,17 +162,19 @@ $(BASIC_STEM).pick.pick.pick.error.summary : code/get_error.batch\
 	mothur code/get_error.batch
 
 
-# rarefy the number of reads to 1625 sequences per library for the alpha and beta diversity analyses and modeling
-#$(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.subsample.shared #$(BASIC_STEM).pick.pick.pick.an.unique_list.groups.ave-std.summary #$(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist : #$(BASIC_STEM).pick.pick.pick.an.unique_list.shared
-#	mothur "#dist.shared(shared=$^, calc=thetayc, subsample=1625, iters=100); summary.single(shared=$^, subsample=1625, calc=nseqs-sobs-shannon-invsimpson, iters=100); sub.sample(shared=$^, size=1625)";\
-#	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.groups.summary;\
-#	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.dist;\
-#	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.std.dist;\
-#	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.*.rabund
+SUB = 2000
+# rarefy the number of reads to $(SUB) sequences per library for the alpha and beta diversity analyses and modeling
+$(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.subsample.shared $(BASIC_STEM).pick.pick.pick.an.unique_list.groups.ave-std.summary $(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist : $(BASIC_STEM).pick.pick.pick.an.unique_list.shared
+	mothur "#dist.shared(shared=$^, calc=thetayc, subsample=$(SUB), iters=100); summary.single(shared=$^, subsample=$(SUB), calc=nseqs-sobs-shannon-invsimpson, iters=100); sub.sample(shared=$^, size=$(SUB))";\
+	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.groups.summary;\
+	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.dist;\
+	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.thetayc.0.03.lt.std.dist;\
+	rm $(BASIC_STEM).pick.pick.pick.an.unique_list.*.rabund
 
-# rarefy the number of reads to 1625 sequences per library for the barcarts
-#$(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.subsample.shared : #$(BASIC_STEM).pick.v4.wang.pick.pick.tx.shared
-#		mothur "#sub.sample(shared=$^, size=1625)";
+# rarefy the number of reads to $(SUB) sequences per library for the barcarts
+$(BASIC_STEM).genus.1.subsample.shared $(BASIC_STEM).phyla.5.subsample.shared : $(BASIC_STEM).genus.shared $(BASIC_STEM).phylum.shared
+	mothur "#sub.sample(shared=$(BASIC_STEM).genus.shared, size=$(SUB))";
+	mothur "#sub.sample(shared=$(BASIC_STEM).phylum.shared, size=$(SUB))";
 
 
 ################################################################################
