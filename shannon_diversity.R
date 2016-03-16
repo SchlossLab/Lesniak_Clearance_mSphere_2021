@@ -17,18 +17,20 @@ simpson <- read.table(file = "data/mothur/abx_time.trim.contigs.good.unique.good
 simpgroup <- simpson[, colnames(simpson) %in% c("group", "invsimpson")]
 fullSimpson <- merge(metadata, simpgroup)
 
-#Niel's suggested code 
-#plot(blankplot)
-#for(i in 1:5){
-#day0 <- mean(fullSimpson[fullSimpson$cage==i&fullSimpson$day==0,'invsimpson']
-#day1 <- fullSimpson[fullSimpson$cage==i&fullSimpson$day==0,'invsimpson']
 
-#points(simp, type='l')
-#}
-
-dayAvg <- list()
-for (l in day){
-  dayl <- mean(fullSimpson[fullSimpson$cage==j&fullSimpson$day==l, 'invsimpson'])
-  dayAvg <- c(dayAvg, dayl)
-  l = l + 1
-}
+for(treatment in levels(fullSimpson$abx)){
+  plot(0, type='n', ylim=c(0,20), xlim=c(-6,10), xlab='day', ylab='inverse simpson', main=treatment)
+  colors <- c('red','blue','green','pink','purple', 'orange')
+  cages <- unique(fullSimpson[fullSimpson$abx==treatment, 'cage'])
+  for(j in 1:length(cages)){
+    days <- sort(unique(fullSimpson[fullSimpson$abx==treatment & fullSimpson$cage==cages[j],'day']))
+    avg_simp <- c()
+    for(i in 1:length(days)){
+      avg_simp[i] <- mean(fullSimpson[fullSimpson$abx==treatment & fullSimpson$cage==cages[j] & fullSimpson$day==days[i], 'invsimpson'])
+    }
+    points(days, avg_simp, type='b', col=colors[j])
+  }
+  legend("top", legend=cages, col=colors, pch=1, lty=1, horiz=T)
+} 
+    
+    
