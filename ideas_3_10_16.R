@@ -1,7 +1,22 @@
-alyx's project'
+alyxs project
 
--look at shannon diversity over time for 10 days
-  might not show anything interesting 
+-inverse simpson, diversity over time, average per cage and time on x
+  summary.single, read into R, combine
+  
+-think of hypotheses first 
+
+  fxn for cage # and days avail   
+  
+  lost of cages and days save to lists 
+  series of for loops
+  
+  do abx over that
+  write a function that takes in treatment group, cage num and days in the cage
+  that will then loop through and take simpson mean of each sample in the cage per day
+  and either plot that for each day, or save it to a list that we can then plot
+  
+  treatment group > cages >days 
+  either plot right away or save to lists 
   
 -look at community over time vs cdiff over time
 
