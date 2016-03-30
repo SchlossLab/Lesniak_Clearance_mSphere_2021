@@ -63,7 +63,7 @@ avg_vanc_simp <- ddply(vancSimpson,~day,summarise, avg = mean(invsimpson), sd = 
 
 points(avg_strep_simp$day, avg_strep_simp$avg, type = 'b',lwd = 2,  col = 'red')
 points(avg_clin_simp$day, avg_clin_simp$avg, type = 'b',lwd = 2,  col = 'orange')
-points(avg_amp_simp$day, avg_amp_simp$avg, type = 'b', lwd = 2, col = 'yellow')
+points(avg_amp_simp$day, avg_amp_simp$avg, type = 'b', lwd = 2, col = 'lightblue')
 points(avg_cef_simp$day, avg_cef_simp$avg, type = 'b', lwd = 2, col = 'green')
 points(avg_cip_simp$day, avg_cip_simp$avg, type = 'b', lwd = 2, col = 'blue')
 points(avg_met_simp$day, avg_met_simp$avg, type = 'b', lwd = 2, col = 'purple')
@@ -74,11 +74,11 @@ legend("top", legend=c('strep', 'clinda', 'amp', 'cef', 'cipro', 'metro', 'vanc'
 arrows(avg_vanc_simp$day, avg_vanc_simp$avg-avg_vanc_simp$sd, avg_vanc_simp$day, avg_vanc_simp$avg+avg_vanc_simp$sd, length=0.05, angle=90, code=3, col = 'brown')
 arrows(avg_strep_simp$day, avg_strep_simp$avg-avg_strep_simp$sd, avg_strep_simp$day, avg_strep_simp$avg+avg_strep_simp$sd, length=0.05, angle=90, code=3, col = 'red')
 arrows(avg_clin_simp$day, avg_clin_simp$avg-avg_clin_simp$sd, avg_clin_simp$day, avg_clin_simp$avg+avg_clin_simp$sd, length=0.05, angle=90, code=3, col = 'orange')
-arrows(avg_amp_simp$day, avg_amp_simp$avg-avg_amp_simp$sd, avg_amp_simp$day, avg_amp_simp$avg+avg_amp_simp$sd, length=0.05, angle=90, code=3, col = 'yellow')
+arrows(avg_amp_simp$day, avg_amp_simp$avg-avg_amp_simp$sd, avg_amp_simp$day, avg_amp_simp$avg+avg_amp_simp$sd, length=0.05, angle=90, code=3, col = 'lightblue')
 arrows(avg_cef_simp$day, avg_cef_simp$avg-avg_cef_simp$sd, avg_cef_simp$day, avg_cef_simp$avg+avg_cef_simp$sd, length=0.05, angle=90, code=3, col = 'green')
 arrows(avg_cip_simp$day, avg_cip_simp$avg-avg_cip_simp$sd, avg_cip_simp$day, avg_cip_simp$avg+avg_cip_simp$sd, length=0.05, angle=90, code=3, col = 'blue')
 arrows(avg_met_simp$day, avg_met_simp$avg-avg_met_simp$sd, avg_met_simp$day, avg_met_simp$avg+avg_met_simp$sd, length=0.05, angle=90, code=3, col = 'purple')
 
 
-#now to make the OTU table do this
+#now to make the OTU table do this..  but maybe Pat doesn't want this rightnow 
 otu_table <- read.table(file = "data/mothur/genus.1.subsample.shared.trimmed", header = T)
