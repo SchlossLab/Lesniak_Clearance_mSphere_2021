@@ -39,45 +39,23 @@ for(treatment in levels(fullSimpson$abx)){
 
 
 
-#Or the ddply way. turn this into a script/loop this weekend, dont forget to add SD lines
-#test <- ddply(fullSimpson,~day,summarise, avg = mean(invsimpson), sd = sd(invsimpson))
-
+#the ddply way. it's a loop now!!! 
 library(plyr)
 plot(0, type='n', ylim=c(0,25), xlim=c(0,10), xlab='day', ylab='inverse simpson', main='Diversity over time, all treatments')
-
-clindaSimpson <- subset(fullSimpson, abx == 'clinda')
-strepSimpson <- subset(fullSimpson, abx == 'strep')
-ampSimpson <- subset(fullSimpson, abx == 'amp')
-cefSimpson <- subset(fullSimpson, abx == 'cef')
-cipSimpson <- subset(fullSimpson, abx == 'cipro')
-metSimpson <- subset(fullSimpson, abx == 'metro')
-vancSimpson <- subset(fullSimpson, abx == 'vanc')
-
-avg_clin_simp <- ddply(clindaSimpson,~day,summarise, avg = mean(invsimpson), sd = sd(invsimpson))
-avg_strep_simp <- ddply(strepSimpson,~day,summarise, avg = mean(invsimpson), sd = sd(invsimpson))
-avg_amp_simp <- ddply(ampSimpson,~day,summarise, avg = mean(invsimpson), sd = sd(invsimpson))
-avg_cef_simp <- ddply(cefSimpson,~day,summarise, avg = mean(invsimpson), sd = sd(invsimpson))
-avg_cip_simp <- ddply(cipSimpson,~day,summarise, avg = mean(invsimpson), sd = sd(invsimpson))
-avg_met_simp <- ddply(metSimpson,~day,summarise, avg = mean(invsimpson), sd = sd(invsimpson))
-avg_vanc_simp <- ddply(vancSimpson,~day,summarise, avg = mean(invsimpson), sd = sd(invsimpson))
-
-points(avg_strep_simp$day, avg_strep_simp$avg, type = 'b',lwd = 2,  col = 'red')
-points(avg_clin_simp$day, avg_clin_simp$avg, type = 'b',lwd = 2,  col = 'orange')
-points(avg_amp_simp$day, avg_amp_simp$avg, type = 'b', lwd = 2, col = 'lightblue')
-points(avg_cef_simp$day, avg_cef_simp$avg, type = 'b', lwd = 2, col = 'green')
-points(avg_cip_simp$day, avg_cip_simp$avg, type = 'b', lwd = 2, col = 'blue')
-points(avg_met_simp$day, avg_met_simp$avg, type = 'b', lwd = 2, col = 'purple')
-points(avg_vanc_simp$day, avg_vanc_simp$avg, type = 'b', lwd = 2, col = 'brown')
-
-legend("top", legend=c('strep', 'clinda', 'amp', 'cef', 'cipro', 'metro', 'vanc'), col=c('red', 'orange', 'yellow', 'green', 'blue', 'purple', 'brown'), cex=0.7, pch=1, lty=1, lwd = 2, horiz=T)
-
-arrows(avg_vanc_simp$day, avg_vanc_simp$avg-avg_vanc_simp$sd, avg_vanc_simp$day, avg_vanc_simp$avg+avg_vanc_simp$sd, length=0.05, angle=90, code=3, col = 'brown')
-arrows(avg_strep_simp$day, avg_strep_simp$avg-avg_strep_simp$sd, avg_strep_simp$day, avg_strep_simp$avg+avg_strep_simp$sd, length=0.05, angle=90, code=3, col = 'red')
-arrows(avg_clin_simp$day, avg_clin_simp$avg-avg_clin_simp$sd, avg_clin_simp$day, avg_clin_simp$avg+avg_clin_simp$sd, length=0.05, angle=90, code=3, col = 'orange')
-arrows(avg_amp_simp$day, avg_amp_simp$avg-avg_amp_simp$sd, avg_amp_simp$day, avg_amp_simp$avg+avg_amp_simp$sd, length=0.05, angle=90, code=3, col = 'lightblue')
-arrows(avg_cef_simp$day, avg_cef_simp$avg-avg_cef_simp$sd, avg_cef_simp$day, avg_cef_simp$avg+avg_cef_simp$sd, length=0.05, angle=90, code=3, col = 'green')
-arrows(avg_cip_simp$day, avg_cip_simp$avg-avg_cip_simp$sd, avg_cip_simp$day, avg_cip_simp$avg+avg_cip_simp$sd, length=0.05, angle=90, code=3, col = 'blue')
-arrows(avg_met_simp$day, avg_met_simp$avg-avg_met_simp$sd, avg_met_simp$day, avg_met_simp$avg+avg_met_simp$sd, length=0.05, angle=90, code=3, col = 'purple')
+new_colors <- c('red','orange','turquoise3','green','blue', 'purple', 'brown', 'black')
+j <- 1
+treatments <- c()
+for(i in levels(fullSimpson$abx)){
+  if(i != 'none'){
+  temp <- subset(fullSimpson, abx == i)
+  avg_i_simp <- ddply(temp, ~day, summarise, avg = mean(invsimpson), sd = sd(invsimpson))
+  points(avg_i_simp$day, avg_i_simp$avg, type = 'b', lwd = 2, col = new_colors[j])
+  arrows(avg_i_simp$day, avg_i_simp$avg-avg_i_simp$sd, avg_i_simp$day, avg_i_simp$avg+avg_i_simp$sd, length=0.05, angle=90, code=3, col = new_colors[j])
+  treatments[j] <- i
+  j <- j+1
+  }
+}
+legend("top", legend=treatments, col=new_colors, cex=0.7, pch=1, lty=1, lwd = 2, horiz=T)
 
 
 #now to make the OTU table do this..  but maybe Pat doesn't want this rightnow 
