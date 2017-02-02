@@ -1,0 +1,54 @@
+---
+title: "exploratory_cd_time"
+author: "Nicholas Lesniak"
+date: "2/2/2017"
+output: html_document
+---
+
+```{r setup environment, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+pack_used <- c('tidyr','dplyr','ggplot2')
+for (dep in pack_used){
+  if (dep %in% installed.packages()[,"Package"] == FALSE){
+    install.packages(as.character(dep), repos = 'http://cran.us.r-project.org', 
+                     quiet=TRUE);
+  }
+  library(dep, verbose=FALSE, character.only=TRUE)
+}
+
+meta_file   <- '../data/raw/abx_cdiff_metadata.tsv'
+shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
+tax_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
+tax_function <- '~/Documents/Github/Personal/functions/taxa_labels.R'
+
+meta_file   <- read.table(meta_file, sep = '\t', header = T)
+shared_file <- read.table(shared_file, sep = '\t', header = T)
+tax_file <- read.table(tax_file, sep = '\t', header = T)
+source(tax_function)
+
+
+
+```
+
+```{r }
+
+meta_file %>% 
+  filter(abx == 'vanc', day >= 0) %>%
+  ggplot(aes(x = day, y = CFU +1, color = factor(dose))) + 
+        scale_y_log10() + 
+        geom_jitter(width = 0.3, alpha = 0.2) + 
+    #    scale_color_manual(values = c('black', 'red'), breaks=c("FALSE", "TRUE"),
+    #                       labels=c("Persistent", "Severe")) +
+        stat_summary(fun.y=median, geom="line", aes(group = cage)) +
+        labs(x = 'Day', y = ' CFU (log10)', title = 'C. Difficile Colonization') +
+        theme(legend.justification=c(1,0), legend.position=c(1,0.2), 
+                  legend.title=element_blank()) +
+        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5)) + 
+        theme_bw() +
+        theme(legend.justification=c(1,0), legend.position=c(1,0.2), 
+              legend.title=element_blank())
+
+
+
+```
