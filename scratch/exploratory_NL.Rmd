@@ -32,11 +32,16 @@ source(tax_function)
 ```
 
 ```{r }
+meta_file$dose <- as.character(meta_file$dose)
+meta_file$dose[meta_file$dose == '10mg/kg'] <- 10
+meta_file$dose <- as.numeric(meta_file$dose)
 
 meta_file %>% 
-  filter(abx == 'vanc', day >= 0) %>%
-  ggplot(aes(x = day, y = CFU +1, color = factor(dose))) + 
+  filter(day >= 0) %>% filter(!abx == 'none') %>% 
+  ggplot(aes(x = day, y = CFU +1, color = dose)) + 
         scale_y_log10() + 
+        scale_colour_gradient(limits=c(0, 10)) + 
+        facet_grid(abx ~., scales = 'free_y') + 
         geom_jitter(width = 0.3, alpha = 0.2) + 
     #    scale_color_manual(values = c('black', 'red'), breaks=c("FALSE", "TRUE"),
     #                       labels=c("Persistent", "Severe")) +
