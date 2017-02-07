@@ -36,8 +36,10 @@ meta_file$dose <- as.character(meta_file$dose)
 meta_file$dose[meta_file$dose == '10mg/kg'] <- 10
 meta_file$dose <- as.numeric(meta_file$dose)
 
+meta_file$abx[meta_file$abx == 'vanc '] <- 'vanc'
+
 meta_file %>% 
-  filter(day >= 0) %>% filter(!abx == 'none') %>% 
+  filter(day >= 0) %>%
   ggplot(aes(x = day, y = CFU +1, color = dose)) + 
         scale_y_log10() + 
         scale_colour_gradient(limits=c(0, 10)) + 
@@ -55,5 +57,27 @@ meta_file %>%
               legend.title=element_blank())
 
 
+```
+
+
+```{r, test, eval = F}
+df <- data.frame(pred = sample(1:100, 200, replace = T),
+                            group = rep(c('a','b'), 100),
+                            discrete_variable = sample(letters, 200, replace = T))
+
+
+#filter(prediction_df, sample == 'a') %>% 
+ggplot(data.frame(prediction_df), aes(x=predA)) + 
+  stat_count(aes(y = ..count../sum(..count..), fill = sample), position = 'dodge')+
+#    stat_count(aes(y = ..count../sum(..count..))) +
+    labs(x = 'Predicted Value', y = 'Fraction of Samples') + 
+    theme_bw()
+
+df %>% 
+  group_by(group, discrete_variable) %>% 
+  summarise(count = n()) %>% 
+  mutate(proportion = count/sum(count)) %>% 
+  ggplot(aes(x = discrete_variable, y = proportion,fill=group))+
+  geom_bar(stat="identity",position='dodge')
 
 ```
