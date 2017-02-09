@@ -80,8 +80,7 @@ community_plot <- meta_phyla %>%
   filter(day >= 0, abx == antibiotic) %>% 
   gather(taxonomy, abundance, one_of(taxa)) %>% 
   ggplot(aes(x = day, y = abundance, color = taxonomy)) + 
-        ylim(0,100) + 
-        facet_grid(taxonomy ~.) + 
+        facet_grid(taxonomy ~., scales = 'free_y') + 
         geom_jitter(width = 0.3, alpha = 0.2) + 
         stat_summary(fun.y=median, geom="line", aes(group = cage)) +
         labs(x = 'Day', y = ' Relative Abundance', title = paste(antibiotic)) +
