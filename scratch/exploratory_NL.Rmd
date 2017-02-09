@@ -31,7 +31,7 @@ shared_file <- select(shared_file, -label, -numOtus)
 ```
 
 
-```{r shared setup}
+```{r shared setup, include=F}
 
 OTU_total <- if(summary(apply(shared_file, 1, sum))['Min.'] ==
    summary(apply(shared_file, 1, sum))['Max.']){
@@ -62,8 +62,8 @@ phyla_rel_ab <- sum_otu_by_taxa(taxonomy_file = tax_file, otu_df = rel_abund,tax
 meta_phyla <- right_join(meta_file, mutate(phyla_rel_ab, group = rownames(rel_abund)))
 taxa <- colnames(select(phyla_rel_ab, -sample))
 
-for(antibiotic in unique(meta_phyla$abx)){
-  meta_phyla %>% 
+all_plots <- lapply(unique(meta_phyla$abx),function(antibiotic){
+cfu_plot <- meta_phyla %>% 
     filter(day >= 0, abx == antibiotic) %>% 
       ggplot(aes(x = day, y = CFU +1, color = dose)) + 
         scale_y_log10() + 
@@ -76,7 +76,7 @@ for(antibiotic in unique(meta_phyla$abx)){
         stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), color = 'black') + 
         theme_bw()
 
-meta_phyla %>% 
+community_plot <- meta_phyla %>% 
   filter(day >= 0, abx == antibiotic) %>% 
   gather(taxonomy, abundance, one_of(taxa)) %>% 
   ggplot(aes(x = day, y = abundance, color = taxonomy)) + 
@@ -89,10 +89,95 @@ meta_phyla %>%
         stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), color = 'black') + 
         theme_bw() +
         theme(legend.title=element_blank())
-}
-
+return(list(cfu_plot, community_plot))
+})
 
 ```
+
+***
+***
+
+
+## None
+
+```{r cfu plot, fig.width=9, fig.height=3, eval=F}
+all_plots[[1]][[1]]
+```
+
+```{r community plot, fig.width=10, fig.height=9}
+all_plots[[1]][[2]]
+```
+
+## Clindamycin
+
+```{r cfu plot clinda, fig.width=9, fig.height=3}
+all_plots[[2]][[1]]
+```
+
+```{r community plot clinda, fig.width=10, fig.height=9}
+all_plots[[2]][[2]]
+```
+
+## Vancomycin
+
+```{r cfu plot vanc, fig.width=9, fig.height=3}
+all_plots[[3]][[1]]
+```
+
+```{r community plot vanc, fig.width=10, fig.height=9}
+all_plots[[3]][[2]]
+```
+
+## Ciprofloxacin
+
+```{r cfu plot cipro, fig.width=9, fig.height=3}
+all_plots[[4]][[1]]
+```
+
+```{r community plot cipro, fig.width=10, fig.height=9}
+all_plots[[4]][[2]]
+```
+
+## Ampicillin
+
+```{r cfu plot amp, fig.width=9, fig.height=3}
+all_plots[[5]][[1]]
+```
+
+```{r community plot amp, fig.width=10, fig.height=9}
+all_plots[[5]][[2]]
+```
+
+## Cefaperazone
+
+```{r cfu plot cef, fig.width=9, fig.height=3}
+all_plots[[6]][[1]]
+```
+
+```{r community plot cef, fig.width=10, fig.height=9}
+all_plots[[6]][[2]]
+```
+
+## Metronidazole
+
+```{r cfu plot met, fig.width=9, fig.height=3}
+all_plots[[7]][[1]]
+```
+
+```{r community plot met, fig.width=10, fig.height=9}
+all_plots[[7]][[2]]
+```
+
+## Streptomycin
+
+```{r cfu plot strep, fig.width=9, fig.height=3}
+all_plots[[8]][[1]]
+```
+
+```{r community plot strep, fig.width=10, fig.height=9}
+all_plots[[8]][[2]]
+```
+
 
 ```{r eval=FALSE}
 
