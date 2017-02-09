@@ -1,12 +1,12 @@
 ---
-title: "exploratory_cd_time"
+title: "Exploratory - _C. difficile_ by time"
 author: "Nicholas Lesniak"
-date: "2/2/2017"
+date: "2/9/2017"
 output: html_document
 ---
 
-```{r setup environment, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup environment, include=F}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
 
 pack_used <- c('tidyr','dplyr','ggplot2')
 for (dep in pack_used){
@@ -20,64 +20,99 @@ for (dep in pack_used){
 meta_file   <- '../data/raw/abx_cdiff_metadata.tsv'
 shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 tax_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
-tax_function <- '~/Documents/Github/Personal/functions/taxa_labels.R'
+tax_function <- '../code/sum_otu_by_taxa.R'
 
 meta_file   <- read.table(meta_file, sep = '\t', header = T)
-shared_file <- read.table(shared_file, sep = '\t', header = T)
-tax_file <- read.table(tax_file, sep = '\t', header = T)
+shared_file <- read.table(shared_file, sep = '\t', header = T, row.names = 'Group')
 source(tax_function)
 
-
+shared_file <- select(shared_file, -label, -numOtus)
 
 ```
 
-```{r }
+
+```{r shared setup}
+
+OTU_total <- if(summary(apply(shared_file, 1, sum))['Min.'] ==
+   summary(apply(shared_file, 1, sum))['Max.']){
+  as.numeric(summary(apply(shared_file, 1, sum))['Mean'])
+}
+
+# remove OTUs not present in at least percentage of samples
+otu_presence_cutoff <- 0.05
+otu_presence <- ifelse(shared_file > 0, T, F) 
+OTUs_present <- colnames(shared_file[ , apply(otu_presence, 2, sum) > 
+                                        round(otu_presence_cutoff*nrow(shared_file))])
+#relative abundance of OTUs present in >5% of samples
+rel_abund <- shared_file[ ,OTUs_present]/OTU_total*100
+
+# fix meta file 
 meta_file$dose <- as.character(meta_file$dose)
 meta_file$dose[meta_file$dose == '10mg/kg'] <- 10
 meta_file$dose <- as.numeric(meta_file$dose)
 
 meta_file$abx[meta_file$abx == 'vanc '] <- 'vanc'
 
+```
+
+```{r community dynamics}
+meta_shared <- right_join(meta_file, mutate(rel_abund, group = rownames(rel_abund)))
+
+phyla_rel_ab <- sum_otu_by_taxa(taxonomy_file = tax_file, otu_df = rel_abund,taxa_level = 'phylum')
+meta_phyla <- right_join(meta_file, mutate(phyla_rel_ab, group = rownames(rel_abund)))
+taxa <- colnames(select(phyla_rel_ab, -sample))
+
+for(antibiotic in unique(meta_phyla$abx)){
+  meta_phyla %>% 
+    filter(day >= 0, abx == antibiotic) %>% 
+      ggplot(aes(x = day, y = CFU +1, color = dose)) + 
+        scale_y_log10() + 
+        scale_colour_gradient(low = '#FFCCCC', high = '#990000', name = 'Antibiotic Dose') + 
+        geom_jitter(width = 0.3, alpha = 0.2) + 
+        stat_summary(fun.y=median, geom="line", aes(group = cage)) +
+        stat_summary(fun.y=median, geom="line", size = 1, color = 'black') +
+        labs(x = 'Day', y = ' CFU (log10)', 
+             title = paste0('C. Difficile Colonization - ', antibiotic)) +
+        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), color = 'black') + 
+        theme_bw()
+
+meta_phyla %>% 
+  filter(day >= 0, abx == antibiotic) %>% 
+  gather(taxonomy, abundance, one_of(taxa)) %>% 
+  ggplot(aes(x = day, y = abundance, color = taxonomy)) + 
+        ylim(0,100) + 
+        facet_grid(taxonomy ~.) + 
+        geom_jitter(width = 0.3, alpha = 0.2) + 
+        stat_summary(fun.y=median, geom="line", aes(group = cage)) +
+        labs(x = 'Day', y = ' Relative Abundance', title = paste(antibiotic)) +
+        stat_summary(fun.y=median, geom="line", size = 1, color = 'black') +
+        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), color = 'black') + 
+        theme_bw() +
+        theme(legend.title=element_blank())
+}
+
+
+```
+
+```{r eval=FALSE}
+
+
 meta_file %>% 
   filter(day >= 0) %>%
   ggplot(aes(x = day, y = CFU +1, color = dose)) + 
         scale_y_log10() + 
-        scale_colour_gradient(limits=c(0, 10)) + 
+        scale_colour_gradient(low = '#FFCCCC', high = '#990000', limits=c(0, 10)) + 
         facet_grid(abx ~., scales = 'free_y') + 
         geom_jitter(width = 0.3, alpha = 0.2) + 
     #    scale_color_manual(values = c('black', 'red'), breaks=c("FALSE", "TRUE"),
     #                       labels=c("Persistent", "Severe")) +
         stat_summary(fun.y=median, geom="line", aes(group = cage)) +
         labs(x = 'Day', y = ' CFU (log10)', title = 'C. Difficile Colonization') +
-        theme(legend.justification=c(1,0), legend.position=c(1,0.2), 
-                  legend.title=element_blank()) +
         stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5)) + 
         theme_bw() +
-        theme(legend.justification=c(1,0), legend.position=c(1,0.2), 
+        theme(legend.justification=c(1,0), legend.position=c(1,0.25), 
               legend.title=element_blank())
 
 
 ```
 
-
-```{r, test, eval = F}
-df <- data.frame(pred = sample(1:100, 200, replace = T),
-                            group = rep(c('a','b'), 100),
-                            discrete_variable = sample(letters, 200, replace = T))
-
-
-#filter(prediction_df, sample == 'a') %>% 
-ggplot(data.frame(prediction_df), aes(x=predA)) + 
-  stat_count(aes(y = ..count../sum(..count..), fill = sample), position = 'dodge')+
-#    stat_count(aes(y = ..count../sum(..count..))) +
-    labs(x = 'Predicted Value', y = 'Fraction of Samples') + 
-    theme_bw()
-
-df %>% 
-  group_by(group, discrete_variable) %>% 
-  summarise(count = n()) %>% 
-  mutate(proportion = count/sum(count)) %>% 
-  ggplot(aes(x = discrete_variable, y = proportion,fill=group))+
-  geom_bar(stat="identity",position='dodge')
-
-```
