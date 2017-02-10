@@ -26,17 +26,26 @@ meta_file   <- read.table(meta_file, sep = '\t', header = T)
 shared_file <- read.table(shared_file, sep = '\t', header = T, row.names = 'Group')
 source(tax_function)
 
-shared_file <- select(shared_file, -label, -numOtus)
+cdiff_otus <- read.table('../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy', sep = '\t', header = T)
+cdiff_otus <- as.character(cdiff_otus$OTU[grep('Clostridium_XI', cdiff_otus$Taxonomy)])
+
+shared_file <- select(shared_file, -label, -numOtus, -one_of(cdiff_otus))
 
 ```
 
 
 ```{r shared setup, include=F}
 
-OTU_total <- if(summary(apply(shared_file, 1, sum))['Min.'] ==
-   summary(apply(shared_file, 1, sum))['Max.']){
-  as.numeric(summary(apply(shared_file, 1, sum))['Mean'])
-}
+#OTU_total <- if(summary(apply(shared_file, 1, sum))['Min.'] ==
+#   summary(apply(shared_file, 1, sum))['Max.']){
+#  as.numeric(summary(apply(shared_file, 1, sum))['Mean'])
+#}
+
+
+#counts[which(counts <= 1000)]
+#counts[1294]
+#shared_file[1294,which(test[1294,] > 0)]
+#test[1294,which(test[1294,] > 0)]
 
 # remove OTUs not present in at least percentage of samples
 otu_presence_cutoff <- 0.05
@@ -44,7 +53,9 @@ otu_presence <- ifelse(shared_file > 0, T, F)
 OTUs_present <- colnames(shared_file[ , apply(otu_presence, 2, sum) > 
                                         round(otu_presence_cutoff*nrow(shared_file))])
 #relative abundance of OTUs present in >5% of samples
-rel_abund <- shared_file[ ,OTUs_present]/OTU_total*100
+#rel_abund <- shared_file[ ,OTUs_present]/OTU_total*100
+counts <- apply(shared_file,1,sum)
+rel_abund <- data.frame(apply(shared_file[ ,OTUs_present], 2, function(i){(i/counts)*100}))
 
 # fix meta file 
 meta_file$dose <- as.character(meta_file$dose)
@@ -81,7 +92,7 @@ community_plot <- meta_phyla %>%
   gather(taxonomy, abundance, one_of(taxa)) %>% 
   ggplot(aes(x = day, y = abundance, color = dose)) + 
         scale_colour_gradient(low = '#FFCCCC', high = '#990000', name = 'Antibiotic Dose') + 
-        facet_grid(taxonomy ~.) + ylim(0,100) + 
+        facet_grid(taxonomy ~., scales = 'free_y') + 
         geom_jitter(width = 0.3, alpha = 0.2) + 
         stat_summary(fun.y=median, geom="line", aes(group = cage)) +
         labs(x = 'Day', y = ' Relative Abundance', title = paste(antibiotic)) +
