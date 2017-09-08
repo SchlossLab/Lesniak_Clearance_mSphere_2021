@@ -1,4 +1,3 @@
-library(vegan)
 library(ggplot2)
 library(rgl)
 
@@ -8,17 +7,7 @@ abx_labels <- read.table('data/mothur/abx.design', header = T, sep = '\t')
 cage_labels <- read.table('data/mothur/cage.design', header = T, sep = '\t')
 day_labels <- read.table('data/mothur/day.design', header = T, sep = '\t')
 
-# make nmds from theta yc
-# convert triangle to square matrix
-source('code/read.dist.R')
-dist_tri <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist'
-distmat <- read.dist(dist_tri)
-
-set.seed(1)
-time_nmds_3 <- metaMDS(distmat, k = 3, trymax = 1000)
-
 # read in nmds axes file produced by mothur
-time_nmds_2m <- read.table('data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.nmds.2.axes', sep = '\t', header = T)
 time_nmds_3m <- read.table('data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.nmds.3.axes', sep = '\t', header = T)
 
 #merge nmds with metadata
@@ -31,13 +20,10 @@ nmds_3$CFU[is.na(nmds_3$CFU)] <- 0
 nmds_3$abx[nmds_3$abx == 'vanc '] <- 'vanc'
 
 # plot nmds
-ggplot(nmds_2, aes(x = axis1, y = axis2)) +
+# plot 3 axis in 2D
+ggplot(nmds_3, aes(x = axis1, y = axis2)) +
 	geom_point(aes(color=as.factor(abx), size = CFU, shape = cdiff)) +
 	theme_bw()
-
-
-
-	filter()
+# plot in 3D
 plot3d(nmds_3$axis1, nmds_3$axis2, nmds_3$axis3, col = factor(as.character(nmds_3$abx))
-head(nmds_3)
 
