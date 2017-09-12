@@ -24,6 +24,15 @@ nmds_3$abx[nmds_3$abx == 'vanc '] <- 'vanc'
 ggplot(nmds_3, aes(x = axis1, y = axis2)) +
 	geom_point(aes(color=as.factor(abx), size = CFU, shape = cdiff)) +
 	theme_bw()
+
+ggplot(nmds_3, aes(x = axis1, y = axis3)) +
+	geom_point(aes(color=as.factor(abx), size = CFU, shape = cdiff)) +
+	theme_bw()
+
+ggplot(nmds_3, aes(x = axis2, y = axis3)) +
+	geom_point(aes(color=as.factor(abx), size = CFU, shape = cdiff)) +
+	theme_bw()
+
 # plot in 3D
 plot3d(nmds_3$axis1, nmds_3$axis2, nmds_3$axis3, col = factor(as.character(nmds_3$abx))
 
