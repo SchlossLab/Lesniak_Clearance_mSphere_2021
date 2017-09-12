@@ -13,5 +13,6 @@ data/
 mothur*logfile
 *temp*
 *.docx
+*.gif
 
 .nfs*
