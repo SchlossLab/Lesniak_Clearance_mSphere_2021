@@ -19,25 +19,31 @@ nmds_3 <- merge(time_nmds_3m,
 				merge(cage_labels, day_labels)))))
 nmds_3$CFU[is.na(nmds_3$CFU)] <- 0
 nmds_3$abx[nmds_3$abx == 'vanc '] <- 'vanc'
+nmds_3$abx <- as.character(nmds_3$abx)
 nmds_3$dayplot <- nmds_3$day
 nmds_3$dayplot[nmds_3$day < 0] <- -1
 nmds_3$color <- as.numeric(factor(as.character(nmds_3$abx)))
+nmds_3$size <- as.numeric(round(c(log10(nmds_3$CFU +1) + 1), 0))
 
 # plot nmds
 # plot in 3D
-par3d(windowRect = c(0, 0, 1000, 1000))
-with(nmds_3,
-	plot3d(axis1, axis2, axis3, 
-		xlab = 'axis_1', ylab = 'axis_2', zlab = 'axis_3',
-		size = 0,
-		#col = NULL, 
-		col = color,
-		width = 1000))
 day_list <- split(nmds_3, nmds_3$dayplot)
-for(i in seq_along(day_list)){
-	with(day_list[[i]], points3d(axis1, axis2, axis3, 
-		col = color, size = i))
+abx_list <- split(nmds_3, nmds_3$abx)
+par3d(windowRect = c(0, 0, 500, 500))
+for(i in seq_along(abx_list)){
+	clear3d()
+	for(sz in 1:10){
+		with(abx_list[[i]][abx_list[[i]]$size == sz, ], 
+			points3d(axis1, axis2, axis3, 
+				xlab = 'axis_1', ylab = 'axis_2', zlab = 'axis_3',
+				width = 1000, col = color[1], size = sz))
+		writeOBJ(paste0('test_abx_', unique(nmds_3$abx)[i], '.obj'), 
+			#separateObjects = T
+			pointRadius = c(seq(10, 40, 3.33)/1000)[sz]
+			)
+	}
 }
+
 
 bgplot3d({
   plot.new()
@@ -47,5 +53,6 @@ bgplot3d({
   legend("topright", legend = unique(as.character(nmds_3$abx)), pch = 16, 
 	col = unique(nmds_3$color), cex=1, inset=c(0.02))
 })
+writeOBJ('test_legend.obj')
 movie3d(spin3d(axis=c(0,0,1), rpm=4), dir = 'scratch/nmds3d/', duration=15, fps=10, movie="nmds3d_plot")
 writeWebGL(filename = 'scratch/nmds3d/nmds_3d.html')
