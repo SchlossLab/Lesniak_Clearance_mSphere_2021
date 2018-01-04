@@ -15,7 +15,7 @@
 # This script will build Figure 1 from their paper, which is a barchart of median relative abundance of each genus found in mice treated with antibiotics as well as untreated control (depending upon what metadata I have)
 
 #read in taxonomy OTU data
-taxonomy_file <- read.table(file="abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy", header=T, row.names=1)
+taxonomy_file <- read.table(file="data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy", header=T, row.names=1)
 
 #take taxonomy column full of taxonomy names and assign it to taxonomy
 taxonomy <- taxonomy_file$Taxonomy
@@ -33,13 +33,13 @@ taxonomy <- gsub(";$", "", taxonomy)
 taxonomy <- gsub(".*;", "", taxonomy)
 
 #read in metadata file
-metadata <- read.table(file="abx_cdiff_metadata.tsv", header = T)
+metadata <- read.table(file="data/raw/abx_cdiff_metadata.tsv", header = T, row.names = 1)
 
 #DONT DO I THINK... pull out mice that were treated with clinda or control using indexing
 #clinda <- metadata[metadata$abx=="clinda" | metadata$abx=="none",]
 
 #read in shared OTU counts file to get relative abundances
-shared_file <- read.table(file="abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.shared", header = T, row.names=2)
+shared_file <- read.table(file="data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.shared", header = T, row.names=2)
 
 #this takes out the 'label' and 'numOTUs' columns from the shared file
 shared_file <- shared_file[,!(colnames(shared_file) %in% c("label", "numOtus"))]
@@ -197,7 +197,7 @@ single_drug_bars <- function(drug, drug_sig_otus, drug_label){
   #    text(x=par("usr")[2], y=1.05*par("usr")[4], labels=parse(text=summary_string),
   #                                adj=c(1,0), pos=2, cex=0.8, xpd=TRUE)
   
-  summary_stats <- quantile(drug_metadata$CFU, prob=c(0.25, 0.50, 0.75))
+  summary_stats <- quantile(drug_metadata$CFU, prob=c(0.25, 0.50, 0.75), na.rm=T)
   z2 <- barplot(summary_stats[2]+1, width=0.3, xlim=c(-0.1,0.5), ylim=c(1,1e9), log="y", axes=FALSE, col="white", names.arg="")
   
   warn_orig <- options("warn")$warn
