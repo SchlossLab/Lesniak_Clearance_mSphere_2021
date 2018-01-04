@@ -103,6 +103,52 @@ community_plot <- meta_phyla %>%
 return(list(cfu_plot, community_plot))
 })
 
+antibiotics <- c('Clindamycin','Cefaperazone','Streptomycin')
+abxs <- c('clinda','cef','strep')
+meta_phyla$CFU[is.na(meta_phyla$CFU)] <- 0
+
+for(i in abxs){        
+  # single cdiff colonization plot
+  ggsave(paste0(i, '_cdiff_single_mouse.png'), width = 5.5, height = 5.5, 
+    meta_phyla %>%
+      filter(day >= 0, abx == i, cage %in% c(4,104,48), mouse == 1) %>% 
+      ggplot(aes(x = day, y = CFU +1)) + 
+          scale_y_log10(limits = c(1, 1e9), 
+            breaks = scales::trans_breaks("log10", function(x) 10^x),
+            labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
+          geom_line(lwd = 1.5, color = 'red') + 
+          labs(x = 'Day', y = ' CFU (log10)', 
+            title = paste0('C. Difficile Colonization - ', antibiotics[abxs == i])) +
+          scale_x_continuous(expand = c(0, 0), breaks = seq(0, 10, by = 1)) + 
+          theme_bw()
+          )
+  # single cdiff community plot
+  plot <- meta_phyla %>%
+    filter(day >= 0, abx == i, cage %in% c(4,104,48), mouse == 1) %>% 
+    gather(taxonomy, abundance, one_of(taxa)) %>% 
+    ggplot(aes(x = day, y = abundance, color = taxonomy)) + 
+      geom_line(lwd = 1.5) + 
+      labs(x = 'Day', y = ' Relative Abundance', 
+        title = paste0('Community Dynamics - ', antibiotics[abxs == i])) +
+      scale_x_continuous(expand = c(0, 0), breaks = seq(0, 10, by = 1)) + 
+      scale_y_continuous(expand = c(0, 0), limits = c(0,100)) + 
+      theme_bw()
+
+  if(i == 'clinda'){
+    ggsave(paste0(i, '_community_single_mouse.png'), width = 5.5, height = 5.5,
+      plot + 
+      theme(legend.position = c(0.95, 0.5),
+        legend.justification = c(1, 0.5), 
+        legend.background = element_rect(colour = 'black', fill = "white"),
+        legend.title=element_blank()))
+  } else {
+    ggsave(paste0(i, '_community_single_mouse.png'), width = 5.5, height = 5.5, 
+      plot + theme(legend.position = 'none')
+      )
+  }
+}
+
+
 ```
 
 ***
