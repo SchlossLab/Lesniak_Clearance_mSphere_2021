@@ -14,3 +14,23 @@ more change w/low diversity?
 more change with high cfu?
 
 need to remove dependence of daily sampling?
+
+
+
+library(tidyverse)
+
+metadata <- read.table(file = "data/raw/abx_cdiff_metadata.tsv", header = T)
+alpha_df <- read.table(file = "data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary", header = T)
+
+invsim_df <- metadata %>% 
+	filter(CFU > 0) %>% 
+	select(group, CFU) %>% 
+	left_join(select(alpha_df, group, invsimpson))
+
+invsim_df %>% 
+	ggplot(aes(x = invsimpson, y = CFU)) + 
+		geom_point() + 
+		scale_y_log10() + 
+		geom_smooth(method = 'lm')
+
+summary(lm(invsimpson ~ CFU, invsim_df))
