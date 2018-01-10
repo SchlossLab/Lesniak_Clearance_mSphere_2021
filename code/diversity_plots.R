@@ -66,54 +66,6 @@ presence_df <- metadata %>%
 	filter(!between(CFU, 1, 1e5)) %>%
 	mutate(colonization = ifelse(CFU < 1, F, T)) %>%
 	inner_join(otu_presence)
-# get list of otus that are present in at least half of either group of samples
-otu_list <- presence_df %>%
-	select(colonization, contains('Otu00')) %>%
-	gather(otu, presence, contains('Otu00'))%>%
-	group_by(colonization, otu) %>%
-	summarise_each(funs(mean)) %>%
-	ungroup()  %>% 
-	group_by(otu) %>%
-	summarise_each(funs(max)) %>%
-	filter(presence >= 0.5) %>%
-	select(otu)
-# merge otu presence with colonization
-presence_by_day_df <- presence_df %>%
-	select(colonization, day, one_of(otu_list$otu)) %>%
-	gather(otu, presence, contains('Otu00')) %>%
-	group_by(colonization, otu, day) %>%
-	summarise_each(funs(mean)) %>%
-	ungroup()
-presence_by_day_df$otu_labels <- gsub("Otu0*", "", presence_by_day_df$otu)
-
-#test for significant differences between colonized/uncolonized by otu
-sig_presence <- c()
-for(i in unique(presence_by_day_df$otu)){
-	colonized <- presence_by_day_df %>%
-		filter(otu == i & colonization == T) %>%
-		select(presence)
-	uncolonized <- presence_by_day_df %>%
-		filter(otu == i & colonization == F) %>%
-		select(presence)
-	sig_presence <- rbind(sig_presence,
-		list(i, as.numeric(wilcox.test(c(colonized$presence), c(uncolonized$presence))$p.value)))
-}
-significant_otu_list <- unlist(sig_presence[unlist(sig_presence[,2]) < 0.05/46, 1])
-
-presence_by_day_df %>%
-	ggplot(aes(x = otu, y = presence, color = colonization)) + 
-		stat_summary(fun.data=median_hilow, position=position_dodge(0.2)) + #, conf.int=.5) +
-		labs(title = 'Comparison of OTUs present in Colonized/Uncolonized Samples',
-			subtitle = '(Median and IQR shown, Only OTUs present in 50% of samples shown)',
-			y = 'Portion of Samples with OTU Present', x = 'OTU') + 
-		scale_color_manual(labels = c("Uncolonized (C. difficle CFU = 0)", "Colonized (C. difficle CFU >= 1e5)"), values = c("blue", "red")) +
-		scale_x_discrete(labels=unique(presence_by_day_df$otu_labels)) + 
-		theme_bw() + 
-		theme(legend.justification=c(0,0), legend.position=c(0.005,0.005), 
-			legend.title = element_blank(),   legend.box.background = element_rect(),
-			legend.box.margin = margin(0, 0, 0, 0), legend.key.height = unit(0.3, "cm"),
-			axis.text.x = element_text(angle = 45, hjust = 1))
-
 
 # merge otu presence with colonization
 all_presence_by_day_df <- presence_df %>%
@@ -150,9 +102,9 @@ all_sig_by_day_df %>%
 		scale_color_manual(labels = c("Uncolonized (C. difficle CFU = 0)", "Colonized (C. difficle CFU >= 1e5)"), values = c("blue", "red")) +
 		scale_x_discrete(labels=unique(all_sig_by_day_df$otu_labels)) + 
 		theme_bw() + 
-		theme(legend.justification=c(0,0), legend.position=c(0.005,0.005), 
+		theme(legend.justification=c(1,1), legend.position=c(0.95,0.95), 
 			legend.title = element_blank(),   legend.box.background = element_rect(),
-			legend.box.margin = margin(0, 0, 0, 0), legend.key.height = unit(0.3, "cm"),
+			legend.box.margin = margin(0, 0, 0, 0),
 			axis.text.x = element_text(angle = 45, hjust = 1))
 
 
