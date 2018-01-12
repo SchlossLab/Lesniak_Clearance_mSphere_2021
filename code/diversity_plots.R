@@ -68,39 +68,39 @@ presence_df <- metadata %>%
 	inner_join(otu_presence)
 
 # merge otu presence with colonization
-all_presence_by_day_df <- presence_df %>%
+presence_by_day_df <- presence_df %>%
 	select(colonization, day, contains('Otu00')) %>%
 	gather(otu, presence, contains('Otu00')) %>%
 	group_by(colonization, otu, day) %>%
 	summarise_each(funs(mean)) %>%
 	ungroup()
-all_presence_by_day_df$otu_labels <- gsub("Otu0*", "", all_presence_by_day_df$otu)
+presence_by_day_df$otu_labels <- gsub("Otu0*", "", presence_by_day_df$otu)
 
 #test for significant differences between colonized/uncolonized by otu
-all_sig_presence <- c()
-for(i in unique(all_presence_by_day_df$otu)){
-	colonized <- all_presence_by_day_df %>%
+sig_presence <- c()
+for(i in unique(presence_by_day_df$otu)){
+	colonized <- presence_by_day_df %>%
 		filter(otu == i & colonization == T) %>%
 		select(presence)
-	uncolonized <- all_presence_by_day_df %>%
+	uncolonized <- presence_by_day_df %>%
 		filter(otu == i & colonization == F) %>%
 		select(presence)
-	all_sig_presence <- rbind(all_sig_presence,
+	sig_presence <- rbind(sig_presence,
 		list(i, as.numeric(wilcox.test(c(colonized$presence), c(uncolonized$presence))$p.value)))
 }
-all_significant_otu_list <- unlist(all_sig_presence[unlist(all_sig_presence[,2]) < 0.05/nrow(all_sig_presence), 1])
+significant_otu_list <- unlist(sig_presence[unlist(sig_presence[,2]) < 0.05/nrow(sig_presence), 1])
 
-all_sig_by_day_df <- all_presence_by_day_df %>%
-	filter(otu %in% all_significant_otu_list) 
+sig_by_day_df <- presence_by_day_df %>%
+	filter(otu %in% significant_otu_list) 
 
-all_sig_by_day_df %>%
+sig_by_day_df %>%
 	ggplot(aes(x = otu, y = presence, color = colonization)) + 
 		stat_summary(fun.data=median_hilow, position=position_dodge(0.2), fun.args=list(conf.int=0.5)) +
 		labs(title = 'Comparison of OTUs present in Colonized/Uncolonized Samples',
-			subtitle = '(Median and IQR shown, Only OTUs present in 50% of samples shown)\nAll OTUs plotted are significant (p < 0.05) after BF multiple comparisons correction ',
+			subtitle = '(Median and IQR shown)\nAll OTUs plotted are significant (p < 0.05) after BF multiple comparisons correction ',
 			y = 'Portion of Samples with OTU Present', x = 'OTU') + 
 		scale_color_manual(labels = c("Uncolonized (C. difficle CFU = 0)", "Colonized (C. difficle CFU >= 1e5)"), values = c("blue", "red")) +
-		scale_x_discrete(labels=unique(all_sig_by_day_df$otu_labels)) + 
+		scale_x_discrete(labels=unique(sig_by_day_df$otu_labels)) + 
 		theme_bw() + 
 		theme(legend.justification=c(1,1), legend.position=c(0.95,0.95), 
 			legend.title = element_blank(),   legend.box.background = element_rect(),
@@ -108,3 +108,53 @@ all_sig_by_day_df %>%
 			axis.text.x = element_text(angle = 45, hjust = 1))
 
 
+
+# by relative abundance
+# presence in at least 10%
+otus_in_samples <- presence_by_day_df %>% 
+	group_by(otu) %>% 
+	summarize(max_presence = mean(presence)) %>% 
+	filter(max_presence >= 0.1) %>% 
+	select(otu)
+
+rel_abun_by_day <- metadata %>%
+	filter(day > 0, cdiff == TRUE) %>% 
+	select(group, CFU, day) %>% rename(Group = group) %>% 
+	filter(!between(CFU, 1, 1e5)) %>%
+	mutate(colonization = ifelse(CFU < 1, F, T)) %>%
+	inner_join(select(otus_df, Group, one_of(otus_in_samples$otu))) %>% 
+	gather(otu, abundance, contains('Otu00'))  %>% 
+	mutate(rel_abund = abundance / otus_df$numOtus[1])
+
+sig_abundance <- c()
+for(i in unique(rel_abun_by_day$otu)){
+	colonized <- rel_abun_by_day %>%
+		filter(otu == i & colonization == T) %>%
+		select(rel_abund)
+	uncolonized <- rel_abun_by_day %>%
+		filter(otu == i & colonization == F) %>%
+		select(rel_abund)
+	sig_abundance <- rbind(sig_abundance,
+		list(i, as.numeric(wilcox.test(c(colonized$rel_abund), c(uncolonized$rel_abund))$p.value)))
+}
+sig_relabund_otu_list <- unlist(sig_abundance[unlist(sig_abundance[,2]) < 0.05/nrow(sig_abundance), 1])
+
+sig_relabun_by_day_df <- rel_abun_by_day %>%
+	mutate(otu_labels = gsub("Otu0*", "", rel_abun_by_day$otu)) %>% 
+	filter(otu %in% sig_relabund_otu_list) 
+	
+
+
+sig_relabun_by_day_df %>%
+	ggplot(aes(x = otu, y = rel_abund, color = colonization)) + 
+		stat_summary(fun.data=median_hilow, position=position_dodge(0.2), fun.args=list(conf.int=0.5)) +
+		labs(title = 'Comparison of Relative Abundance in Colonized/Uncolonized Samples',
+			subtitle = '(Median and IQR shown)\nAll OTUs plotted are significant (p < 0.05) after BF multiple comparisons correction ',
+			y = 'Relative Abundance', x = 'OTU') + 
+		scale_color_manual(labels = c("Uncolonized (C. difficle CFU = 0)", "Colonized (C. difficle CFU >= 1e5)"), values = c("blue", "red")) +
+		scale_x_discrete(labels=unique(sig_relabun_by_day_df$otu_labels)) + 
+		theme_bw() + #ylim(0,0.001) + 
+		theme(legend.justification=c(1,1), legend.position=c(0.95,0.95), 
+			legend.title = element_blank(),   legend.box.background = element_rect(),
+			legend.box.margin = margin(0, 0, 0, 0),
+			axis.text.x = element_text(angle = 45, hjust = 1))
