@@ -122,16 +122,27 @@ rel_abun_by_day <- metadata %>%
 	select(group, CFU, day) %>% rename(Group = group) %>% 
 	filter(!between(CFU, 1, 1e5)) %>%
 	mutate(colonization = ifelse(CFU < 1, F, T)) %>%
-	inner_join(select(otus_df, Group, one_of(otus_in_samples$otu))) %>% 
+	inner_join(select(otus_df, Group, contains('Otu00'))) %>% # switch from using 10% presence to median 1% abundance
 	gather(otu, abundance, contains('Otu00'))  %>% 
 	mutate(rel_abund = abundance / otus_df$numOtus[1])
 
+# at least 1% median abundance in a group
+otus_by_median <- rel_abun_by_day %>% 
+	group_by(colonization, otu) %>% 
+	summarise(median=median(rel_abund)) %>% 
+	ungroup() %>% group_by(otu) %>% 
+	summarise(median=max(median)) %>% 
+	filter(median >= 0.01) %>% 
+	select(otu)
+
+rel_abun_df <- filter(rel_abun_by_day, otu %in% otus_by_median$otu)
+
 sig_abundance <- c()
-for(i in unique(rel_abun_by_day$otu)){
-	colonized <- rel_abun_by_day %>%
+for(i in unique(rel_abun_df$otu)){
+	colonized <- rel_abun_df %>%
 		filter(otu == i & colonization == T) %>%
 		select(rel_abund)
-	uncolonized <- rel_abun_by_day %>%
+	uncolonized <- rel_abun_df %>%
 		filter(otu == i & colonization == F) %>%
 		select(rel_abund)
 	sig_abundance <- rbind(sig_abundance,
@@ -139,8 +150,8 @@ for(i in unique(rel_abun_by_day$otu)){
 }
 sig_relabund_otu_list <- unlist(sig_abundance[unlist(sig_abundance[,2]) < 0.05/nrow(sig_abundance), 1])
 
-sig_relabun_by_day_df <- rel_abun_by_day %>%
-	mutate(otu_labels = gsub("Otu0*", "", rel_abun_by_day$otu)) %>% 
+sig_relabun_by_day_df <- rel_abun_df %>%
+	mutate(otu_labels = gsub("Otu0*", "", rel_abun_df$otu)) %>% 
 	filter(otu %in% sig_relabund_otu_list) 
 	
 
@@ -153,7 +164,7 @@ sig_relabun_by_day_df %>%
 			y = 'Relative Abundance', x = 'OTU') + 
 		scale_color_manual(labels = c("Uncolonized (C. difficle CFU = 0)", "Colonized (C. difficle CFU >= 1e5)"), values = c("blue", "red")) +
 		scale_x_discrete(labels=unique(sig_relabun_by_day_df$otu_labels)) + 
-		theme_bw() + #ylim(0,0.001) + 
+		theme_bw() + #coord_cartesian(ylim = c(0, 0.01)) + 
 		theme(legend.justification=c(1,1), legend.position=c(0.95,0.95), 
 			legend.title = element_blank(),   legend.box.background = element_rect(),
 			legend.box.margin = margin(0, 0, 0, 0),
