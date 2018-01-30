@@ -551,3 +551,23 @@ the metadata file has the following columns
     range 1 to 5
 
 only one mouse not given abx
+
+```{r }
+# reduce samples to no abx or high abx with no delay
+na_list <- c(meta_file %>% 
+  filter(is.na(CFU), cdiff == T, day > 0) %>% 
+  pull(group))
+cfu_cleaned <- meta_file %>% 
+  filter(!group %in% c(na_list)) %>% 
+  replace_na(list(CFU = 0))
+
+meta_cleaned <- cfu_cleaned %>% 
+  filter(delayed == F, (abx %in% c('none','amp','cipro','clinda','metro')) |
+    (abx == 'cef' & dose == 0.5) | (abx == 'strep' & dose == 5) |
+    (abx == 'vanc' & dose == 0.625)) %>% 
+  select(group, CFU, cage, mouse, day, abx, cdiff, preAbx)
+
+
+
+
+```
