@@ -1,11 +1,8 @@
 What is my quesiton? -Nick
 
-association between microbes and level?
-	day x to day x?
-	day x to day x+1?
-predict colonization level 
-	from day 0?
-	from prior day?
+diversity does not predict colonization
+	community members will best predict colonization
+
 communities colonized to higher levels have lower diversity (alpha)
 	association between cfu and alpha
 highly infected communities are most different than untreated
@@ -17,16 +14,35 @@ each community (abx) will have a unique network
 	by ML - RF will perform best when applied to a single treatment
 
 how does diversity affect colonization
-	cfu vs # of otus
-	cfu vs rel abun
-shared otus?
-beta diversity
-	more change w/low diversity?
-	more change with high cfu?
+		cfu vs # of otus
+		cfu vs rel abun
+	shared otus?
+	beta diversity
+		more change w/low diversity?
+		more change with high cfu?
+association between microbes and level?
+	day x to day x?
+	day x to day x+1?
+predict colonization level 
+	from day 0?
+	from prior day?
 
-	diversity does not predict colonization
-		community members will best predict colonization
+need to remove dependence of daily sampling? antibiotic treatment?
 
-need to remove dependence of daily sampling?
 
 amova/permanova - difference in cloud of points in nmds
+
+
+Met with Pat 1/17/18
+	check abundance/
+	Do day 10 look like Day -2 (before abx)?
+		are most similar the recovered ones?
+	Split analysis by abx/dose/recovery (days between abx and cdiff challenge)
+	Resistance more similar than colonized?
+	Start with high does and low recovery
+		then look at how modulating the dose/recovery affects 
+		train model with low recovery and test with high recovery
+	Show different context of day 0
+	AKP - more ways to be healthy?
+	compare differences in metro recovery 
+		how do susceptibility break points compare?

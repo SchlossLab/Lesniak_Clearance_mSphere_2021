@@ -497,3 +497,19 @@ sig_relabun_by_day_df %>%
 
 
 ```
+
+
+
+
+After talking with Pat (1/17/18)
+  Does end point look like initial?
+    are most similar the recovered ones?
+  Split analysis by abx/dose/days recovered
+  Resistance more similar than colonized?
+  Start with high dose and 2 day recovery
+    then look at how modulating the dose/recovery affects 
+    train model with low recovery and test with high recovery
+  Show different context of day 0
+  compare differences in metro recovery 
+    how do susceptibility break points compare?
+
