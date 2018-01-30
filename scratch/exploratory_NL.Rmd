@@ -22,7 +22,7 @@ shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.uni
 tax_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
 tax_function <- '../code/sum_otu_by_taxa.R'
 
-meta_file   <- read.table(meta_file, sep = '\t', header = T)
+meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F)
 shared_file <- read.table(shared_file, sep = '\t', header = T, row.names = 'Group')
 source(tax_function)
 
@@ -513,3 +513,41 @@ After talking with Pat (1/17/18)
   compare differences in metro recovery 
     how do susceptibility break points compare?
 
+the metadata file has the following columns
+  group
+  CFU - ranges 0 to 8.1e8 with 601 NAs 
+    (most of NAs are on days when cdiff was not present, so can change to 0 expect for NAs after day 1)
+  cage
+  mouse
+  day - ranges -11 to 10
+  abx - 
+    amp    cef  cipro clinda  metro   none  strep   vanc 
+    405    379     83    190    339      3    362    312 
+  dose - 
+    0.1     0.3     0.5   0.625       1 10mg/kg       5    NA's 
+    304     253     653     112     339     273     136       3 
+        dose    abx     cages   mice
+        <NA>    none    1       1
+        0.5     amp     
+        10      cipro   
+        10      clinda  
+        0.1     cef     
+        0.3     cef
+        0.5     cef
+        1       metro
+        0.1     strep
+        0.5     strep
+        5       strep
+        0.1     vanc
+        0.3     vanc
+        0.625   vanc
+  cdiff - if sample was treated challenged with C. difficile
+    logical T(1770), F(303)
+  delayed - if sample was allowed extra days to recover from abx treatment
+    logical T(455), F(1618)
+  preAbx - if sample collected prior to abx treatment
+    logical T(154), F(1919)
+  recovDays - how many days after stopping abx (metro and amp for 5 day recovery)
+    range 1 to 5
+
+only one mouse not given abx
