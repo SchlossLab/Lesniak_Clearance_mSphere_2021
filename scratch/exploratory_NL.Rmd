@@ -506,7 +506,7 @@ After talking with Pat (1/17/18)
     are most similar the recovered ones?
   Split analysis by abx/dose/days recovered
   Resistance more similar than colonized?
-  Start with high dose and 2 day recovery
+  Start with high dose and 1 day recovery
     then look at how modulating the dose/recovery affects 
     train model with low recovery and test with high recovery
   Show different context of day 0
@@ -551,9 +551,18 @@ the metadata file has the following columns
     range 1 to 5
 
 only one mouse not given abx
+  but is listed as preAbx F for -5
+question about mouse 600-2D-6 (cef - delivered via water)
+  should be pre-antibiotic but is listed as F
+  all other mice in cage are preAbx on day -6, except this one
+    since this abx was delivered via drinking water, it is likely clerical error, 
+    need to write a check script to make sure all mice in each cage all are recorded to have the same treatment
 
 ```{r }
-# reduce samples to no abx or high abx with no delay
+
+# some samples have NA, many of which are before challenge, so those will be
+# converted to 0, there are 12 samples with NA after day 0 (day 4,5,9, and 10)
+# and the days I checked before/after were not low so these will be removed
 na_list <- c(meta_file %>% 
   filter(is.na(CFU), cdiff == T, day > 0) %>% 
   pull(group))
@@ -561,13 +570,15 @@ cfu_cleaned <- meta_file %>%
   filter(!group %in% c(na_list)) %>% 
   replace_na(list(CFU = 0))
 
+# reduce samples to no abx or high abx with no delay
 meta_cleaned <- cfu_cleaned %>% 
   filter(delayed == F, (abx %in% c('none','amp','cipro','clinda','metro')) |
     (abx == 'cef' & dose == 0.5) | (abx == 'strep' & dose == 5) |
     (abx == 'vanc' & dose == 0.625)) %>% 
   select(group, CFU, cage, mouse, day, abx, cdiff, preAbx)
 
-
+meta_cleaned %>% 
+  filter(day < 0)
 
 
 ```
