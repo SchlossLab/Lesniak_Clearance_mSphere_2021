@@ -580,5 +580,48 @@ meta_cleaned <- cfu_cleaned %>%
 meta_cleaned %>% 
   filter(day < 0)
 
+# i noticed a few discrepencies with a few mice being mislabeled for preAbx
+# so i need to check if there are any other discrepencies
+
+# first check if theres any dispencies by cage and day
+discrepency <- cfu_cleaned %>%
+  select(cage, day, abx, dose, delayed, cdiff, preAbx, recovDays) %>%
+  group_by(cage, day) %>% 
+  distinct() 
+discrepency[duplicated(select(discrepency, cage, day)), ]
+# three errors
+#   group CFU cage mouse day   abx dose delayed cdiff preAbx recovDays
+#02-1D-6   0    2     1  -5  none <NA>   FALSE  TRUE   FALSE        NA 
+#                                           (should be TRUE preAbx since no abx treatment)
+#89-1D-6   0   89     1  -6 strep  0.1   FALSE  TRUE   TRUE        NA 
+#                       (should be 0.5 dose)
+#00-2D-6  NA  600     2  -6   cef  0.5   FALSE  TRUE  FALSE        NA
+#                                           (should be TRUE preAbx due to rest of cage)
+
+# check for discrepencies by cage
+#sum(cfu_cleaned %>%
+#  select(cage, abx, dose, delayed, cdiff) %>%
+#  distinct() %>%
+#  duplicated())
+# no errors detected
+
+# check for any extra days
+#sum(cfu_cleaned %>%
+#  select(cage, mouse, day) %>%
+#  duplicated())
+#
+# no extra days
+
+# check to make sure group == day/mouse/cage
+#check_group <- cfu_cleaned %>%
+#  separate(group, c('group','group_day'), sep = 'D') %>%
+#  separate(group, c('group_cage','group_mouse'), sep = '-') %>%
+#  mutate_at(vars(group_cage,group_mouse, group_day), funs(as.numeric)) %>%
+#  select(group_cage, group_mouse, group_day, cage, mouse, day) 
+#
+#sum(check_group$group_cage != check_group$cage)
+#sum(check_group$group_mouse != check_group$mouse)
+#sum(check_group$group_day != check_group$day)
+# all are equal
 
 ```
