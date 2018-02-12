@@ -624,4 +624,13 @@ discrepency[duplicated(select(discrepency, cage, day)), ]
 #sum(check_group$group_day != check_group$day)
 # all are equal
 
+# check the variation of cfu by cage to see if theres evidence some were miss entered
+cfu_cleaned %>%
+  select(CFU, cage, day) %>%
+  group_by(cage, day) %>%
+  summarise(sd = sd(CFU)) %>%
+  ggplot(aes(sd)) + 
+    geom_histogram() + 
+    scale_x_log10()
+
 ```
