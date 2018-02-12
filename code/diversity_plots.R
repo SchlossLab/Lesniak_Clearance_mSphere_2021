@@ -1,3 +1,5 @@
+
+
 ## diversity vs colonization
 #
 ##alpha diversity
@@ -23,21 +25,21 @@ metadata <- read.table(file = "data/raw/abx_cdiff_metadata.tsv", header = T)
 alpha_df <- read.table(file = "data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary", header = T)
 
 CFU_vs <- function(variable_name){
-	data_frame <- metadata %>% 
-		filter(day > 0, cdiff == TRUE) %>% 
-		#filter(CFU > 0) %>% 
-		select(group, CFU) %>% 
-		mutate (CFU = CFU + 0.000000001) %>% 
-		left_join(select(alpha_df, group, get(variable_name)))
-	plot <- data_frame %>% 
-		ggplot(aes(x = get(variable_name), y = CFU)) + 
-			geom_point() + 
-			scale_y_log10() + 
-			geom_smooth(method = 'lm') +
-			theme_bw() + 
-			labs(x = variable_name, y = 'C.difficile CFU')
-	fit_data <- summary(lm(get(variable_name) ~ CFU, data_frame))
-	return(list(plot, fit_data))
+  data_frame <- metadata %>% 
+    filter(day > 0, cdiff == TRUE) %>% 
+    #filter(CFU > 0) %>% 
+    select(group, CFU) %>% 
+    mutate (CFU = CFU + 0.000000001) %>% 
+    left_join(select(alpha_df, group, variable_name))
+  plot <- data_frame %>% 
+    ggplot(aes(x = get(variable_name), y = CFU)) + 
+      geom_point() + 
+      scale_y_log10() + 
+      geom_smooth(method = 'lm') +
+      theme_bw() + 
+      labs(x = variable_name, y = 'C.difficile CFU')
+  fit_data <- summary(lm(get(variable_name) ~ CFU, data_frame))
+  return(list(plot, fit_data))
 }
 
 CFU_vs('invsimpson')
