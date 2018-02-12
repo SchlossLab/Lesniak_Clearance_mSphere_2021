@@ -105,7 +105,8 @@ sig_by_day_df %>%
 		theme(legend.justification=c(1,1), legend.position=c(0.95,0.95), 
 			legend.title = element_blank(),   legend.box.background = element_rect(),
 			legend.box.margin = margin(0, 0, 0, 0),
-			axis.text.x = element_text(angle = 45, hjust = 1))
+			axis.text.x = element_text(angle = 45, hjust = 1)) +
+		facet_grid(day~.)
 
 
 
@@ -168,4 +169,5 @@ sig_relabun_by_day_df %>%
 		theme(legend.justification=c(1,1), legend.position=c(0.95,0.95), 
 			legend.title = element_blank(),   legend.box.background = element_rect(),
 			legend.box.margin = margin(0, 0, 0, 0),
-			axis.text.x = element_text(angle = 45, hjust = 1))
+			axis.text.x = element_text(angle = 45, hjust = 1)) +
+		facet_grid(day~.)
