@@ -636,8 +636,10 @@ meta_cleaned <- cfu_cleaned %>%
     (abx == 'vanc' & dose == 0.625)) %>% 
   select(group, CFU, cage, mouse, day, abx, cdiff, preAbx)
 
-meta_cleaned %>% 
-  filter(day < 0)
-
+meta_cleaned  %>% 
+  group_by(cage, mouse) %>% 
+  summarize(initial = min(day), end = max(day)) %>% 
+  mutate(initial_group = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", initial)) %>% 
+  mutate(end_group = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", end))
 
 ```
