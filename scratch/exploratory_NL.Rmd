@@ -552,6 +552,7 @@ the metadata file has the following columns
 
 only one mouse not given abx
   but is listed as preAbx F for -5
+    possible to denote mock abx treatment(?)
 question about mouse 600-2D-6 (cef - delivered via water)
   should be pre-antibiotic but is listed as F
   all other mice in cage are preAbx on day -6, except this one
@@ -570,32 +571,23 @@ cfu_cleaned <- meta_file %>%
   filter(!group %in% c(na_list)) %>% 
   replace_na(list(CFU = 0))
 
-# reduce samples to no abx or high abx with no delay
-meta_cleaned <- cfu_cleaned %>% 
-  filter(delayed == F, (abx %in% c('none','amp','cipro','clinda','metro')) |
-    (abx == 'cef' & dose == 0.5) | (abx == 'strep' & dose == 5) |
-    (abx == 'vanc' & dose == 0.625)) %>% 
-  select(group, CFU, cage, mouse, day, abx, cdiff, preAbx)
-
-meta_cleaned %>% 
-  filter(day < 0)
-
 # i noticed a few discrepencies with a few mice being mislabeled for preAbx
 # so i need to check if there are any other discrepencies
 
 # first check if theres any dispencies by cage and day
-discrepency <- cfu_cleaned %>%
-  select(cage, day, abx, dose, delayed, cdiff, preAbx, recovDays) %>%
-  group_by(cage, day) %>% 
-  distinct() 
-discrepency[duplicated(select(discrepency, cage, day)), ]
+#discrepency <- cfu_cleaned %>%
+#  select(cage, day, abx, dose, delayed, cdiff, preAbx, recovDays) %>%
+#  group_by(cage, day) %>% 
+#  distinct() 
+#discrepency[duplicated(select(discrepency, cage, day)), ]
 # three errors
 #   group CFU cage mouse day   abx dose delayed cdiff preAbx recovDays
-#02-1D-6   0    2     1  -5  none <NA>   FALSE  TRUE   FALSE        NA 
+#002-1D-6   0    2     1  -5  none <NA>   FALSE  TRUE   FALSE        NA 
 #                                           (should be TRUE preAbx since no abx treatment)
-#89-1D-6   0   89     1  -6 strep  0.1   FALSE  TRUE   TRUE        NA 
+#                                             but this might be noting pbs treatment
+#089-1D-6   0   89     1  -6 strep  0.1   FALSE  TRUE   TRUE        NA 
 #                       (should be 0.5 dose)
-#00-2D-6  NA  600     2  -6   cef  0.5   FALSE  TRUE  FALSE        NA
+#600-2D-6  NA  600     2  -6   cef  0.5   FALSE  TRUE  FALSE        NA
 #                                           (should be TRUE preAbx due to rest of cage)
 
 # check for discrepencies by cage
@@ -625,12 +617,27 @@ discrepency[duplicated(select(discrepency, cage, day)), ]
 # all are equal
 
 # check the variation of cfu by cage to see if theres evidence some were miss entered
-cfu_cleaned %>%
-  select(CFU, cage, day) %>%
-  group_by(cage, day) %>%
-  summarise(sd = sd(CFU)) %>%
-  ggplot(aes(sd)) + 
-    geom_histogram() + 
-    scale_x_log10()
+#cfu_cleaned %>%
+#  select(CFU, cage, day) %>%
+#  group_by(cage, day) %>%
+#  summarise(sd = sd(CFU)) %>%
+#  ggplot(aes(sd)) + 
+#    geom_histogram() + 
+#    scale_x_log10()
+# hard to separate biological variation from random entry errors
+
+cfu_cleaned[cfu_cleaned$group == '600-2D-6', 'preAbx'] <- T
+cfu_cleaned[cfu_cleaned$group == '089-1D-6', 'dose'] <- '0.5'  
+
+# reduce samples to no abx or high abx with no delay
+meta_cleaned <- cfu_cleaned %>% 
+  filter(delayed == F, (abx %in% c('none','amp','cipro','clinda','metro')) |
+    (abx == 'cef' & dose == 0.5) | (abx == 'strep' & dose == 5) |
+    (abx == 'vanc' & dose == 0.625)) %>% 
+  select(group, CFU, cage, mouse, day, abx, cdiff, preAbx)
+
+meta_cleaned %>% 
+  filter(day < 0)
+
 
 ```
