@@ -636,10 +636,19 @@ meta_cleaned <- cfu_cleaned %>%
     (abx == 'vanc' & dose == 0.625)) %>% 
   select(group, CFU, cage, mouse, day, abx, cdiff, preAbx)
 
-meta_cleaned  %>% 
+intial_v_final <- meta_cleaned  %>% 
   group_by(cage, mouse) %>% 
-  summarize(initial = min(day), end = max(day)) %>% 
-  mutate(initial_group = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", initial)) %>% 
-  mutate(end_group = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", end))
+  summarize(first_day = min(day), last_day = max(day)) %>% ungroup() %>% 
+  mutate(initial = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", first_day)) %>% 
+  mutate(end = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", last_day)) %>% 
+  gather(time_point, group, initial, end) %>% 
+  select(group, time_point)
+
+intial_v_final %>% 
+  left_join(mutate(rel_abund, group = rownames(rel_abund)))
+
+intial_v_final %>% 
+  left_join(#diverity)
+
 
 ```
