@@ -335,6 +335,20 @@ shannon_CFU_wo0 <- CFU_vs('shannon', 0)
 
 ## Alpha Diversity
 
+```{r alpha of initial vs end, fig.width=4, fig.height=3}
+
+initial_v_final %>% 
+  left_join(alpha_df) %>% 
+  filter(sobs > 15) %>% 
+  gather(diversity, value, sobs, shannon, invsimpson) %>% 
+  ggplot(aes(x = time_point, y = value, color = log_CFU)) + 
+    geom_boxplot(width = 0.3) +
+    geom_jitter(width = 0.2, alpha = 0.5) +
+    facet_grid(diversity~., scales = 'free_y') 
+
+```
+
+
 ```{r invsimpson, fig.width=4, fig.height=3}
 invsimpson_CFU[1]
 invsimpson_CFU[2]
@@ -556,19 +570,25 @@ question about mouse 600-2D-6 (cef - delivered via water)
     since this abx was delivered via drinking water, it is likely clerical error, 
     need to write a check script to make sure all mice in each cage all are recorded to have the same treatment
 
+```{r end vs initial, fig.width = 5, fig.height = 5}
 
 time_nmds_2m <- read.table('data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.nmds.2.axes', 
   sep = '\t', header = T)
 
-nmds_2d_plot <- initial_v_final %>% 
-  left_join(select(hi_lo_no_delay_df, group, CFU)) %>% 
+initial_v_final  %>% 
   left_join(time_nmds_2m) %>% 
-  mutate(log_CFU = log10(CFU + 1))
-
-nmds_2d_plot %>% 
   ggplot(aes(x = axis1, y = axis2, color = time_point)) +
-    geom_point(aes(size = log_CFU), alpha = 0.5) + 
-    theme_bw()
+    geom_point(aes(size = log_CFU, shape = cdiff), alpha = 0.5) + 
+    theme_bw() +
+    labs(title = 'Comparison of difference between initial and final communities \nand their level of C difficile colonization')
+
+initial_v_final  %>% 
+  left_join(time_nmds_2m) %>% 
+  filter(time_point == 'end', cdiff == T) %>% 
+  ggplot(aes(x = axis1, y = axis2)) +
+    geom_point(aes(color = log_CFU), size = 2, alpha = 0.8) + 
+    theme_bw() +
+    labs(title = 'Comparison of difference between final communities \nand their level of C difficile colonization')
 
 
 #library(rgl)
@@ -610,5 +630,23 @@ nmds_2d_plot %>%
 #      expression(paste("10"^"6")), expression(paste("10"^"8")))
 #    )
 #})
+
+
+```
+
+
+```{r CFU vs distance}
+
+source('code/read.dist.R')
+thetayc_df <- read.dist('data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist')
+
+initial_v_final %>% 
+  filter(time_point == 'end') %>% 
+  left_join(thetayc_df, by = c('group', rownames(thetayc_df))) %>% 
+  
+
+```
+
+```{r CFU vs distance}
 
 ```
