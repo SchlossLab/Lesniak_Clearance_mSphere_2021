@@ -287,6 +287,18 @@ hi_lo_no_delay_df <- meta_file %>%
     (abx == 'vanc' & dose == 0.625)) %>% 
   select(group, CFU, cage, mouse, day, abx, cdiff, preAbx)
 
+library(stringr)
+
+initial_v_final <- hi_lo_no_delay_df  %>% 
+  group_by(cage, mouse) %>% 
+  summarize(first_day = min(day), last_day = max(day)) %>% ungroup() %>% 
+  mutate(initial = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", first_day)) %>% 
+  mutate(end = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", last_day)) %>% 
+  gather(time_point, group, initial, end) %>% 
+  select(group, time_point)%>% 
+  left_join(hi_lo_no_delay_df) %>% 
+  filter(!(time_point == 'initial' & preAbx == F)) %>% # need to remove samples that dont have a sample prior to abx treatment
+  mutate(log_CFU = log10(CFU + 1)) 
 
 alpha_df <- read.table(file = "../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary", header = T) %>% 
   filter(method == 'ave')
@@ -369,7 +381,7 @@ otu_presence <- otus_df %>%
   select(Group, otu, presence) %>%
   spread(otu, presence)
 #subset metadata to samples
-presence_df <- metadata %>%
+presence_df <- hi_lo_no_delay_df %>%
   filter(day > 0, cdiff == TRUE) %>% 
   select(group, CFU, day) %>% rename(Group = group) %>% 
   filter(!between(CFU, 1, 1e5)) %>%
@@ -427,7 +439,7 @@ otus_in_samples <- presence_by_day_df %>%
   filter(max_presence >= 0.1) %>% 
   select(otu)
 
-rel_abun_by_day <- metadata %>%
+rel_abun_by_day <- hi_lo_no_delay_df %>%
   filter(day > 0, cdiff == TRUE) %>% 
   select(group, CFU, day) %>% rename(Group = group) %>% 
   filter(!between(CFU, 1, 1e5)) %>%
@@ -544,18 +556,6 @@ question about mouse 600-2D-6 (cef - delivered via water)
     since this abx was delivered via drinking water, it is likely clerical error, 
     need to write a check script to make sure all mice in each cage all are recorded to have the same treatment
 
-```{r }
-
-library(stringr)
-
-
-initial_v_final <- hi_lo_no_delay_df  %>% 
-  group_by(cage, mouse) %>% 
-  summarize(first_day = min(day), last_day = max(day)) %>% ungroup() %>% 
-  mutate(initial = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", first_day)) %>% 
-  mutate(end = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", last_day)) %>% 
-  gather(time_point, group, initial, end) %>% 
-  select(group, time_point)
 
 time_nmds_2m <- read.table('data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.nmds.2.axes', 
   sep = '\t', header = T)
