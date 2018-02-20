@@ -561,7 +561,6 @@ question about mouse 600-2D-6 (cef - delivered via water)
 
 ```{r }
 
-library(rgl)
 library(stringr)
 
 # reduce samples to no abx or high abx with no delay
@@ -579,45 +578,58 @@ initial_v_final <- hi_lo_no_delay_df  %>%
   gather(time_point, group, initial, end) %>% 
   select(group, time_point)
 
-time_nmds_3m <- read.table('data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.nmds.3.axes', 
+time_nmds_2m <- read.table('data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.nmds.2.axes', 
   sep = '\t', header = T)
 
-
-nmds_plot <- initial_v_final %>% 
+nmds_2d_plot <- initial_v_final %>% 
   left_join(select(hi_lo_no_delay_df, group, CFU)) %>% 
-  left_join(time_nmds_3m) %>% 
-  mutate(log_CFU = round(log10(CFU + 1) + 1))
+  left_join(time_nmds_2m) %>% 
+  mutate(log_CFU = log10(CFU + 1))
 
-par3d(windowRect = c(0, 0, 700, 700))
-with(nmds_plot, 
-  points3d(axis1, axis2, axis3, 
-    xlab = 'axis_1', ylab = 'axis_2', zlab = 'axis_3',
-    width = 1000, size=NULL))
-for(i in c(1,2)){
-  time <- c('initial', 'end')[i]
-  shapes <- c('x','o')[i]
-  pt_color <- c('blue','black')[i]
-  for(sz in c(1:10)){
-    nmds_plot %>% 
-      filter(time_point == time, log_CFU == sz) %>% 
-          with(., text3d(axis1, axis2, axis3, 
-            width = 1000, cex = seq(1,4,0.25)[sz] , color = pt_color, shapes))
-      }
-}
+nmds_2d_plot %>% 
+  ggplot(aes(x = axis1, y = axis2, color = time_point)) +
+    geom_point(aes(size = log_CFU), alpha = 0.5) + 
+    theme_bw()
 
-bgplot3d({
-  plot.new()
-  title(main = 'Antibiotic-treated conventional mice challenged with C. difficile', line = 3)
-  mtext(side = 1, 'Points are sized by colonization level',
-     line = 4, cex = 2)
-  legend("topleft", cex = 2, col =c('blue','black'), 
-    pch=c('x','o'), inset=c(0.02),
-    legend = c('Initial', 'Final'))
-  legend("topright", cex = 2,
-    pch='o', pt.cex = c(1.25,1.75,2.25,2.75), inset=c(0.02),
-    legend = c(expression(paste("10"^"2")), expression(paste("10"^"4")),
-      expression(paste("10"^"6")), expression(paste("10"^"8")))
-    )
-})
+
+#library(rgl)
+#time_nmds_3m <- read.table('data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.nmds.3.axes', 
+#  sep = '\t', header = T)
+#nmds_plot <- initial_v_final %>% 
+#  left_join(select(hi_lo_no_delay_df, group, CFU)) %>% 
+#  left_join(time_nmds_3m) %>% 
+#  mutate(log_CFU = round(log10(CFU + 1) + 1))
+#
+#par3d(windowRect = c(0, 0, 700, 700))
+#with(nmds_plot, 
+#  points3d(axis1, axis2, axis3, 
+#    xlab = 'axis_1', ylab = 'axis_2', zlab = 'axis_3',
+#    width = 1000, size=NULL))
+#for(i in c(1,2)){
+#  time <- c('initial', 'end')[i]
+#  shapes <- c('x','o')[i]
+#  pt_color <- c('blue','black')[i]
+#  for(sz in c(1:10)){
+#    nmds_plot %>% 
+#      filter(time_point == time, log_CFU == sz) %>% 
+#          with(., text3d(axis1, axis2, axis3, 
+#            width = 1000, cex = seq(1,4,0.25)[sz] , color = pt_color, shapes))
+#      }
+#}
+#
+#bgplot3d({
+#  plot.new()
+#  title(main = 'Antibiotic-treated conventional mice challenged with C. difficile', line = 3)
+#  mtext(side = 1, 'Points are sized by colonization level',
+#     line = 4, cex = 2)
+#  legend("topleft", cex = 2, col =c('blue','black'), 
+#    pch=c('x','o'), inset=c(0.02),
+#    legend = c('Initial', 'Final'))
+#  legend("topright", cex = 2,
+#    pch='o', pt.cex = c(1.25,1.75,2.25,2.75), inset=c(0.02),
+#    legend = c(expression(paste("10"^"2")), expression(paste("10"^"4")),
+#      expression(paste("10"^"6")), expression(paste("10"^"8")))
+#    )
+#})
 
 ```
