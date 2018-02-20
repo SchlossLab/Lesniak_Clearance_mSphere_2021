@@ -279,11 +279,11 @@ meta_file %>%
 ```{r diversity}
 library(tidyverse)
 
-metadata <- read.table(file = "../data/raw/abx_cdiff_metadata.tsv", header = T)
-alpha_df <- read.table(file = "../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary", header = T)
+alpha_df <- read.table(file = "../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary", header = T) %>% 
+  filter(method == 'ave')
 
 CFU_vs <- function(variable_name){
-  data_frame <- metadata %>% 
+  data_frame <- meta_file %>% 
     filter(day > 0, cdiff == TRUE) %>% 
     #filter(CFU > 0) %>% 
     select(group, CFU) %>% 
