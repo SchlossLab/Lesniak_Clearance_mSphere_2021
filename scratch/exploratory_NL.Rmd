@@ -569,27 +569,25 @@ na_list <- c(meta_file %>%
   pull(group))
 # "042-3D4"  "048-1D5"  "048-3D5"  "048-4D5"  "050-1D9"  "050-2D9" 
 # "050-3D9"  "050-4D9"  "087-4D9"  "098-3D4"  "103-3D10" "111-3D4" 
-ggsave('~/Desktop/NA_values.jpg',
-  meta_file %>% 
-    filter(group %in% na_list)  %>% 
-    select(cage) %>% unique()  %>% 
-    left_join( select(meta_file, cage, mouse, CFU, day)) %>%
-    mutate(mouse = paste0(cage, '_', mouse), 
-      CFU = CFU + 1,
-      CFU = ifelse(is.na(CFU), 0.1, CFU),
-      shapes = ifelse(CFU < 1, 'NA', 'Actual')) %>% 
-    ggplot(aes(x = day, y = CFU, group = mouse, color = factor(cage))) + 
-      geom_jitter(aes(shape = shapes)) + geom_line() + 
-      scale_y_log10() + 
-      facet_grid(cage~.) +
-      labs(title='Time Series Data from Cages with mice that have an NA of C difficile CFU after Day 0',
-        subtitle = 'Due to log scale, 0s were set to 1 and NAs were set to 0.1. Jitter was added to expose overlayed points')
-)
-#
-#
-#
-#
-#
+##
+#ggsave('~/Desktop/NA_values.jpg',
+#  meta_file %>% 
+#    filter(group %in% na_list)  %>% 
+#    select(cage) %>% unique()  %>% 
+#    left_join( select(meta_file, cage, mouse, CFU, day)) %>%
+#    mutate(mouse = paste0(cage, '_', mouse), 
+#      CFU = CFU + 1,
+#      CFU = ifelse(is.na(CFU), 0.1, CFU),
+#      shapes = ifelse(CFU < 1, 'NA', 'Actual')) %>% 
+#    ggplot(aes(x = day, y = CFU, group = mouse, color = factor(cage))) + 
+#      geom_jitter(aes(shape = shapes)) + geom_line() + 
+#      scale_y_log10() + 
+#      facet_grid(cage~.) +
+#      labs(title='Time Series Data from Cages with mice that have an NA of C difficile CFU after Day 0',
+#        subtitle = 'Due to log scale, 0s were set to 1 and NAs were set to 0.1. Jitter was added to expose overlayed points')
+#)
+##
+
 
 
 cfu_cleaned <- meta_file %>% 
