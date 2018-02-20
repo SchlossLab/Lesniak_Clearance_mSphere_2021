@@ -279,13 +279,22 @@ meta_file %>%
 ```{r diversity}
 library(tidyverse)
 
+
+# reduce samples to no abx or high abx with no delay
+hi_lo_no_delay_df <- meta_file %>% 
+  filter(delayed == F, (abx %in% c('none','amp','cipro','clinda','metro')) |
+    (abx == 'cef' & dose == 0.5) | (abx == 'strep' & dose == 5) |
+    (abx == 'vanc' & dose == 0.625)) %>% 
+  select(group, CFU, cage, mouse, day, abx, cdiff, preAbx)
+
+
 alpha_df <- read.table(file = "../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary", header = T) %>% 
   filter(method == 'ave')
 
-CFU_vs <- function(variable_name){
-  data_frame <- meta_file %>% 
+CFU_vs <- function(variable_name, minimum){
+  data_frame <- hi_lo_no_delay_df %>% 
     filter(day > 0, cdiff == TRUE) %>% 
-    #filter(CFU > 0) %>% 
+    filter(CFU > minimum) %>% 
     select(group, CFU) %>% 
     mutate (CFU = CFU + 0.000000001) %>% 
     left_join(select(alpha_df, group, variable_name))
@@ -300,9 +309,13 @@ CFU_vs <- function(variable_name){
   return(list(plot, fit_data))
 }
 
-invsimpson_CFU <- CFU_vs('invsimpson')
-sobs_CFU <- CFU_vs('sobs')
-shannon_CFU <- CFU_vs('shannon')
+invsimpson_CFU <- CFU_vs('invsimpson', -1)
+sobs_CFU <- CFU_vs('sobs', -1)
+shannon_CFU <- CFU_vs('shannon', -1)
+
+invsimpson_CFU_wo0 <- CFU_vs('invsimpson', 0)
+sobs_CFU_wo0 <- CFU_vs('sobs', 0)
+shannon_CFU_wo0 <- CFU_vs('shannon', 0)
 
 
 ```
@@ -325,48 +338,20 @@ shannon_CFU[1]
 shannon_CFU[2]
 ```
 
-```{r alpha above 0}
-
-CFU_vs <- function(variable_name){
-  data_frame <- metadata %>% 
-    filter(day > 0, cdiff == TRUE) %>% 
-    filter(CFU > 0) %>% 
-    select(group, CFU) %>% 
-    mutate (CFU = CFU + 0.000000001) %>% 
-    left_join(select(alpha_df, group, variable_name))
-  plot <- data_frame %>% 
-    ggplot(aes(x = get(variable_name), y = CFU)) + 
-      geom_point() + 
-      scale_y_log10() + 
-      geom_smooth(method = 'lm') +
-      theme_bw() + 
-      labs(x = variable_name, y = 'C.difficile CFU')
-  fit_data <- summary(lm(get(variable_name) ~ CFU, data_frame))
-  return(list(plot, fit_data))
-}
-
-invsimpson_CFU <- CFU_vs('invsimpson')
-sobs_CFU <- CFU_vs('sobs')
-shannon_CFU <- CFU_vs('shannon')
-
-
-```
-
-
 
 ```{r invsimpson_no_0, fig.width=4, fig.height=3}
-invsimpson_CFU[1]
-invsimpson_CFU[2]
+invsimpson_CFU_wo0[1]
+invsimpson_CFU_wo0[2]
 ```
 
 ```{r sobs_no_0, fig.width=4, fig.height=3}
-sobs_CFU[1]
-sobs_CFU[2]
+sobs_CFU_wo0[1]
+sobs_CFU_wo0[2]
 ```
 
 ```{r shannon_no_0, fig.width=4, fig.height=3}
-shannon_CFU[1]
-shannon_CFU[2]
+shannon_CFU_wo0[1]
+shannon_CFU_wo0[2]
 ```
 
 
@@ -563,12 +548,6 @@ question about mouse 600-2D-6 (cef - delivered via water)
 
 library(stringr)
 
-# reduce samples to no abx or high abx with no delay
-hi_lo_no_delay_df <- meta_file %>% 
-  filter(delayed == F, (abx %in% c('none','amp','cipro','clinda','metro')) |
-    (abx == 'cef' & dose == 0.5) | (abx == 'strep' & dose == 5) |
-    (abx == 'vanc' & dose == 0.625)) %>% 
-  select(group, CFU, cage, mouse, day, abx, cdiff, preAbx)
 
 initial_v_final <- hi_lo_no_delay_df  %>% 
   group_by(cage, mouse) %>% 
