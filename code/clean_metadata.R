@@ -1,19 +1,35 @@
+###
+#
+# Clean up issues in metadata file
+#	Some decrepencies were discovered in the recording of the data
+#
+# Dependencies: 
+#	* data/raw/abx_cdiff_metadata.tsv
+#
+# Output: 
+#	* data/process/abx_cdiff_metadata_clean.txt
+#
+###
 
+#load dependencies 
 library(dplyr)
 library(tidyr)
 
+#load metadata file
 meta_file   <- 'data/raw/abx_cdiff_metadata.tsv'
 meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F)
 
-# some samples have NA, many of which are before challenge, so those will be
-# converted to 0, there are 12 samples with NA after day 0 (day 4,5,9, and 10)
-# and the days I checked before/after were not low so these will be removed
+# some samples have NA and some have 0, 
+# many of which are before challenge
+# there are 12 samples with NA after day 0 (day 4,5,9, and 10)
 na_list <- c(meta_file %>% 
   filter(is.na(CFU), cdiff == T, day > 0) %>% 
   pull(group))
 # "042-3D4"  "048-1D5"  "048-3D5"  "048-4D5"  "050-1D9"  "050-2D9" 
 # "050-3D9"  "050-4D9"  "087-4D9"  "098-3D4"  "103-3D10" "111-3D4" 
-##
+
+# visualize where NAs and what the adjacent samples are
+# 
 #ggsave('~/Desktop/NA_values.jpg',
 #  meta_file %>% 
 #    filter(group %in% na_list)  %>% 
@@ -30,16 +46,17 @@ na_list <- c(meta_file %>%
 #      labs(title='Time Series Data from Cages with mice that have an NA of C difficile CFU after Day 0',
 #        subtitle = 'Due to log scale, 0s were set to 1 and NAs were set to 0.1. Jitter was added to expose overlayed points')
 #)
-##
-
-
-
+#
+# It seems the NAs are on days that were not plated, but samples were still collected, 
+#	as we have 16S data from those samples
+# We assume NAs prior to Cdiff challenge had 0 CFUs (Days before 1)
+# And we cannot make any assumptions on CFUs post challenge so those samples will be removed
 cfu_cleaned <- meta_file %>% 
   filter(!group %in% c(na_list)) %>% 
   replace_na(list(CFU = 0))
 
-# i noticed a few discrepencies with a few mice being mislabeled for preAbx
-# so i need to check if there are any other discrepencies
+# few discrepencies with a few mice being mislabeled for preAbx were detected
+# so we checked if there are any other discrepencies
 
 # first check if theres any dispencies by cage and day
 #discrepency <- cfu_cleaned %>%
