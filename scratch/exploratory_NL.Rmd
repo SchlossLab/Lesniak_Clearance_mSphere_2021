@@ -8,14 +8,7 @@ output: html_document
 ```{r setup environment, include=F}
 knitr::opts_chunk$set(echo = F, warning = F, message = F)
 
-pack_used <- c('tidyr','dplyr','ggplot2')
-for (dep in pack_used){
-  if (dep %in% installed.packages()[,"Package"] == FALSE){
-    install.packages(as.character(dep), repos = 'http://cran.us.r-project.org', 
-                     quiet=TRUE);
-  }
-  library(dep, verbose=FALSE, character.only=TRUE)
-}
+library(tidyverse)
 
 meta_file   <- '../data/process/abx_cdiff_metadata_clean.txt'
 shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
@@ -277,8 +270,6 @@ meta_file %>%
 
 
 ```{r diversity}
-library(tidyverse)
-
 
 # reduce samples to no abx or high abx with no delay
 hi_lo_no_delay_df <- meta_file %>% 
