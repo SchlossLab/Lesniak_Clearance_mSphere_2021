@@ -19,9 +19,12 @@ meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = 
 shared_file <- read.table(shared_file, sep = '\t', header = T, row.names = 'Group')
 source(tax_function)
 
-cdiff_otus <- read.table('../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy', sep = '\t', header = T)
-cdiff_otus <- as.character(cdiff_otus$OTU[grep('Clostridium_XI', cdiff_otus$Taxonomy)])
+tax_df <- read.table(tax_file, sep = '\t', header = T)
 
+cdiff_otus <- as.character(tax_df$OTU[grep('Clostridium_XI', tax_df$Taxonomy)])
+entercoccus_otus <- as.character(tax_df$OTU[grep('Enterococcus', tax_df$Taxonomy)])
+
+numotus <- shared_file$numOtus[1]
 shared_file <- select(shared_file, -label, -numOtus, -one_of(cdiff_otus))
 
 ```
@@ -368,12 +371,9 @@ shannon_CFU_wo0[2]
 
 ```{r high vs low}
 
-
-otus_df <- read.table(file = "../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared", header = T)
-tax_df <- read.table(file = "../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy", header = T)
-
 #convert abundance to presence (T/F)
-otu_presence <- otus_df %>%
+otu_presence <- shared_file %>%
+  rownames_to_column('Group') %>% 
   gather(otu, abundance, contains('Otu00')) %>%
   mutate(presence = ifelse(abundance > 0, T, F)) %>%
   select(Group, otu, presence) %>%
@@ -442,9 +442,9 @@ rel_abun_by_day <- hi_lo_no_delay_df %>%
   select(group, CFU, day) %>% rename(Group = group) %>% 
   filter(!between(CFU, 1, 1e5)) %>%
   mutate(colonization = ifelse(CFU < 1, F, T)) %>%
-  inner_join(select(otus_df, Group, contains('Otu00'))) %>% # switch from using 10% presence to median 1% abundance
-  gather(otu, abundance, contains('Otu00'))  %>% 
-  mutate(rel_abund = abundance / otus_df$numOtus[1])
+  inner_join(select(rownames_to_column(shared_file, 'Group'), Group, contains('Otu00'))) %>% # switch from using 10% presence to median 1% abundance
+  gather(otu, abundance, contains('Otu00')) %>% 
+  mutate(rel_abund = abundance / numotus)
 
 # at least 1% median abundance in a group
 otus_by_median <- rel_abun_by_day %>% 
@@ -647,6 +647,8 @@ CFU_intial_end %>%
 
 ```
 
-```{r }
+```{r otus correlated with cdiff}
+
+
 
 ```
