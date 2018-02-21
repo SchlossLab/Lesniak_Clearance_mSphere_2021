@@ -622,12 +622,28 @@ initial_v_final  %>%
 ```{r CFU vs distance}
 
 source('code/read.dist.R')
-thetayc_df <- read.dist('data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist')
+thetayc_df <- read.dist('../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist')
+beta_div_df <- rownames_to_column(thetayc_df, 'group')
 
-initial_v_final %>% 
-  filter(time_point == 'end') %>% 
-  left_join(thetayc_df, by = c('group', rownames(thetayc_df))) %>% 
-  
+CFU_intial_end <- initial_v_final %>% 
+  group_by(cage, mouse) %>% 
+  mutate(CFU = max(CFU), log_CFU = max(log_CFU)) %>% ungroup() %>% 
+  select(-day, -preAbx) %>% 
+  spread(time_point, group) %>% 
+  filter(cdiff == T) %>% 
+  filter(!is.na(end), !is.na(initial)) %>% 
+  select(log_CFU, end, initial) %>% 
+  mutate(thetayc = unlist(as.numeric(apply(., 1, function(i){
+    beta_div_df[beta_div_df$group == i['initial'], i['end']]
+  }))))
+
+CFU_intial_end %>% 
+  ggplot(aes(x = thetayc, y = log_CFU)) +
+    geom_point() +
+    theme_bw() + 
+    labs(title = 'Relationship between initial vs final microbiota and final CFU',
+      x = 'Theta yc', y = 'CFU (log10)')
+
 
 ```
 
