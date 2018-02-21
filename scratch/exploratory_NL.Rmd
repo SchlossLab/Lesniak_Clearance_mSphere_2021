@@ -50,13 +50,6 @@ OTUs_present <- colnames(shared_file[ , apply(otu_presence, 2, sum) >
 counts <- apply(shared_file,1,sum)
 rel_abund <- data.frame(apply(shared_file[ ,OTUs_present], 2, function(i){(i/counts)*100}))
 
-# fix meta file 
-meta_file$dose <- as.character(meta_file$dose)
-meta_file$dose[meta_file$dose == '10mg/kg'] <- 10
-meta_file$dose <- as.numeric(meta_file$dose)
-
-meta_file$abx[meta_file$abx == 'vanc '] <- 'vanc'
-
 ```
 
 ```{r community dynamics}

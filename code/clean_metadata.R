@@ -19,6 +19,15 @@ library(tidyr)
 meta_file   <- 'data/raw/abx_cdiff_metadata.tsv'
 meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F)
 
+
+# convert all dosages to same format
+meta_file$dose[meta_file$dose == '10mg/kg'] <- 10
+meta_file$dose <- as.numeric(meta_file$dose)
+
+# change vanc so all are same format
+meta_file$abx[meta_file$abx == 'vanc '] <- 'vanc'
+
+
 # some samples have NA and some have 0, 
 # many of which are before challenge
 # there are 12 samples with NA after day 0 (day 4,5,9, and 10)
