@@ -639,7 +639,11 @@ CFU_intial_end <- initial_v_final %>%
   }))))
 
 CFU_intial_end %>% 
-  ggplot(aes(x = thetayc, y = log_CFU)) +
+  separate(end, c('group','day'), sep = 'D') %>%
+  separate(group, c('cage','mouse'), sep = '-') %>%
+  mutate(cage = as.numeric(cage)) %>% 
+  left_join(unique(select(meta_file, cage, abx))) %>% 
+  ggplot(aes(x = thetayc, y = log_CFU, color = abx)) +
     geom_point() +
     theme_bw() + 
     labs(title = 'Relationship between initial vs final microbiota and final CFU',
