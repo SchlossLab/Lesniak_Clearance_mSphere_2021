@@ -4,16 +4,16 @@ library(dplyr)
 #library(ggplot2)
 #library(scatterplot3d)
 library(plotly)
-#library(rEDM)
+library(rEDM)
 #library(patchwork)
 
 lagged <- 1 # time offset
 
-input_df <- read.table('data/process/abx_cdiff_metadata_clean.txt',
+input_file <- read.table('data/process/abx_cdiff_metadata_clean.txt',
 	header = T, stringsAsFactors = F)
 
 # create lagged dataframe
-test_df <- input_df %>%
+input_df <- input_file %>%
 	select(CFU, cage, mouse, abx, day) %>%  
 	filter(abx == 'cef', cage == 600, day > 0) %>%
 	arrange(mouse, day) %>%
@@ -61,55 +61,82 @@ cbind(select(filter(test_df, mouse == 1), x1 = CFU_0lag, y1 = CFU_1lag, z1 = CFU
 #		theme(axis.title = element_blank())
 #	# plots to test for non-linear dynamical signature
 #	# plot manifold
-#	temporal_plot <- input_df %>% 
-#		gather(species, abundance, -epoch) %>% 
-#		filter(species %in% c('Charmander', 'Bulbasaur', 'Squirtle')) %>% 
-#		ggplot(aes(x = epoch, y = abundance, color = species)) +
-#			geom_line() +
-#			ylim(0,NA) +
-#			theme_bw() + 
-#			theme(legend.position = c(0.8, 0.2), 
-#				legend.background = element_rect(size=0.25, linetype="solid",
-#					colour ="black"))
+	temporal_plot <- test_df %>% 
+		ggplot(aes(x = day, y = CFU, color = as.factor(mouse))) +
+			geom_line() +
+			ylim(0,NA) + scale_y_log10() +
+			theme_classic() + 
+			theme(legend.position = c(0.9, 0.9), 
+				legend.background = element_rect(size=0.25, linetype="solid",
+					colour ="black")) + 
+			labs(title = paste(unique(test_df$abx)), color = 'Mouse', x = 'Day', y = 'CFU (log10)')
 #	shadow_manifold_plot <- plot_ly(input_df, 
 #		x = ~Charmander, y = ~Charmander_1lag, z = ~Charmander_2lag,
 #		mode = 'lines', type = 'scatter3d')
 #	
 #	#simplex_plots - identify best dimension
 #	set.seed(041618)
-#	train <- c(1, round(0.3* nrow(input_df))) # time points to subset for training
-#	test <- c( ( round(0.3* nrow(input_df)) + 1 ), 980) # time points to subset for testing
-#	
-#	simplex_out <- do.call(rbind, lapply(names(input_df)[2:4], function(var) {
-#	    cbind(simplex(input_df[, c("epoch", var)], E = 1:10, lib = train, pred = test),
+
+simplex_c_plot <- c()
+for(mouse_number in (unique(test_df$mouse))){
+	for(portion in seq(0.1, 0.9, 0.1)){
+	input_df <- filter(test_df, mouse == mouse_number) %>%	ungroup() %>%
+		select(day, CFU) %>% arrange(day) %>%
+		data.frame
+	train <- c(1, round(portion* nrow(input_df))) # time points to subset for training
+	test <- c( ( round(portion* nrow(input_df)) + 1 ), nrow(input_df)) # time points to subset for testing
+	
+	simplex_out <- #do.call(rbind, lapply('CFU', function(var) {
+#	    cbind(
+	    	simplex(input_df, E = 1:10, lib = train, pred = test)#,
 #	    	species = var)
 #	}))
+	simplex_c_plot <- rbind(simplex_c_plot,
+		cbind(select(simplex_out, E, rho), mouse = mouse_number, train_portion = portion, sample = paste(mouse_number, portion, sep = '_')))
+}}
+#embedding_dim_plot <- 
+simplex_c_plot %>% 
+	ggplot(aes(x = E, y = rho, group = sample)) +
+		geom_point() + geom_line() + 
+		facet_grid(mouse ~ train_portion) +
+		labs(x = "Embedding Dimension (E)", y = "Forecast Skill (rho)",
+			title = 'Simplex') +
+		theme_bw()
 #	
-#	embedding_dim_plot <- simplex_out %>% 
-#		ggplot(aes(x = E, y = rho)) +
-#			geom_line() + facet_grid(species ~., scales = 'free_y') +
-#			labs(x = "Embedding Dimension (E)", y = "Forecast Skill (rho)",
-#				title = 'Simplex') +
-#			theme_bw()
-#	
-#	best_E <- simplex_out %>% 
-#		group_by(species) %>% 
-#		mutate(best = max(rho)) %>% 
-#		filter(best == rho) %>% ungroup %>% 
-#		with(., setNames(E, as.character(species)))
+#best_E <- 
+simplex_c_plot %>% 
+	filter(!is.na(rho)) %>%
+	group_by(mouse) %>% 
+	mutate(best = max(rho)) %>% 
+	filter(best == rho, rho > 0) %>% ungroup #%>% 
+	#with(., setNames(E, as.character(mouse)))
+
+best_E <- 3
+train <- c(1, round(0.5 * max(test_df$day))) # time points to subset for training
+test <- c( round(0.5 * max(test_df$day) + 1 ), max(test_df$day)) # time points to subset for testing
 #	
 #	#s-maps - identify non-linearity
 #	smap_out <- do.call(rbind, lapply(names(input_df)[2:4], function(var) {
-#	    cbind(s_map(input_df[, c("epoch", var)], E = best_E[var], lib = train, pred = test),
+#	    cbind(
+smap_plot <- c()
+for(mouse_number in (unique(test_df$mouse))){
+	input_df <- filter(test_df, mouse == mouse_number) %>%	ungroup() %>%
+		select(day, CFU) %>% arrange(day) %>%
+		data.frame
+	smap_out <- s_map(input_df, E = best_E, lib = train, pred = test)
+	smap_plot <- rbind(smap_plot,
+		cbind(select(smap_out, theta, rho), mouse = mouse_number))
+}
 #	    	species = var)
 #	}))
 #	
-#	nonlinear_plot <- smap_out %>% 
-#		ggplot(aes(x = theta, y = rho)) +
-#			geom_line() + facet_grid(species~., scales = 'free_y') +
-#			labs(x = "Nonlinearity (theta)", y = "Forecast Skill (rho)",
-#				title = "S-Map") +
-#			theme_bw()
+#	nonlinear_plot <- 
+smap_plot %>% 
+	ggplot(aes(x = theta, y = rho)) +
+		geom_line() + facet_grid(mouse~., scales = 'free_y') +
+		labs(x = "Nonlinearity (theta)", y = "Forecast Skill (rho)",
+			title = "S-Map") +
+		theme_bw()
 #	
 #	#forecast using simplex/s-map
 #	
