@@ -72,28 +72,35 @@ taxa <- colnames(select(phyla_rel_ab, -sample))
 all_plots <- lapply(unique(meta_phyla$abx),function(antibiotic){
 cfu_plot <- meta_phyla %>%
     filter(day >= 0, abx == antibiotic) %>% 
-      ggplot(aes(x = day, y = CFU +1, color = cdiff)) + 
-        scale_y_log10() + 
-        geom_jitter(width = 0.3, alpha = 0.2) + 
-        stat_summary(fun.y=median, geom="line", aes(group = cage)) +
-        stat_summary(fun.y=median, geom="line", size = 1, color = 'black') +
+      mutate(CFU = log10(CFU + 0.001),
+        CFU = ifelse(CFU < 0, 0, CFU)) %>% 
+      ggplot(aes(x = day, y = CFU, color = cdiff)) + 
+        #scale_y_log10() + 
+        geom_jitter(width = 0.15, alpha = 0.2) + 
+        stat_summary(fun.y=median, geom="line", alpha = 0.2, aes(group = cage)) +
+        stat_summary(fun.y=median, geom="line", size = 1, aes(group = cdiff)) +
         labs(x = 'Day', y = ' CFU (log10)', 
-             title = paste0('C. Difficile Colonization - ', antibiotic)) +
-        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), color = 'black') + 
-        theme_bw()
+             title = paste0('C. Difficile Colonization - ', antibiotic),
+             subtitle = 'Individual points are mice, thin lines are the median by cage\nBold lines/points are median treatment with vertical lines representing the IQR',
+             color = 'Challenged with C. difficile') +
+        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), aes(group = cdiff)) + 
+        theme_bw() +
+        theme(legend.position="bottom", legend.direction="horizontal")
 
 community_plot <- meta_phyla %>% 
   filter(day >= 0, abx == antibiotic) %>% 
   gather(taxonomy, abundance, one_of(taxa)) %>% 
   ggplot(aes(x = day, y = abundance, color = cdiff)) + 
         facet_grid(taxonomy ~., scales = 'free_y') + 
-        geom_jitter(width = 0.3, alpha = 0.2) + 
-        stat_summary(fun.y=median, geom="line", aes(group = cage)) +
-        labs(x = 'Day', y = ' Relative Abundance', title = paste(antibiotic)) +
-        stat_summary(fun.y=median, geom="line", size = 1, color = 'black') +
-        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), color = 'black') + 
+        geom_jitter(width = 0.15, alpha = 0.2) + 
+        stat_summary(fun.y=median, geom="line", alpha = 0.2, aes(group = cage)) +
+        labs(x = 'Day', y = ' Relative Abundance', title = paste(antibiotic),
+          subtitle = 'Individual points are mice, thin lines are the median by cage\nBold lines/points are median treatment with vertical lines representing the IQR',
+          color = 'Challenged with C. difficile') +
+        stat_summary(fun.y=median, geom="line", size = 1, aes(group = cdiff)) +
+        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), aes(group = cdiff)) + 
         theme_bw() +
-        theme(legend.title=element_blank())
+        theme(legend.position="bottom", legend.direction="horizontal")
 return(list(cfu_plot, community_plot))
 })
 
