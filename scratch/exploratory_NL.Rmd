@@ -282,18 +282,21 @@ hi_lo_no_delay_df %>%
 
 # reduce samples to no abx or high abx with no delay
 
-library(stringr)
-
-initial_v_final <- hi_lo_no_delay_df  %>% 
+pre_abx_v_final <- hi_lo_no_delay_df  %>% 
   group_by(cage, mouse) %>% 
   summarize(first_day = min(day), last_day = max(day)) %>% ungroup() %>% 
-  mutate(initial = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", first_day)) %>% 
-  mutate(end = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", last_day)) %>% 
-  gather(time_point, group, initial, end) %>% 
-  select(group, time_point)%>% 
+  mutate(pre_abx = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", first_day),
+    post_abx = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D0"),
+    end = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", last_day),
+    final_cfu = end) %>% 
+  gather(time_point, group, pre_abx, post_abx, end) %>% 
+  select(group, time_point, final_cfu) %>% 
   left_join(hi_lo_no_delay_df) %>% 
-  filter(!(time_point == 'initial' & preAbx == F)) %>% # need to remove samples that dont have a sample prior to abx treatment
-  mutate(log_CFU = log10(CFU + 1)) 
+  left_join(select(hi_lo_no_delay_df, group, final_CFU = CFU), by = c('final_cfu' = 'group')) %>% 
+  filter(!is.na(day)) %>% 
+  filter(!(time_point == 'pre_abx' & preAbx == F)) %>% # need to remove samples that dont have a sample prior to abx treatment
+  mutate(log_CFU = log10(CFU + 1),
+    log_final_CFU = log10(final_CFU + 1)) 
 
 alpha_df <- read.table(file = "../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary", header = T) %>% 
   filter(method == 'ave')
@@ -330,18 +333,82 @@ shannon_CFU_wo0 <- CFU_vs('shannon', 0)
 
 ## Alpha Diversity
 
-```{r alpha of initial vs end}
+```{r alpha of pre_abx vs end}
 
-initial_v_final %>% 
+abx_v_final_alpha <- pre_abx_v_final %>% 
+  mutate(time_point = factor(time_point, levels = c('pre_abx', 'post_abx', 'end'))) %>% 
   left_join(alpha_df) %>% 
-  filter(sobs > 15) %>% 
-  gather(diversity, value, sobs, shannon, invsimpson) %>% 
-  ggplot(aes(x = time_point, y = value, color = log_CFU)) + 
-    geom_boxplot(width = 0.3) +
-    geom_jitter(width = 0.2, alpha = 0.5) +
-    facet_grid(diversity~., scales = 'free_y') 
+  filter(!is.na(sobs)) %>% 
+  mutate(hi_lo = ifelse(log_final_CFU < mean(log_final_CFU), 'Low', 'High')) %>% 
+  mutate(hi_lo = factor(hi_lo, levels = c('Low', 'High'))) %>% 
+  gather(diversity, value, sobs, shannon, invsimpson)
+
+p <- abx_v_final_alpha %>% 
+  ggplot(aes(x = time_point, y = value, group = interaction(cdiff, time_point))) + 
+    facet_grid(diversity ~ ., scales = 'free_y') + 
+    geom_boxplot(width = 0.5, outlier.color = NA, 
+      position = position_dodge(width = 0.9)) +
+    expand_limits(y = 0) + 
+    theme_bw()
+```
+
+## Communities colonized to a lower level at the end of 10 days have recovered more from the initial antibiotic pertubation
+- Check for change from previous (draw line from pre_abx to post abx to end)
+- Check to make sure all make it to day 10 and how many don't
+
+When looking at the alpha diversity of the infected vs uninfected, the community doesnt seem to be different, these communities seem to follow a similar trend regardless of infection. But when looking at the colonization level within the infected, it appears to be a bimodal distributution.
+
+```{r alpha of community before and after by cfu}
+# plot and color by CFU of cdifficile on that day
+p + geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.2), 
+      alpha = 0.5, aes(group = cdiff, color = log_CFU))
+```
+
+To investigate whether the bimodal distribution of the colonization level vs alpha diversity, we can look at how the communities are distributed prior to infection. If this difference in distribution is related to the level of colonization, we would expect the distribution of end point colonization levels to be random at the time points prior to the infections. When we color the point by end point colonization, it appears to be lower diversity in only the highly colonized mice
+
+
+```{r alpha of community before and after by end point cfu}
+# plot and color by CFU of cdifficile at the end point of that mouse
+p + geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.2), 
+      alpha = 0.5, aes(group = cdiff, color = log_final_CFU))
+```
+
+So comparing the mice infected with C. difficile, is there a decrease in diversity in the mice that become highly colonized at the final time point?
+## Do stats!
+```{r do stats}
+stat_test <- abx_v_final_alpha %>% 
+  filter(cdiff == T, diversity == 'sobs') 
+
+
+abx_v_final_alpha %>% 
+  filter(cdiff == T, diversity == 'sobs', time_point == 'pre_abx')  %>% 
+  with(., wilcox.test(g=hi_lo, x=value, p.adjust.method="BH"))
+
+q
+```
+
+
+
+```{r alpha of C difficile infected communities before and after by final cfu}
+# plot and color by CFU of cdifficile on that day
+abx_v_final_alpha %>% 
+  filter(cdiff == T) %>% 
+  ggplot(aes(x = time_point, y = value, color = hi_lo, group = interaction(hi_lo, time_point))) + 
+    facet_grid(diversity ~ ., scales = 'free_y') + 
+    geom_boxplot(width = 0.5, outlier.color = NA, 
+      position = position_dodge(width = 0.9)) +
+    geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.2), 
+      alpha = 0.5) + 
+    expand_limits(y = 0) + 
+    theme_bw() + labs(title = 'Comparing Alpha diversity of communities infected with C. difficile by their endpoint colonization level', x = NA, y = 'Time Point of Diversity Metric', color = 'Endpoint \nColonization',
+      subtitle = paste0('Low = Below level of Detection, High = Greater than 1e+0', 
+        signif(mean(pull(filter(abx_v_final_alpha, cdiff == T), log_final_CFU)),1)
+        ))
+
 
 ```
+
+
 
 
 ```{r invsimpson, fig.width=4, fig.height=3}
@@ -505,7 +572,7 @@ sig_relabun_by_day_df %>%
 
 
 After talking with Pat (1/17/18)
-  Does end point look like initial?
+  Does end point look like pre_abx?
     are most similar the recovered ones?
   Split analysis by abx/dose/days recovered
   Resistance more similar than colonized?
@@ -562,19 +629,19 @@ question about mouse 600-2D-6 (cef - delivered via water)
     since this abx was delivered via drinking water, it is likely clerical error, 
     need to write a check script to make sure all mice in each cage all are recorded to have the same treatment
 
-```{r end vs initial}
+```{r end vs pre_abx}
 
 time_nmds_2m <- read.table('../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.nmds.2.axes', 
   sep = '\t', header = T)
 
-initial_v_final  %>% 
+pre_abx_v_final  %>% 
   left_join(time_nmds_2m) %>% 
   ggplot(aes(x = axis1, y = axis2, color = time_point)) +
     geom_point(aes(size = log_CFU, shape = cdiff), alpha = 0.75) + 
     theme_bw() +
-    labs(title = 'Comparison of difference between initial and final communities \nand their level of C difficile colonization')
+    labs(title = 'Comparison of difference between pre_abx and final communities \nand their level of C difficile colonization')
 
-initial_v_final  %>% 
+pre_abx_v_final  %>% 
   left_join(time_nmds_2m) %>% 
   filter(time_point == 'end', cdiff == T) %>% 
   ggplot(aes(x = axis1, y = axis2)) +
@@ -586,7 +653,7 @@ initial_v_final  %>%
 #library(rgl)
 #time_nmds_3m <- read.table('data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.nmds.3.axes', 
 #  sep = '\t', header = T)
-#nmds_plot <- initial_v_final %>% 
+#nmds_plot <- pre_abx_v_final %>% 
 #  left_join(select(hi_lo_no_delay_df, group, CFU)) %>% 
 #  left_join(time_nmds_3m) %>% 
 #  mutate(log_CFU = round(log10(CFU + 1) + 1))
@@ -597,7 +664,7 @@ initial_v_final  %>%
 #    xlab = 'axis_1', ylab = 'axis_2', zlab = 'axis_3',
 #    width = 1000, size=NULL))
 #for(i in c(1,2)){
-#  time <- c('initial', 'end')[i]
+#  time <- c('pre_abx', 'end')[i]
 #  shapes <- c('x','o')[i]
 #  pt_color <- c('blue','black')[i]
 #  for(sz in c(1:10)){
@@ -615,7 +682,7 @@ initial_v_final  %>%
 #     line = 4, cex = 2)
 #  legend("topleft", cex = 2, col =c('blue','black'), 
 #    pch=c('x','o'), inset=c(0.02),
-#    legend = c('Initial', 'Final'))
+#    legend = c('pre_abx', 'Final'))
 #  legend("topright", cex = 2,
 #    pch='o', pt.cex = c(1.25,1.75,2.25,2.75), inset=c(0.02),
 #    legend = c(expression(paste("10"^"2")), expression(paste("10"^"4")),
@@ -633,16 +700,16 @@ source('../code/read.dist.R')
 thetayc_df <- read.dist('../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist')
 beta_div_df <- rownames_to_column(thetayc_df, 'group')
 
-CFU_intial_end <- initial_v_final %>% 
+CFU_intial_end <- pre_abx_v_final %>% 
   group_by(cage, mouse) %>% 
   mutate(CFU = max(CFU), log_CFU = max(log_CFU)) %>% ungroup() %>% 
   select(-day, -preAbx) %>% 
   spread(time_point, group) %>% 
   filter(cdiff == T) %>% 
-  filter(!is.na(end), !is.na(initial)) %>% 
-  select(log_CFU, end, initial) %>% 
+  filter(!is.na(end), !is.na(pre_abx)) %>% 
+  select(log_CFU, end, pre_abx) %>% 
   mutate(thetayc = unlist(as.numeric(apply(., 1, function(i){
-    beta_div_df[beta_div_df$group == i['initial'], i['end']]
+    beta_div_df[beta_div_df$group == i['pre_abx'], i['end']]
   }))))
 
 CFU_intial_end %>% 
@@ -653,7 +720,7 @@ CFU_intial_end %>%
   ggplot(aes(x = thetayc, y = log_CFU, color = abx)) +
     geom_point() +
     theme_bw() + 
-    labs(title = 'Relationship between initial vs final microbiota and final CFU',
+    labs(title = 'Relationship between pre_abx vs final microbiota and final CFU',
       x = 'Theta yc', y = 'CFU (log10)')
 
 
