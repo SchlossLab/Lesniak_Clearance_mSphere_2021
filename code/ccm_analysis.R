@@ -22,7 +22,7 @@ input_df <- input_file %>%
 		CFU_1lag = c(NA, CFU_0lag[-max(day)]),
 		CFU_2lag = c(NA, CFU_1lag[-max(day)]),
 		CFU_3lag = c(NA, CFU_2lag[-max(day)]))
-
+test_df <- input_df
 plot_ly(test_df, x = ~CFU_0lag, y = ~CFU_1lag, z=~CFU_2lag,
 	mode = 'lines', type = 'scatter3d', color = ~mouse,
 	line = list(width = 6)) 
