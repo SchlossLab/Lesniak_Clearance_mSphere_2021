@@ -9,6 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = F, warning = F, message = F)
 
 library(tidyverse)
+library(cowplot)
 
 meta_file   <- '../data/process/abx_cdiff_metadata_clean.txt'
 shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
@@ -355,6 +356,7 @@ p <- abx_v_final_alpha %>%
 ## Communities colonized to a lower level at the end of 10 days have recovered more from the initial antibiotic pertubation
 - Check for change from previous (draw line from pre_abx to post abx to end)
 - Check to make sure all make it to day 10 and how many don't
+- Check for cage/abx effects
 
 When looking at the alpha diversity of the infected vs uninfected, the community doesnt seem to be different, these communities seem to follow a similar trend regardless of infection. But when looking at the colonization level within the infected, it appears to be a bimodal distributution.
 
@@ -408,7 +410,100 @@ abx_v_final_alpha %>%
 
 ```
 
+Are differences in endpoint diversity not due to colonization but actually abx?
 
+```{r alpha of communities by abx}
+# plot and color by CFU of cdifficile on that day
+abx_v_final_alpha %>% 
+  filter(time_point == 'end') %>% 
+  ggplot(aes(x = abx, y = value, group = interaction(abx, hi_lo, cdiff))) + 
+    facet_grid(diversity ~ ., scales = 'free_y') + 
+    geom_boxplot(width = 0.5, outlier.color = NA, position = position_dodge(width = 0.9), 
+      aes(color = cdiff)) +
+    geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.1), 
+      alpha = 0.5, aes(color = hi_lo)) + 
+    expand_limits(y = 0) + theme_bw() + theme(legend.position = 'bottom') + 
+    labs(title = 'Comparing Alpha diversity of communities infected with C. difficile by their endpoint colonization level', 
+      x = 'Antibiotic Treatment', y = 'Time Point of Diversity Metric', color = '',
+      subtitle = paste0('Low = Below level of Detection, High = Greater than 1e+0', 
+        signif(mean(pull(filter(abx_v_final_alpha, cdiff == T), log_final_CFU)),1)
+        )) + 
+    scale_color_manual(breaks = c('FALSE', 'TRUE', 'High', 'Low'),
+      labels = c('No C difficile', 'C difficile Challenged', 'High Endpoint CFU', 'Low Endpoint CFU'),
+      values = c('gray', 'red', 'blue', 'black'))
+
+
+```
+
+
+Since the high and low colonization seem to be grouped by antibiotic, is the difference due to antibiotic or cdiff?
+
+
+```{r alpha of endpoint by abx and colonization}
+# plot and color by CFU of cdifficile on that day
+plot_by_abx_grp <- abx_v_final_alpha %>% 
+  filter(time_point == 'end') %>% 
+  mutate(abx_colonized_grp = ifelse(abx %in% c('cipro', 'clinda'), 'Low', 'High')) %>% 
+  mutate(abx_colonized_grp = factor(abx_colonized_grp, levels = c('Low', 'High'))) %>% 
+  ggplot(aes(x = cdiff, y = value, group = interaction(abx_colonized_grp, cdiff))) + 
+    facet_grid(diversity ~ ., scales = 'free_y') + 
+    geom_boxplot(width = 0.5, outlier.color = NA, position = position_dodge(width = 0.9), 
+      aes(color = cdiff)) +
+    geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.1), 
+      alpha = 0.5, aes(color = hi_lo)) + 
+    expand_limits(y = 0) + theme_bw() + theme(legend.position = 'bottom') + 
+    labs(title = 'Alpha diversity of communities by antibiotic grouped by colonization level', 
+      x = 'C difficile Challenged', y = 'Time Point of Diversity Metric', color = '',
+      subtitle = paste0('Low = Below level of Detection, High = Greater than 1e+0', 
+        signif(mean(pull(filter(abx_v_final_alpha, cdiff == T), log_final_CFU)),1), '\n Split by antibiotic treatment high (Ampicillin, Cefaperazone, Metronidazole, Streptomycin, Vancomycin) \nand low (Ciprofloxacin and Clindamycin)'
+        )) + 
+    scale_color_manual(breaks = c('FALSE', 'TRUE', 'High', 'Low'),
+      labels = c('No C difficile', 'C difficile Challenged', 'High Endpoint CFU', 'Low Endpoint CFU'),
+      values = c('gray', 'red', 'blue', 'black'))
+
+plot_by_colonization <- abx_v_final_alpha %>% 
+  filter(time_point == 'end') %>% 
+#  bind_rows(data.frame(cdiff = FALSE, hi_lo = 'High', diversity = 'sobs')) %>% 
+  ggplot(aes(x = cdiff, y = value, group = interaction(hi_lo, cdiff))) + 
+    facet_grid(diversity ~ ., scales = 'free_y') + 
+    geom_boxplot(width = 0.5, outlier.color = NA, position = position_dodge(width = 0.9),
+      aes(color = cdiff)) +
+    geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.2), 
+      alpha = 0.5, aes(color = hi_lo)) + 
+    expand_limits(y = 0) + theme_bw() + theme(legend.position = 'bottom') + 
+    labs(title = 'Alpha diversity of communities by their endpoint colonization level',
+      x = 'C difficile Challenge', y = 'Time Point of Diversity Metric', color = '',
+      subtitle = paste0('Low = Below level of Detection, High = Greater than 1e+0', 
+        signif(mean(pull(filter(abx_v_final_alpha, cdiff == T), log_final_CFU)),1), '\n\n'
+        ))+ 
+    scale_color_manual(breaks = c('FALSE', 'TRUE', 'High', 'Low'),
+      labels = c('No C difficile', 'C difficile Challenged', 'High Endpoint CFU', 'Low Endpoint CFU'),
+      values = c('gray', 'red', 'blue', 'black'))
+
+plot_grid(plot_by_abx_grp, plot_by_colonization)
+
+```
+
+How do specific communities transition from abx to infection?
+
+```{r alpha of C difficile infected communities dynamics}
+# plot and color by CFU of cdifficile on that day
+abx_v_final_alpha %>% 
+  filter(cdiff == T) %>% 
+  mutate(sample = paste(cage, mouse, sep = '_')) %>% 
+  ggplot(aes(x = time_point, y = value, color = hi_lo, group = interaction(hi_lo, time_point))) + 
+    facet_grid(diversity ~ hi_lo, scales = 'free_y') + 
+    geom_line(aes(group = sample), size = 0.2) + 
+    geom_point() + 
+    expand_limits(y = 0) + 
+    theme_bw() + labs(title = 'Alpha diversity of communities infected with C. difficile by their endpoint colonization level',
+      x = '', y = 'Time Point of Diversity Metric', color = 'Endpoint \nColonization',
+      subtitle = paste0('Low = Below level of Detection, High = Greater than 1e+0',
+        signif(mean(pull(filter(abx_v_final_alpha, cdiff == T), log_final_CFU)),1)
+        ))
+
+
+```
 
 
 ```{r invsimpson, fig.width=4, fig.height=3}
