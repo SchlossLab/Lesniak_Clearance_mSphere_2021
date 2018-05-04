@@ -26,7 +26,29 @@ cdiff_otus <- as.character(tax_df$OTU[grep('Clostridium_XI', tax_df$Taxonomy)])
 entercoccus_otus <- as.character(tax_df$OTU[grep('Enterococcus', tax_df$Taxonomy)])
 
 numotus <- shared_file$numOtus[1]
+
+shared_cdiff <- apply(select(shared_file, one_of(cdiff_otus)), 1, sum)
+shared_cdiff <- data.frame(group = names(shared_cdiff), c_difficile = unname(shared_cdiff)) %>% 
+  mutate(C.difficile = c_difficile/numotus)
+
+left_join(shared_cdiff, select(meta_file, group, CFU)) %>% 
+  ggplot(aes(x = log(CFU+ 1), y = log(c_difficile + 1))) + geom_point() + 
+    labs(x = 'CFU (log10)', y = 'Counts (log10)', title = 'C. difficile Counts vs CFU')
+
 shared_file <- select(shared_file, -label, -numOtus, -one_of(cdiff_otus))
+
+```
+
+
+## Comparing CFU vs Counts for detecting C. difficile
+
+
+```{r cdiff counts v cfu}
+
+left_join(shared_cdiff, select(meta_file, group, CFU)) %>% 
+  ggplot(aes(x = log10(CFU+ 1), y = log10(c_difficile + 1))) + geom_point() + 
+    labs(x = 'CFU (log10)', y = 'Counts (log10)', title = 'C. difficile Counts vs CFU')
+
 
 ```
 
@@ -64,9 +86,11 @@ hi_lo_no_delay_df <- meta_file %>%
     (abx == 'vanc' & dose == 0.625)) %>% 
   select(group, CFU, cage, mouse, day, abx, cdiff, preAbx)
 
-meta_shared <- right_join(hi_lo_no_delay_df, mutate(rel_abund, group = rownames(rel_abund)))
+meta_shared <- right_join(hi_lo_no_delay_df, 
+    mutate(rel_abund, group = rownames(rel_abund)))
 
-phyla_rel_ab <- sum_otu_by_taxa(taxonomy_file = tax_file, otu_df = rel_abund,taxa_level = 'phylum')
+phyla_rel_ab <- left_join(sum_otu_by_taxa(taxonomy_file = tax_file, otu_df = rel_abund,taxa_level = 'phylum'),
+  select(shared_cdiff, group, C.difficile), by = c('sample' = 'group'))
 meta_phyla <- left_join(hi_lo_no_delay_df, mutate(phyla_rel_ab, group = rownames(rel_abund)))
 taxa <- colnames(select(phyla_rel_ab, -sample))
 
