@@ -16,5 +16,6 @@ mothur*logfile
 *.gif
 *.png
 *.tiff
+*.jpg
 
 .nfs*
