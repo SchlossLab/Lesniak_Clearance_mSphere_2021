@@ -90,8 +90,9 @@ NA_list <- which(test_df$day == 0)
 test_df[test_df == 0] <-  sample(100,sum(test_df == 0, na.rm=T), replace = T)/100
 test_df[NA_list, ] <- NA
 
+set.seed(1)
 output <- c()
-for(i in 2:ncol(test_df)){
+for(i in 3:ncol(test_df)){
 	Accm<-test_df$CFU
 	Bccm<-test_df[,i]
 	maxE<-6 #Maximum E to test
@@ -131,7 +132,8 @@ for(i in 2:ncol(test_df)){
 	output <- rbind(output, data.frame(t(CCM_significance_test), 
 		cdiff_cause_otu = max(CCM_boot_A$rho), 
 		otu_cause_cdiff = max(CCM_boot_B$rho),
-		otu = colnames(test_df)[i]))
+		otu = colnames(test_df)[i],
+		E_A = E_A,
+		E_B = E_B))
 }
 
-summary(output)
