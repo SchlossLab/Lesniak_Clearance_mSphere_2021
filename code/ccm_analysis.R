@@ -95,7 +95,8 @@ output <- c()
 for(i in 3:ncol(test_df)){
 	Accm<-test_df$CFU
 	Bccm<-test_df[,i]
-	maxE<-6 #Maximum E to test
+	#Maximum E to test - one less than number of observations per sample
+	maxE<-length(unique(test_df$day)) - 2 # one less for separating NAs and one less sample
 	#Matrix for storing output
 	Emat<-matrix(nrow=maxE-1, ncol=2); colnames(Emat)<-c("A", "B")
 	#Loop over potential E values and calculate predictive ability
