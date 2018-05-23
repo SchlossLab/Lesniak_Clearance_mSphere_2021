@@ -90,7 +90,8 @@ test_df <- meta_file %>%
 	left_join(select(shared_file, -label, -numOtus),
 		by = c('group' = "Group")) %>%
 	arrange(cage, mouse, day)%>%
-	select(day, CFU, contains('Otu'))
+	select(day, CFU, contains('Otu')) %>% 
+	select(which(apply(test_df, 2, max) > 1 ))
 NA_list <- which(test_df$day == 0)
 test_df[test_df == 0] <-  sample(100,sum(test_df == 0, na.rm=T), replace = T)/100
 test_df[NA_list, ] <- NA
