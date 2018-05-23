@@ -131,6 +131,12 @@ for(i in 3:ncol(test_df)){
 	predsteplist=1:10)
 	signal_B_out<-SSR_check_signal(A=Bccm, E=E_B, tau=1,
 	predsteplist=1:10)
+	prediction_step_plot <- rbind(data.frame(signal_A_out$predatout, OTU = 'A'),
+		data.frame(signal_B_out$predatout, OTU = 'B')) %>% 
+		ggplot(aes(x = predstep, y = rho, color = OTU)) + 
+			geom_line() + 
+			labs(x = 'Prediction Steps', y = 'Pearson correlation coefficient (rho)', 
+				title = 'Predictive Power')
 	#Run the CCM test
 	#E_A and E_B are the embedding dimensions for A and B.
 	#tau is the length of time steps used (default is 1)
