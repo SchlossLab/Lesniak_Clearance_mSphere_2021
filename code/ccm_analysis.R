@@ -143,18 +143,60 @@ for(i in 3:ncol(test_df)){
 	#iterations is the number of bootsrap iterations (default 100)
 	# Does A "cause" B?
 	#Note - increase iterations to 100 for consistant results
-	CCM_boot_A<-CCM_boot(Accm, Bccm, E_A, tau=1, iterations=100)
+	CCM_boot_A<-CCM_boot(Accm, Bccm, E_A, tau=1, iterations=1000)
 	# Does B "cause" A?
-	CCM_boot_B<-CCM_boot(Bccm, Accm, E_B, tau=1, iterations=100)
+	CCM_boot_B<-CCM_boot(Bccm, Accm, E_B, tau=1, iterations=1000)
 	#Test for significant causal signal
 	#See R function for details
 	CCM_significance_test<-ccmtest(CCM_boot_A, CCM_boot_B)
-	output <- rbind(output, data.frame(t(CCM_significance_test), 
+	current_ccm <- data.frame(t(CCM_significance_test), 
 		cdiff_cause_otu = max(CCM_boot_A$rho), 
 		otu_cause_cdiff = max(CCM_boot_B$rho),
 		otu = colnames(test_df)[i],
 		E_A = E_A,
-		E_B = E_B))
+		E_B = E_B)
+
+	if(current_ccm$pval_b_cause_a <= 0.05){
+		causal_otu <- as.character(current_ccm$otu)
+		CCM_plot <- rbind(data.frame(causal = paste0('Cdiff_causes_', causal_otu), 
+			lobs = CCM_boot_A$Lobs,
+			rho = CCM_boot_A$rho,
+			stdev_min = CCM_boot_A$rho - CCM_boot_A$sdevrho,
+			stdev_max = CCM_boot_A$rho + CCM_boot_A$sdevrho),
+		data.frame(causal = paste0(causal_otu, '_causes_Cdiff'), 
+			lobs = CCM_boot_B$Lobs,
+			rho = CCM_boot_B$rho,
+			stdev_min = CCM_boot_B$rho - CCM_boot_B$sdevrho,
+			stdev_max = CCM_boot_B$rho + CCM_boot_B$sdevrho )) %>% 
+		#gather(level, value, rho, stdev_min, stdev_max) %>% 
+		ggplot(aes(x = lobs)) + 
+			geom_line(aes(y = rho, color = causal)) + 
+			geom_ribbon(aes(ymin = stdev_min, ymax = stdev_max, fill = causal), alpha = 0.3) + 
+			labs(x = 'L', y = 'Pearson correlation coefficient (rho)', color = '', fill = '') + 
+			theme_bw() + 
+			theme(legend.position="top", legend.direction="horizontal")
+
+		dynamics_plot <- meta_file %>% 
+			filter(abx == 'clinda', cdiff == T, day >= 0) %>%
+			left_join(select(shared_file, -label, -numOtus),
+				by = c('group' = "Group")) %>%
+			select(cage, mouse, day, CFU, one_of(causal_otu)) %>% 
+			gather(bacteria, counts, CFU, one_of(causal_otu)) %>% 
+				ggplot(aes(x = day, y = counts, color = interaction(as.factor(mouse), as.factor(cage)), group = interaction(cage, mouse))) + 
+					geom_line() + 
+					facet_grid(bacteria~., scales = 'free_y') +
+					theme_bw() + 
+					labs(x = 'Day', y = 'Abundance \n (C difficle = CFU, Otu = 16s counts)', 
+						title = 'Temporal Dynamics', subtitle = 'Colored by mouse') + 
+					scale_x_continuous(breaks=seq(0,10, 1)) + 
+					theme(legend.position = 'none')
+			
+
+		ggsave(paste0('scratch/ccm/ccm_cdiff_caused_by_', causal_otu, '.jpg'),
+			plot_grid(embedding_dim_plot, prediction_step_plot, CCM_plot, dynamics_plot))
+
+	}
+	output <- rbind(output, current_ccm)
 }
 
 summary(output)
