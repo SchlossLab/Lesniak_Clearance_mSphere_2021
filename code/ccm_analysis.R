@@ -116,6 +116,13 @@ for(i in 3:ncol(test_df)){
 	#maximum E 
 	E_A<-c(2:maxE)[which(Emat[,1] == max(Emat[,1], na.rm =T))]
 	E_B<-c(2:maxE)[which(Emat[,2] == max(Emat[,2], na.rm =T))]
+	embedding_dim_plot <- data.frame(cbind(Emat, E = c(2:maxE))) %>% 
+		gather(OTU, rho, -E) %>% 
+		left_join(data.frame(OTU = c('A', 'B'), Selected_E = c(E_A, E_B))) %>% 
+		ggplot(aes(x = E, y = rho, color = OTU)) + 
+			geom_line() + 
+			geom_vline(aes(xintercept = Selected_E, color = OTU), linetype = 'dashed', size = 0.5) +
+			labs(x = 'E', y = 'Pearson correlation coefficient (rho)', title = 'Best embedding dimension selection')
 	#Check data for nonlinear signal that is not dominated by noise
 	#Checks whether predictive ability of processes declines with
 	#increasing time distance
