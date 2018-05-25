@@ -103,6 +103,14 @@ for(i in 3:ncol(test_df)){
 	Accm<-test_df$CFU
 	Bccm<-test_df[,i]
 	current_otu <- colnames(test_df)[i]
+	lagged_dynamics_plot <- data.frame(day = test_df$day,
+		t1 = test_df[,i],
+		t0 = c(test_df[-1,i], NA))  %>% 
+		filter(!is.na(t0), !is.na(t1)) %>% 
+		ggplot(aes(x = t0, y = t1, color = day)) + 
+			geom_point() + 
+			labs(title = paste(current_otu)) + 
+			theme_bw(base_size = 8)
 	#Maximum E to test - one less than number of observations per sample
 	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
 	maxE<- length(unique(test_df$day)) - 2 # one less for separating NAs and one less sample
