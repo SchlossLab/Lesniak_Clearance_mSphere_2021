@@ -52,7 +52,7 @@ for(treatment_subset in unique(meta_file$treatment)){
 				theme_bw(base_size = 8)
 		#Maximum E to test - one less than number of observations per sample
 		# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
-		maxE<- length(unique(abx_df$day)) - 2 # one less for separating NAs and one less sample
+		maxE<- 8 #length(unique(abx_df$day)) - 2 # one less for separating NAs and one less sample
 		#Matrix for storing output
 		Emat<-matrix(nrow=maxE-1, ncol=2); colnames(Emat)<-c("C_difficile", current_otu)
 		#Loop over potential E values and calculate predictive ability
