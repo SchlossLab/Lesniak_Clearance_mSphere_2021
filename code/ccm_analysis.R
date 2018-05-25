@@ -104,7 +104,8 @@ for(i in 3:ncol(test_df)){
 	Bccm<-test_df[,i]
 	current_otu <- colnames(test_df)[i]
 	#Maximum E to test - one less than number of observations per sample
-	maxE<-length(unique(test_df$day)) - 2 # one less for separating NAs and one less sample
+	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
+	maxE<- length(unique(test_df$day)) - 2 # one less for separating NAs and one less sample
 	#Matrix for storing output
 	Emat<-matrix(nrow=maxE-1, ncol=2); colnames(Emat)<-c("C_difficile", current_otu)
 	#Loop over potential E values and calculate predictive ability
@@ -116,8 +117,10 @@ for(i in 3:ncol(test_df)){
 	Emat[E-1,current_otu]<-SSR_pred_boot(A=Bccm, E=E, predstep=1, tau=1)$rho
 	}
 	#maximum E 
-	E_A<-c(2:maxE)[which(Emat[,1] == max(Emat[,1], na.rm =T))]
-	E_B<-c(2:maxE)[which(Emat[,2] == max(Emat[,2], na.rm =T))]
+	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
+	maxEmat <- Emat/c(2:maxE)
+	E_A<-c(2:maxE)[which(maxEmat[,1] == max(maxEmat[,1], na.rm =T))]
+	E_B<-c(2:maxE)[which(maxEmat[,2] == max(maxEmat[,2], na.rm =T))]
 	embedding_dim_plot <- data.frame(cbind(Emat, E = c(2:maxE))) %>% 
 		gather(bacteria, rho, -E) %>% 
 		left_join(data.frame(bacteria = c('C_difficile', current_otu), Selected_E = c(E_A, E_B))) %>% 
