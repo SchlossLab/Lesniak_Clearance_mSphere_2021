@@ -22,11 +22,11 @@ for(treatment_subset in unique(meta_file$treatment)){
 	abx_df <- meta_file %>% 
 		filter(treatment == treatment_subset) %>%
 		select(group, cage, mouse, day, CFU) %>%
-		left_join(select(shared_file, -label, -numOtus),
+		inner_join(select(shared_file, -label, -numOtus),
 			by = c('group' = "Group")) %>% 
 		arrange(cage, mouse, day) %>%
 		select(-group, -cage, -mouse)
-	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum, na.rm = T) > 10 ))
+	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 ))
 	NA_list <- which(abx_df$day == 0)
 	abx_df[abx_df == 0] <-  sample(100,sum(abx_df == 0, na.rm=T), replace = T)/100
 	abx_df[NA_list, ] <- NA
@@ -140,7 +140,7 @@ for(treatment_subset in unique(meta_file$treatment)){
 
 			dynamics_plot <- meta_file %>% 
 				filter(treatment == treatment_subset) %>%
-				left_join(select(shared_file, -label, -numOtus),
+				inner_join(select(shared_file, -label, -numOtus),
 					by = c('group' = "Group")) %>%
 				select(cage, mouse, day, CFU, one_of(causal_otu)) %>% 
 				gather(bacteria, counts, CFU, one_of(causal_otu)) %>% 
