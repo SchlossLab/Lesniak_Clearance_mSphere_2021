@@ -120,7 +120,7 @@ for(treatment_subset in unique(meta_file$treatment)){
 			treatment = treatment_subset) %>% 
 			separate(treatment, c('abx', 'dose', 'delayed_infection'))
 
-		if(current_ccm$pval_b_cause_a <= 0.05){
+		if(current_ccm$pval_b_cause_a <= 0.1){
 			causal_otu <- as.character(current_ccm$otu)
 			CCM_plot <- rbind(data.frame(causal = paste0('Cdiff_causes_', causal_otu), 
 				lobs = CCM_boot_A$Lobs,
