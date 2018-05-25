@@ -218,7 +218,8 @@ for(i in 3:ncol(test_df)){
 			
 
 		ggsave(paste0('scratch/ccm/ccm_cdiff_caused_by_', causal_otu, '.jpg'),
-			plot_grid(embedding_dim_plot, prediction_step_plot, CCM_plot, dynamics_plot))
+			plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
+				CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'))
 
 	}
 	output <- rbind(output, current_ccm)
