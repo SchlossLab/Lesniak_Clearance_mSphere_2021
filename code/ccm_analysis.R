@@ -102,25 +102,26 @@ output <- c()
 for(i in 3:ncol(test_df)){
 	Accm<-test_df$CFU
 	Bccm<-test_df[,i]
+	current_otu <- colnames(test_df)[i]
 	#Maximum E to test - one less than number of observations per sample
 	maxE<-length(unique(test_df$day)) - 2 # one less for separating NAs and one less sample
 	#Matrix for storing output
-	Emat<-matrix(nrow=maxE-1, ncol=2); colnames(Emat)<-c("A", "B")
+	Emat<-matrix(nrow=maxE-1, ncol=2); colnames(Emat)<-c("C_difficile", current_otu)
 	#Loop over potential E values and calculate predictive ability
 	#of each process for its own dynamics
 	for(E in 2:maxE) {
 	#Uses defaults of looking forward one prediction step (predstep)
 	#And using time lag intervals of one time step (tau)
-	Emat[E-1,"A"]<-SSR_pred_boot(A=Accm, E=E, predstep=1, tau=1)$rho
-	Emat[E-1,"B"]<-SSR_pred_boot(A=Bccm, E=E, predstep=1, tau=1)$rho
+	Emat[E-1,"C_difficile"]<-SSR_pred_boot(A=Accm, E=E, predstep=1, tau=1)$rho
+	Emat[E-1,current_otu]<-SSR_pred_boot(A=Bccm, E=E, predstep=1, tau=1)$rho
 	}
 	#maximum E 
 	E_A<-c(2:maxE)[which(Emat[,1] == max(Emat[,1], na.rm =T))]
 	E_B<-c(2:maxE)[which(Emat[,2] == max(Emat[,2], na.rm =T))]
 	embedding_dim_plot <- data.frame(cbind(Emat, E = c(2:maxE))) %>% 
-		gather(OTU, rho, -E) %>% 
-		left_join(data.frame(OTU = c('A', 'B'), Selected_E = c(E_A, E_B))) %>% 
-		ggplot(aes(x = E, y = rho, color = OTU)) + 
+		gather(bacteria, rho, -E) %>% 
+		left_join(data.frame(bacteria = c('C_difficile', current_otu), Selected_E = c(E_A, E_B))) %>% 
+		ggplot(aes(x = E, y = rho, color = bacteria)) + 
 			geom_line() + 
 			geom_vline(aes(xintercept = Selected_E, color = OTU), linetype = 'dashed', size = 0.5) +
 			labs(x = 'E', y = 'Pearson correlation coefficient (rho)', title = 'Best embedding dimension selection')
@@ -132,9 +133,9 @@ for(i in 3:ncol(test_df)){
 	predsteplist=1:10)
 	signal_B_out<-SSR_check_signal(A=Bccm, E=E_B, tau=1,
 	predsteplist=1:10)
-	prediction_step_plot <- rbind(data.frame(signal_A_out$predatout, OTU = 'A'),
-		data.frame(signal_B_out$predatout, OTU = 'B')) %>% 
-		ggplot(aes(x = predstep, y = rho, color = OTU)) + 
+	prediction_step_plot <- rbind(data.frame(signal_A_out$predatout, bacteria = 'C_difficile'),
+		data.frame(signal_B_out$predatout, bacteria = current_otu)) %>% 
+		ggplot(aes(x = predstep, y = rho, color = bacteria)) + 
 			geom_line() + 
 			labs(x = 'Prediction Steps', y = 'Pearson correlation coefficient (rho)', 
 				title = 'Predictive Power')
