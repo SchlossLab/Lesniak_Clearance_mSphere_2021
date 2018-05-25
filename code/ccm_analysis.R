@@ -134,8 +134,14 @@ for(i in 3:ncol(test_df)){
 		left_join(data.frame(bacteria = c('C_difficile', current_otu), Selected_E = c(E_A, E_B))) %>% 
 		ggplot(aes(x = E, y = rho, color = bacteria)) + 
 			geom_line() + 
-			geom_vline(aes(xintercept = Selected_E, color = OTU), linetype = 'dashed', size = 0.5) +
-			labs(x = 'E', y = 'Pearson correlation coefficient (rho)', title = 'Best embedding dimension selection')
+			geom_vline(aes(xintercept = Selected_E, color = bacteria), 
+				linetype = 'dashed', size = 0.5, show.legend = FALSE) +
+			labs(x = 'E', y = 'Pearson correlation coefficient (rho)', title = 'Embedding Dimension Selection',
+				subtitle = 'Dimension of highest predictive power') + 
+			theme_bw(base_size = 8) + 
+			theme(legend.position = c(0.8, 0.8), legend.title=element_blank(), 
+				legend.background=element_blank()) + 
+			scale_x_continuous(breaks = seq(2, maxE, 1))			
 	#Check data for nonlinear signal that is not dominated by noise
 	#Checks whether predictive ability of processes declines with
 	#increasing time distance
@@ -149,7 +155,11 @@ for(i in 3:ncol(test_df)){
 		ggplot(aes(x = predstep, y = rho, color = bacteria)) + 
 			geom_line() + 
 			labs(x = 'Prediction Steps', y = 'Pearson correlation coefficient (rho)', 
-				title = 'Predictive Power')
+				title = 'Predictive Power') + 
+			theme_bw(base_size = 8) + 
+			theme(legend.position = c(0.8, 0.8), legend.title=element_blank(), 
+				legend.background=element_blank()) + 
+			scale_x_continuous(breaks = seq(1, 10, 1))
 	#Run the CCM test
 	#E_A and E_B are the embedding dimensions for A and B.
 	#tau is the length of time steps used (default is 1)
@@ -202,7 +212,9 @@ for(i in 3:ncol(test_df)){
 					labs(x = 'Day', y = 'Abundance \n (C difficle = CFU, Otu = 16s counts)', 
 						title = 'Temporal Dynamics', subtitle = 'Colored by mouse') + 
 					scale_x_continuous(breaks=seq(0,10, 1)) + 
+					theme_bw(base_size = 8) + 
 					theme(legend.position = 'none')
+					
 			
 
 		ggsave(paste0('scratch/ccm/ccm_cdiff_caused_by_', causal_otu, '.jpg'),
