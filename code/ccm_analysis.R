@@ -14,13 +14,16 @@ meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = 
 	unite(treatment, abx, dose, delayed) %>% 
 	filter(cdiff == T, day >= 0, treatment != 'none_NA_FALSE')
 shared_file <- read.table(shared_file, sep = '\t', header = T)
+output <- c()
 
 for(treatment_subset in unique(meta_file$treatment)){
+	print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
+
 	abx_df <- meta_file %>% 
 		filter(treatment == treatment_subset) %>%
 		select(group, cage, mouse, day, CFU) %>%
 		left_join(select(shared_file, -label, -numOtus),
-			by = c('group' = "Group")) %>%
+			by = c('group' = "Group")) %>% 
 		arrange(cage, mouse, day) %>%
 		select(-group, -cage, -mouse)
 	abx_df <- select(abx_df, day, CFU, which(apply(abx_df, 2, max) > 1 ))
@@ -33,11 +36,12 @@ for(treatment_subset in unique(meta_file$treatment)){
 		dir.create(file.path('scratch/ccm', treatment_subset)), FALSE)
 
 	set.seed(1)
-	output <- c()
+	#contains('Otu', colnames(abx_df)) # trying to not hard code start of otus
 	for(i in 3:ncol(abx_df)){
 		Accm<-abx_df$CFU
 		Bccm<-abx_df[,i]
 		current_otu <- colnames(abx_df)[i]
+		print(paste0('Beginning ', current_otu, ' in from ', treatment_subset))
 		lagged_dynamics_plot <- data.frame(day = abx_df$day,
 			t1 = abx_df[,i],
 			t0 = c(abx_df[-1,i], NA))  %>% 
@@ -153,8 +157,9 @@ for(treatment_subset in unique(meta_file$treatment)){
 			ggsave(paste0('scratch/ccm/', treatment_subset, '/ccm_cdiff_caused_by_', causal_otu, '.jpg'),
 				plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
 					CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'))
-
 		}
+		print(paste0('Complete ', current_otu, ' in from ', treatment_subset))
 		output <- rbind(output, current_ccm)
 	}
+	print(paste0('Completed treatment set - ', treatment_subset))
 }
