@@ -26,7 +26,7 @@ for(treatment_subset in unique(meta_file$treatment)){
 			by = c('group' = "Group")) %>% 
 		arrange(cage, mouse, day) %>%
 		select(-group, -cage, -mouse)
-	abx_df <- select(abx_df, day, CFU, which(apply(abx_df, 2, max) > 1 ))
+	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum, na.rm = T) > 10 ))
 	NA_list <- which(abx_df$day == 0)
 	abx_df[abx_df == 0] <-  sample(100,sum(abx_df == 0, na.rm=T), replace = T)/100
 	abx_df[NA_list, ] <- NA
