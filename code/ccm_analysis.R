@@ -116,7 +116,9 @@ for(treatment_subset in unique(meta_file$treatment)){
 			otu_cause_cdiff = max(CCM_boot_B$rho),
 			otu = colnames(abx_df)[i],
 			E_A = E_A,
-			E_B = E_B)
+			E_B = E_B,
+			treatment = treatment_subset) %>% 
+			separate(treatment, c('abx', 'dose', 'delayed_infection'))
 
 		if(current_ccm$pval_b_cause_a <= 0.05){
 			causal_otu <- as.character(current_ccm$otu)
@@ -163,3 +165,5 @@ for(treatment_subset in unique(meta_file$treatment)){
 	}
 	print(paste0('Completed treatment set - ', treatment_subset))
 }
+
+write.table(output, 'scratch/ccm/ccm_raw_data.txt', quote = F, row.names = F)
