@@ -12,42 +12,8 @@ shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique
 meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F)
 shared_file <- read.table(shared_file, sep = '\t', header = T)
 
-#test with one abx treatment
 
-#create vector of mouse by day stitched per abx (separate each mouse with NA)
-#  begin with NA
-Accm<-ccm_data_out$Accm
-Bccm<-ccm_data_out$Bccm
 
-#Calculate optimal E
-maxE<-9 #Maximum E to test
-#Matrix for storing output
-Emat<-matrix(nrow=maxE-1, ncol=2); colnames(Emat)<-c("A", "B")
-#Loop over potential E values and calculate predictive ability
-#of each process for its own dynamics
-for(E in 2:maxE) {
-#Uses defaults of looking forward one prediction step (predstep)
-#And using time lag intervals of one time step (tau)
-Emat[E-1,"A"]<-SSR_pred_boot(A=Accm, E=E, predstep=1, tau=1)$rho
-Emat[E-1,"B"]<-SSR_pred_boot(A=Bccm, E=E, predstep=1, tau=1)$rho
-}
-#Look at plots to find E for each process at which
-#predictive ability rho is maximized
-matplot(2:maxE, Emat, type="l", col=1:2, lty=1:2,
-	xlab="E", ylab="rho", lwd=2)
-legend("bottomleft", c("A", "B"), lty=1:2, col=1:2, lwd=2, bty="n")
-#Results will vary depending on simulation.
-# set maximum E for A and B
-E_A<-2
-E_B<-3
-
-#Check data for nonlinear signal that is not dominated by noise
-#Checks whether predictive ability of processes declines with
-#increasing time distance
-signal_A_out<-SSR_check_signal(A=Accm, E=E_A, tau=1,
-	predsteplist=1:10)
-signal_B_out<-SSR_check_signal(A=Bccm, E=E_B, tau=1,
-	predsteplist=1:10)
 
 #Run the CCM test
 #E_A and E_B are the embedding dimensions for A and B.
