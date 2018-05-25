@@ -158,7 +158,7 @@ for(treatment_subset in unique(meta_file$treatment)){
 				plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
 					CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'))
 		}
-		print(paste0('Complete ', current_otu, ' in from ', treatment_subset))
+		print(paste0('Completed ', current_otu, ' from ', treatment_subset))
 		output <- rbind(output, current_ccm)
 	}
 	print(paste0('Completed treatment set - ', treatment_subset))
