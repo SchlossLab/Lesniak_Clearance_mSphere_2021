@@ -8,11 +8,11 @@ library(cowplot)
 #		randomize mouse order in combining samples
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
-shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
 	select(group, cage, mouse, day, CFU, cdiff, abx, dose, delayed) %>% 
 	unite(treatment, abx, dose, delayed) %>% 
 	filter(cdiff == T, day >= 0, treatment != 'none_NA_FALSE')
+shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 shared_file <- read.table(shared_file, sep = '\t', header = T)
 output <- c()
 
@@ -21,11 +21,13 @@ for(treatment_subset in unique(meta_file$treatment)){
 
 	abx_df <- meta_file %>% 
 		filter(treatment == treatment_subset) %>%
-		select(group, cage, mouse, day, CFU) %>%
+		mutate(unique_id = paste(cage, mouse, sep = '_'),
+			random_order = as.numeric(factor(unique_id, levels = 
+			sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
+		arrange(random_order, day) %>% 
 		inner_join(select(shared_file, -label, -numOtus),
 			by = c('group' = "Group")) %>% 
-		arrange(cage, mouse, day) %>%
-		select(-group, -cage, -mouse)
+		select(day, CFU, contains('Otu'))
 	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 ))
 	NA_list <- which(abx_df$day == 0)
 	abx_df[abx_df == 0] <-  sample(100,sum(abx_df == 0, na.rm=T), replace = T)/100
