@@ -7,6 +7,9 @@ library(cowplot)
 #		check into ientification of otus with 0 abundance
 #		randomize mouse order in combining samples
 
+seed <- 1
+set.seed(seed)
+
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
 	select(group, cage, mouse, day, CFU, cdiff, abx, dose, delayed) %>% 
@@ -15,6 +18,8 @@ meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = 
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 shared_file <- read.table(shared_file, sep = '\t', header = T)
 output <- c()
+
+print(paste0('Beginning seed ', seed))
 
 for(treatment_subset in unique(meta_file$treatment)){
 	print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
@@ -37,7 +42,6 @@ for(treatment_subset in unique(meta_file$treatment)){
 	ifelse(!dir.exists(file.path('scratch/ccm', treatment_subset)), 
 		dir.create(file.path('scratch/ccm', treatment_subset)), FALSE)
 
-	set.seed(1)
 	for(i in which(grepl('Otu', colnames(abx_df)))){
 		Accm<-abx_df$CFU
 		Bccm<-abx_df[,i]
@@ -157,7 +161,7 @@ for(treatment_subset in unique(meta_file$treatment)){
 						theme_bw(base_size = 8) + 
 						theme(legend.position = 'none')
 
-			ggsave(paste0('scratch/ccm/', treatment_subset, '/ccm_cdiff_caused_by_', causal_otu, '.jpg'),
+			ggsave(paste0('scratch/ccm/', treatment_subset, '/ccm_cdiff_caused_by_', causal_otu, '_seed', seed, '.jpg'),
 				plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
 					CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'))
 		}
@@ -166,5 +170,5 @@ for(treatment_subset in unique(meta_file$treatment)){
 	}
 	print(paste0('Completed treatment set - ', treatment_subset))
 }
-
-write.table(output, 'scratch/ccm/ccm_raw_data.txt', quote = F, row.names = F)
+print(paste0('Completed seed ', seed))
+write.table(output, paste0('scratch/ccm/ccm_raw_data_seed', seed, '.txt'), quote = F, row.names = F)
