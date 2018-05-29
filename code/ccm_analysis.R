@@ -36,8 +36,7 @@ for(treatment_subset in unique(meta_file$treatment)){
 		dir.create(file.path('scratch/ccm', treatment_subset)), FALSE)
 
 	set.seed(1)
-	#contains('Otu', colnames(abx_df)) # trying to not hard code start of otus
-	for(i in 3:ncol(abx_df)){
+	for(i in which(grepl('Otu', colnames(abx_df)))){
 		Accm<-abx_df$CFU
 		Bccm<-abx_df[,i]
 		current_otu <- colnames(abx_df)[i]
