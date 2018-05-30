@@ -14,7 +14,7 @@ library(cowplot)
 #	strep_0.5_false - day 5 missing 4;
 #	metro_1_false - day 9 and 10 missing 1, day 2 missing 3;
 #	clinda_10_false - day 4 missing 1;
-#	amp_5_false - day 4 missing 1, day 0 missing 2, day 9 missing 4;
+#	amp_0.5_false - day 4 missing 1, day 0 missing 2, day 9 missing 4;
 #	cef_0.3_false - day 4 and 7 missing 1;
 #	strep_5_false - day 2 missing 1;
 #	amp_0.5_true - day 0 and 4 missing 1
@@ -38,19 +38,40 @@ ifelse(!dir.exists('scratch/ccm'), dir.create('scratch/ccm'), print('ccm/ direct
 
 for(treatment_subset in unique(meta_file$treatment)){
 	print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
+	# treatment_subset <- 'amp_0.5_TRUE' # test for missing day 0 (missing 1)
+	# treatment_subset <- 'amp_0.5_FALSE' # test for missing day 0 (missing 2)
+	# treatment_subset <- 'cef_0.1_FALSE' # test for missing day 0 (none missing)
 
 	abx_df <- meta_file %>% 
 		filter(treatment == treatment_subset) %>%
-		mutate(unique_id = paste(cage, mouse, sep = '_'),
-			random_order = as.numeric(factor(unique_id, levels = 
-			sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
-		arrange(random_order, day) %>% 
+		mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
 		inner_join(select(shared_file, -label, -numOtus),
-			by = c('group' = "Group")) %>% 
-		select(day, CFU, contains('Otu'))
+			by = c('group' = "Group"))
+	
 	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 ))
+
+	missing_day_0 <- summarise(group_by(abx_df, unique_id), first_day = min(day)) %>% 
+		filter(first_day != 0) %>% 
+		pull(unique_id)
+
+	if(length(missing_day_0) > 0){
+		abx_df <- abx_df %>% 
+			bind_rows(data.frame(unique_id = missing_day_0, day = 0)) %>% 
+			mutate(random_order = as.numeric(factor(unique_id, levels = 
+				sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
+			arrange(random_order, day) %>%  
+			select(day, CFU, contains('Otu'))
+		} else {
+		abx_df <- abx_df %>% 
+			mutate(random_order = as.numeric(factor(unique_id, levels = 
+				sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
+			arrange(random_order, day) %>%  
+			select(day, CFU, contains('Otu'))
+		}
+
 	NA_list <- which(abx_df$day == 0)
-	abx_df[abx_df == 0] <-  sample(100,sum(abx_df == 0, na.rm=T), replace = T)/100
+	zero_subset <- abx_df == 0 & !is.na(abx_df)
+	abx_df[zero_subset] <-  sample(100,sum(zero_subset), replace = T)/100
 	abx_df[NA_list, ] <- NA
 
 	# create folder for treatment set
