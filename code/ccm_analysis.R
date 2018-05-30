@@ -126,7 +126,7 @@ for(treatment_subset in unique(meta_file$treatment)){
 			E_A = E_A,
 			E_B = E_B,
 			treatment = treatment_subset) %>% 
-			separate(treatment, c('abx', 'dose', 'delayed_infection'))
+			separate(treatment, c('abx', 'dose', 'delayed_infection'), sep = '_')
 
 		if(current_ccm$pval_b_cause_a <= 0.1){
 			causal_otu <- as.character(current_ccm$otu)
