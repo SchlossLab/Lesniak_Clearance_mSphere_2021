@@ -6,6 +6,8 @@ library(cowplot)
 #		setup to work with diff abx combinations
 #		check into ientification of otus with 0 abundance
 #		randomize mouse order in combining samples
+# what to do with mice with incomplete samples (missing days)?
+#	cipro_10_FALSE, vanco_0.625_FALSE, vanco_0.3_FALSE, vanco_0.1_FALSE, strep_0.5_false, metro_1_false
 
 seed <- commandArgs(TRUE)
 print(paste0('Using ', seed, ' as seed'))
