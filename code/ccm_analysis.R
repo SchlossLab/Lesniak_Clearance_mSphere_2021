@@ -7,7 +7,17 @@ library(cowplot)
 #		check into ientification of otus with 0 abundance
 #		randomize mouse order in combining samples
 # what to do with mice with incomplete samples (missing days)?
-#	cipro_10_FALSE, vanco_0.625_FALSE, vanco_0.3_FALSE, vanco_0.1_FALSE, strep_0.5_false, metro_1_false
+#	cipro_10_FALSE - day 5 missing 1;
+#	vanco_0.625_FALSE - day 3 and 4 missing 1;
+#	vanco_0.3_FALSE - day 2 missing 1, day 3 missing 3;
+#	vanco_0.1_FALSE - day 3 and 9 missing 1, day 2 missing 2;
+#	strep_0.5_false - day 5 missing 4;
+#	metro_1_false - day 9 and 10 missing 1, day 2 missing 3;
+#	clinda_10_false - day 4 missing 1;
+#	amp_5_false - day 4 missing 1, day 0 missing 2, day 9 missing 4;
+#	cef_0.3_false - day 4 and 7 missing 1;
+#	strep_5_false - day 2 missing 1;
+#	amp_0.5_true - day 0 and 4 missing 1
 
 seed <- commandArgs(TRUE)
 print(paste0('Using ', seed, ' as seed'))
