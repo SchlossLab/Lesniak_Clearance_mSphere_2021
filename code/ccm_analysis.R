@@ -7,7 +7,8 @@ library(cowplot)
 #		check into ientification of otus with 0 abundance
 #		randomize mouse order in combining samples
 
-seed <- 1
+seed <- commandArgs(TRUE)
+print(paste0('Using ', seed, ' as seed'))
 set.seed(seed)
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
