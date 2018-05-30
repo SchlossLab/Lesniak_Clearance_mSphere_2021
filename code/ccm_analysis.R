@@ -24,6 +24,8 @@ output <- c()
 
 print(paste0('Beginning seed ', seed))
 
+ifelse(!dir.exists('scratch/ccm'), dir.create('scratch/ccm'), print('ccm/ directory ready'))
+
 for(treatment_subset in unique(meta_file$treatment)){
 	print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
 
