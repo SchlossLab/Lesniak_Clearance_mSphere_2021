@@ -108,8 +108,8 @@ for(treatment_subset in unique(meta_file$treatment)){
 		for(E in 2:maxE) {
 		#Uses defaults of looking forward one prediction step (predstep)
 		#And using time lag intervals of one time step (tau)
-		Emat[E-1,current_otu1]<-SSR_pred_boot(A=Accm, E=E, predstep=1, tau=1)$rho
-		Emat[E-1,current_otu2]<-SSR_pred_boot(A=Bccm, E=E, predstep=1, tau=1)$rho
+		Emat[E-1,1]<-SSR_pred_boot(A=Accm, E=E, predstep=1, tau=1)$rho
+		Emat[E-1,2]<-SSR_pred_boot(A=Bccm, E=E, predstep=1, tau=1)$rho
 		}
 		#maximum E 
 		# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
@@ -174,8 +174,10 @@ for(treatment_subset in unique(meta_file$treatment)){
 			otu2 = current_otu2,
 			E_A = E_A,
 			E_B = E_B,
-			otu1_prediction_slope = paste(signal_A_out$rho_pre_slope),
-			otu2_prediction_slope = paste(signal_B_out$rho_pre_slope),
+			otu1_prediction_slope = paste(signal_A_out$rho_pre_slope['Estimate']),
+			otu1_prediction_slope_p = paste(signal_A_out$rho_pre_slope['Pr(>|t|)']),
+			otu2_prediction_slope = paste(signal_B_out$rho_pre_slope['Estimate']),
+			otu2_prediction_slope_p = paste(signal_B_out$rho_pre_slope['Pr(>|t|)']),
 			treatment = treatment_subset) %>% 
 			separate(treatment, c('abx', 'dose', 'delayed_infection'), sep = '_')
 
@@ -220,7 +222,7 @@ for(treatment_subset in unique(meta_file$treatment)){
 #			#ggsave(paste0('scratch/ccm/', treatment_subset, '/ccm_cdiff_caused_by_', causal_otu, '_seed', seed, '.jpg'),
 #			#	plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
 #			#		CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'))
-		}
+		}}
 		print(paste0('Completed ', current_otu1, ' and ', current_otu2,  ' from ', treatment_subset))
 		output <- rbind(output, current_ccm)
 	}
