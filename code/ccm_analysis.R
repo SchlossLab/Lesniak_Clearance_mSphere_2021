@@ -34,7 +34,7 @@ output <- c()
 
 print(paste0('Beginning seed ', seed))
 
-ifelse(!dir.exists('scratch/ccm'), dir.create('scratch/ccm'), print('ccm/ directory ready'))
+ifelse(!dir.exists('scratch/ccm_all'), dir.create('scratch/ccm_all'), print('ccm_all/ directory ready'))
 
 for(treatment_subset in unique(meta_file$treatment)){
 	print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
@@ -76,8 +76,8 @@ for(treatment_subset in unique(meta_file$treatment)){
 	abx_df <- select(abx_df, -day)
 
 	# create folder for treatment set
-	ifelse(!dir.exists(file.path('scratch/ccm', treatment_subset)), 
-		dir.create(file.path('scratch/ccm', treatment_subset)), FALSE)
+	ifelse(!dir.exists(file.path('scratch/ccm_all', treatment_subset)), 
+		dir.create(file.path('scratch/ccm_all', treatment_subset)), FALSE)
 
 	for(otu1 in 1:ncol(abx_df)){
 		for(otu2 in 1:ncol(abx_df)){
