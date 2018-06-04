@@ -36,7 +36,7 @@ seed_treatment <- cross2(1:10, unique(meta_file$treatment))
 seed <- seed_treatment[[1]]
 treatment_subset <- seed_treatment[[2]]
 
-print(paste0('Running set ', run_set, ' - Treatment ', treatment, ' using seed ', seed))
+print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset, ' using seed ', seed))
 
 set.seed(seed)
 
