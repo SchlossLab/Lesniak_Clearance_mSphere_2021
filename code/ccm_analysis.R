@@ -31,10 +31,9 @@ meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = 
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 shared_file <- read.table(shared_file, sep = '\t', header = T)
 
-seed_treatment <- cross2(1:10, unique(meta_file$treatment))[[run_set]]
-
-seed <- seed_treatment[[1]]
-treatment_subset <- seed_treatment[[2]]
+seed_treatment <- expand.grid(seed = 1:10, treatment = unique(meta_file$treatment))[run_set, ]
+seed <- seed_treatment$seed
+treatment_subset <- as.character(seed_treatment$treatment)
 
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset, ' using seed ', seed))
 
