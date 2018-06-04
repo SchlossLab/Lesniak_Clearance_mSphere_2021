@@ -30,63 +30,17 @@ meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = 
 	filter(cdiff == T, day >= 0, treatment != 'none_NA_FALSE')
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 shared_file <- read.table(shared_file, sep = '\t', header = T)
-output <- c()
 
 print(paste0('Beginning seed ', seed))
 
 ifelse(!dir.exists('scratch/ccm_all'), dir.create('scratch/ccm_all'), print('ccm_all/ directory ready'))
 
-for(treatment_subset in unique(meta_file$treatment)){
-	print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
-	# treatment_subset <- 'amp_0.5_TRUE' # test for missing day 0 (missing 1)
-	# treatment_subset <- 'amp_0.5_FALSE' # test for missing day 0 (missing 2)
-	# treatment_subset <- 'cef_0.1_FALSE' # test for missing day 0 (none missing)
-
-	abx_df <- meta_file %>% 
-		filter(treatment == treatment_subset) %>%
-		mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
-		inner_join(select(shared_file, -label, -numOtus),
-			by = c('group' = "Group"))
-	
-	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 ))
-
-	missing_day_0 <- summarise(group_by(abx_df, unique_id), first_day = min(day)) %>% 
-		filter(first_day != 0) %>% 
-		pull(unique_id)
-
-	if(length(missing_day_0) > 0){
-		abx_df <- abx_df %>% 
-			bind_rows(data.frame(unique_id = missing_day_0, day = 0)) %>% 
-			mutate(random_order = as.numeric(factor(unique_id, levels = 
-				sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
-			arrange(random_order, day) %>%  
-			select(day, CFU, contains('Otu'))
-		} else {
-		abx_df <- abx_df %>% 
-			mutate(random_order = as.numeric(factor(unique_id, levels = 
-				sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
-			arrange(random_order, day) %>%  
-			select(day, CFU, contains('Otu'))
-		}
-
-	NA_list <- which(abx_df$day == 0)
-	zero_subset <- abx_df == 0 & !is.na(abx_df)
-	abx_df[zero_subset] <-  sample(100,sum(zero_subset), replace = T)/100
-	abx_df[NA_list, ] <- NA
-	abx_df <- select(abx_df, -day)
-
-	# create folder for treatment set
-	ifelse(!dir.exists(file.path('scratch/ccm_all', treatment_subset)), 
-		dir.create(file.path('scratch/ccm_all', treatment_subset)), FALSE)
-
-	for(otu1 in 1:ncol(abx_df)){
-		for(otu2 in 1:ncol(abx_df)){
-		Accm<-abx_df[,otu1]
-		Bccm<-abx_df[,otu2]
-		current_otu1 <- colnames(abx_df)[otu1]
-		current_otu2 <- colnames(abx_df)[otu2]
-		print(paste0('Beginning ', current_otu1, ' and ', current_otu2, ' in from ', treatment_subset))
-
+run_ccm <- function(otu, abx_df, treatment_subset){
+	Accm<-abx_df[ , otu[[1]] ]
+	Bccm<-abx_df[ , otu[[2]] ]
+	current_otu1 <- colnames(abx_df)[ otu[[1]] ]
+	current_otu2 <- colnames(abx_df)[ otu[[2]] ]
+	print(paste0('Beginning ', current_otu1, ' and ', current_otu2, ' in from ', treatment_subset))
 # fix to use two otus
 
 #		lagged_dynamics_plot <- data.frame(day = abx_df$day,
@@ -97,25 +51,24 @@ for(treatment_subset in unique(meta_file$treatment)){
 #				geom_point() + 
 #				labs(title = paste(current_otu)) + 
 #				theme_bw(base_size = 8)
-
-		#Maximum E to test - one less than number of observations per sample
-		# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
-		maxE<- 6 #length(unique(abx_df$day)) - 2 # one less for separating NAs and one less sample
-		#Matrix for storing output
-		Emat<-matrix(nrow=maxE-1, ncol=2); colnames(Emat)<-c(current_otu1, current_otu2)
-		#Loop over potential E values and calculate predictive ability
-		#of each process for its own dynamics
-		for(E in 2:maxE) {
-		#Uses defaults of looking forward one prediction step (predstep)
-		#And using time lag intervals of one time step (tau)
-		Emat[E-1,1]<-SSR_pred_boot(A=Accm, E=E, predstep=1, tau=1)$rho
-		Emat[E-1,2]<-SSR_pred_boot(A=Bccm, E=E, predstep=1, tau=1)$rho
-		}
-		#maximum E 
-		# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
-		maxEmat <- Emat/c(2:maxE)
-		E_A<-c(2:maxE)[which(maxEmat[,1] == max(maxEmat[,1], na.rm =T))]
-		E_B<-c(2:maxE)[which(maxEmat[,2] == max(maxEmat[,2], na.rm =T))]
+	#Maximum E to test - one less than number of observations per sample
+	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
+	maxE<- 6 #length(unique(abx_df$day)) - 2 # one less for separating NAs and one less sample
+	#Matrix for storing output
+	Emat<-matrix(nrow=maxE-1, ncol=2); colnames(Emat)<-c(current_otu1, current_otu2)
+	#Loop over potential E values and calculate predictive ability
+	#of each process for its own dynamics
+	for(E in 2:maxE) {
+	#Uses defaults of looking forward one prediction step (predstep)
+	#And using time lag intervals of one time step (tau)
+	Emat[E-1,1]<-SSR_pred_boot(A=Accm, E=E, predstep=1, tau=1)$rho
+	Emat[E-1,2]<-SSR_pred_boot(A=Bccm, E=E, predstep=1, tau=1)$rho
+	}
+	#maximum E 
+	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
+	maxEmat <- Emat/c(2:maxE)
+	E_A<-c(2:maxE)[which(maxEmat[,1] == max(maxEmat[,1], na.rm =T))]
+	E_B<-c(2:maxE)[which(maxEmat[,2] == max(maxEmat[,2], na.rm =T))]
 
 #	fix to use two otus
 
@@ -133,14 +86,14 @@ for(treatment_subset in unique(meta_file$treatment)){
 #					legend.background=element_blank()) + 
 #				scale_x_continuous(breaks = seq(2, maxE, 1))			
 
-		#Check data for nonlinear signal that is not dominated by noise
-		#Checks whether predictive ability of processes declines with
-		#increasing time distance
-		#See manuscript and R code for details
-		signal_A_out<-SSR_check_signal(A=Accm, E=E_A, tau=1,
-		predsteplist=1:10)
-		signal_B_out<-SSR_check_signal(A=Bccm, E=E_B, tau=1,
-		predsteplist=1:10)
+	#Check data for nonlinear signal that is not dominated by noise
+	#Checks whether predictive ability of processes declines with
+	#increasing time distance
+	#See manuscript and R code for details
+	signal_A_out<-SSR_check_signal(A=Accm, E=E_A, tau=1,
+	predsteplist=1:10)
+	signal_B_out<-SSR_check_signal(A=Bccm, E=E_B, tau=1,
+	predsteplist=1:10)
 
 #	fix to use two otus
 
@@ -155,31 +108,31 @@ for(treatment_subset in unique(meta_file$treatment)){
 #					legend.background=element_blank()) + 
 #				scale_x_continuous(breaks = seq(1, 10, 1))
 
-		#Run the CCM test
-		#E_A and E_B are the embedding dimensions for A and B.
-		#tau is the length of time steps used (default is 1)
-		#iterations is the number of bootsrap iterations (default 100)
-		# Does A "cause" B?
-		#Note - increase iterations to 100 for consistant results
-		CCM_boot_A<-CCM_boot(Accm, Bccm, E_A, tau=1, iterations=100)
-		# Does B "cause" A?
-		CCM_boot_B<-CCM_boot(Bccm, Accm, E_B, tau=1, iterations=100)
-		#Test for significant causal signal
-		#See R function for details
-		CCM_significance_test<-ccmtest(CCM_boot_A, CCM_boot_B)
-		current_ccm <- data.frame(t(CCM_significance_test), 
-			otu1_cause_otu2 = max(CCM_boot_A$rho), 
-			otu2_cause_otu1 = max(CCM_boot_B$rho),
-			otu1 = current_otu1,
-			otu2 = current_otu2,
-			E_A = E_A,
-			E_B = E_B,
-			otu1_prediction_slope = paste(signal_A_out$rho_pre_slope['Estimate']),
-			otu1_prediction_slope_p = paste(signal_A_out$rho_pre_slope['Pr(>|t|)']),
-			otu2_prediction_slope = paste(signal_B_out$rho_pre_slope['Estimate']),
-			otu2_prediction_slope_p = paste(signal_B_out$rho_pre_slope['Pr(>|t|)']),
-			treatment = treatment_subset) %>% 
-			separate(treatment, c('abx', 'dose', 'delayed_infection'), sep = '_')
+	#Run the CCM test
+	#E_A and E_B are the embedding dimensions for A and B.
+	#tau is the length of time steps used (default is 1)
+	#iterations is the number of bootsrap iterations (default 100)
+	# Does A "cause" B?
+	#Note - increase iterations to 100 for consistant results
+	CCM_boot_A<-CCM_boot(Accm, Bccm, E_A, tau=1, iterations=100)
+	# Does B "cause" A?
+	CCM_boot_B<-CCM_boot(Bccm, Accm, E_B, tau=1, iterations=100)
+	#Test for significant causal signal
+	#See R function for details
+	CCM_significance_test<-ccmtest(CCM_boot_A, CCM_boot_B)
+	current_ccm <- data.frame(t(CCM_significance_test), 
+		otu1_cause_otu2 = max(CCM_boot_A$rho), 
+		otu2_cause_otu1 = max(CCM_boot_B$rho),
+		otu1 = current_otu1,
+		otu2 = current_otu2,
+		E_A = E_A,
+		E_B = E_B,
+		otu1_prediction_slope = paste(signal_A_out$rho_pre_slope['Estimate']),
+		otu1_prediction_slope_p = paste(signal_A_out$rho_pre_slope['Pr(>|t|)']),
+		otu2_prediction_slope = paste(signal_B_out$rho_pre_slope['Estimate']),
+		otu2_prediction_slope_p = paste(signal_B_out$rho_pre_slope['Pr(>|t|)']),
+		treatment = treatment_subset) %>% 
+		separate(treatment, c('abx', 'dose', 'delayed_infection'), sep = '_')
 
 # fix to use 2 otus
 
@@ -222,14 +175,68 @@ for(treatment_subset in unique(meta_file$treatment)){
 #			#ggsave(paste0('scratch/ccm/', treatment_subset, '/ccm_cdiff_caused_by_', causal_otu, '_seed', seed, '.jpg'),
 #			#	plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
 #			#		CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'))
-		}}
-		print(paste0('Completed ', current_otu1, ' and ', current_otu2,  ' from ', treatment_subset))
-		output <- rbind(output, current_ccm)
-	}
+	
+	print(paste0('Completed ', current_otu1, ' and ', current_otu2,  ' from ', treatment_subset))
+	return(current_ccm)
+}
+
+run_each_treatment <- function(treatment_subset){
+	print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
+	# treatment_subset <- 'amp_0.5_TRUE' # test for missing day 0 (missing 1)
+	# treatment_subset <- 'amp_0.5_FALSE' # test for missing day 0 (missing 2)
+	# treatment_subset <- 'cef_0.1_FALSE' # test for missing day 0 (none missing)
+
+	abx_df <- meta_file %>% 
+		filter(treatment == treatment_subset) %>%
+		mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
+		inner_join(select(shared_file, -label, -numOtus),
+			by = c('group' = "Group"))
+	
+	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 ))
+
+	missing_day_0 <- summarise(group_by(abx_df, unique_id), first_day = min(day)) %>% 
+		filter(first_day != 0) %>% 
+		pull(unique_id)
+
+	if(length(missing_day_0) > 0){
+		abx_df <- abx_df %>% 
+			bind_rows(data.frame(unique_id = missing_day_0, day = 0)) %>% 
+			mutate(random_order = as.numeric(factor(unique_id, levels = 
+				sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
+			arrange(random_order, day) %>%  
+			select(day, CFU, contains('Otu'))
+		} else {
+		abx_df <- abx_df %>% 
+			mutate(random_order = as.numeric(factor(unique_id, levels = 
+				sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
+			arrange(random_order, day) %>%  
+			select(day, CFU, contains('Otu'))
+		}
+
+	NA_list <- which(abx_df$day == 0)
+	zero_subset <- abx_df == 0 & !is.na(abx_df)
+	abx_df[zero_subset] <-  sample(100,sum(zero_subset), replace = T)/100
+	abx_df[NA_list, ] <- NA
+	abx_df <- select(abx_df, -day)
+
+	# create folder for treatment set
+#	ifelse(!dir.exists(file.path('scratch/ccm_all', treatment_subset)), 
+#		dir.create(file.path('scratch/ccm_all', treatment_subset)), FALSE)
+
+	otu_combinations <- cross2(1:ncol(abx_df), 1:ncol(abx_df))
+
+	output <- map_df(otu_combinations, ~ run_ccm(., abx_df = abx_df, treatment_subset = treatment_subset))
+	write.table(output, paste0('scratch/ccm_all/ccm_raw_data_', treatment_subset, '_seed', seed, '.txt'), 
+		quote = F, row.names = F)
+
 	print(paste0('Completed treatment set - ', treatment_subset))
 }
+
+map(unique(meta_file$treatment), run_each_treatment)
+
 print(paste0('Completed seed ', seed))
-write.table(output, paste0('scratch/ccm_all/ccm_raw_data_seed', seed, '.txt'), quote = F, row.names = F)
+
+
 #
 #
 #ccm_output <- read.table('scratch/ccm/ccm_output.txt', header = T)
