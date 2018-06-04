@@ -19,9 +19,9 @@ library(cowplot)
 #	strep_5_false - day 2 missing 1;
 #	amp_0.5_true - day 0 and 4 missing 1
 
-seed <- commandArgs(TRUE)
-print(paste0('Using ', seed, ' as seed'))
-set.seed(seed)
+run_set <- commandArgs(TRUE)
+
+print(paste0('Running set ', run_set))
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
@@ -30,6 +30,15 @@ meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = 
 	filter(cdiff == T, day >= 0, treatment != 'none_NA_FALSE')
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 shared_file <- read.table(shared_file, sep = '\t', header = T)
+
+seed_treatment <- cross2(1:10, unique(meta_file$treatment))
+
+seed <- seed_treatment[[1]]
+treatment_subset <- seed_treatment[[2]]
+
+print(paste0('Running set ', run_set, ' - Treatment ', treatment, ' using seed ', seed))
+
+set.seed(seed)
 
 print(paste0('Beginning seed ', seed))
 
@@ -180,7 +189,7 @@ run_ccm <- function(otu, abx_df, treatment_subset){
 	return(current_ccm)
 }
 
-run_each_treatment <- function(treatment_subset){
+#run_each_treatment <- function(treatment_subset){
 	print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
 	# treatment_subset <- 'amp_0.5_TRUE' # test for missing day 0 (missing 1)
 	# treatment_subset <- 'amp_0.5_FALSE' # test for missing day 0 (missing 2)
@@ -230,9 +239,8 @@ run_each_treatment <- function(treatment_subset){
 		quote = F, row.names = F)
 
 	print(paste0('Completed treatment set - ', treatment_subset))
-}
-
-map(unique(meta_file$treatment), run_each_treatment)
+#}
+#map_par(unique(meta_file$treatment), run_each_treatment)
 
 print(paste0('Completed seed ', seed))
 
