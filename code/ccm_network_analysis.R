@@ -21,18 +21,13 @@ for(treatment in treatment_list){
 			prediction_slope = otu2_prediction_slope, p_slope = otu2_prediction_slope_p, E = E_B))
 
 	interaction_data <- data %>% 
-		group_by(otu1, otu2) %>% 
-		summarise(med_p_a_b = median(pval_a_cause_b),
-			med_p_b_a = median(pval_b_cause_a),
-			otu1_cause_otu2 = median(otu1_cause_otu2),
-			otu2_cause_otu1 = median(otu2_cause_otu1)) %>% 
-		gather(pval_comparison, pvalue, contains('med_p')) %>% 
-		gather(interaction, strength, contains('cause')) %>% 
-		#arrange(desc(otu1), desc(otu2)) %>%
-		mutate(adj_strength = ifelse(pvalue > 0.05, 0, strength)) 
+		group_by(otu, affected_otu) %>% 
+		summarise(p_value = median(p_value),
+			strength = median(strength)) %>% 
+		mutate(adj_strength = ifelse(p_value > 0.05, 0, strength)) 
 
 	interaction_data %>% 
-		ggplot(aes(otu2, otu1)) + geom_tile(aes(fill = adj_strength)) + 
+		ggplot(aes(otu, affected_otu)) + geom_tile(aes(fill = adj_strength)) + 
 			scale_fill_gradient(low = 'white', high = 'blue')
 
 test_data <- interaction_data %>% 
