@@ -1,5 +1,6 @@
 library(tidyverse)
 library(statnet)
+library(geomnet)
 library(cowplot)
 
 data_path <- "scratch/ccm_all/"   # path to the data
@@ -29,13 +30,9 @@ for(treatment in treatment_list){
 			strength = median(strength)) %>% 
 		mutate(adj_strength = ifelse(p_value > 0.05, 0, strength)) 
 
-	interaction_data %>% 
+	interaction_heatmap <- interaction_data %>% 
 		ggplot(aes(otu, affected_otu)) + geom_tile(aes(fill = adj_strength)) + 
 			scale_fill_gradient(low = 'white', high = 'blue')
-
-test_data <- interaction_data %>% 
-	filter(otu1 %in% c('Otu000001', 'Otu000003', 'Otu000004'), 
-		otu2 %in% c('Otu000001', 'Otu000003', 'Otu000004'))
 
 	num_nodes <- length(unique(data$otu))
 	network_matrix <- matrix(interaction_data$adj_strength,
@@ -48,14 +45,35 @@ test_data <- interaction_data %>%
 		matrix.type = 'adjacency')
 
 	network.vertex.names(network) <- otu_names
-	
-	plot.network(network, # our network object
-             vertex.col = 'gray', # color nodes by gender
-             vertex.cex = 2, # size nodes by their age
-             displaylabels = T, # show the node names
-             label.pos = 5 # display the names directly over nodes
-             )
 
-	
+	#plot.network(network, # our network object
+    #         vertex.col = 'gray', # color nodes by gender
+    #         vertex.cex = 2, # size nodes by their age
+    #         displaylabels = T, # show the node names
+    #         label.pos = 5 # display the names directly over nodes
+    #         )
+
+	gg_network_data <- data.frame(from_id = interaction_data$otu,
+		to_id = interaction_data$affected_otu)
+	gg_network_data[interaction_data$adj_strength == 0, 'to_id'] <- NA
+	gg_network_data[interaction_data$otu == interaction_data$affected_otu, 'to_id'] <- NA
+	gg_network_data[gg_network_data$from_id == 'CFU',] <- 'C difficile'
+	## Using Name1 as the from node column and Name2 as the to node column.
+	## If this is not correct, rewrite dat so that the first 2 columns are from and to node, respectively.
+
+	## Joining edge and node information by from_id and label respectively.
+
+	# create plot
+	set.seed(1)
+	network_plot <- ggplot(data = gg_network_data, aes(from_id = from_id, to_id = to_id)) +
+	  geom_net(layout.alg = "kamadakawai", 
+	           size = 2, labelon = TRUE, vjust = -0.6, ecolour = "grey60",
+	           directed = TRUE, fontsize = 3, ealpha = 0.5) +
+	  xlim(c(-0.05, 1.05)) +
+	  theme_net() +
+	  theme(legend.position = "bottom")
+
+	ggsave(paste0('scratch/ccm_networks/ccm_network', treatment, '.jpg'),
+				plot_grid(interaction_heatmap, network_plot))
 
 }
