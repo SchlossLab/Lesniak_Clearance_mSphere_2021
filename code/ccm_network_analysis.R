@@ -20,6 +20,9 @@ for(treatment in treatment_list){
 		select(data, otu = otu2, strength = otu2_cause_otu1, p_value = pval_b_cause_a, affected_otu = otu1,
 			prediction_slope = otu2_prediction_slope, p_slope = otu2_prediction_slope_p, E = E_B))
 
+	otu_names <- gsub('Otu0+', '', unique(data$otu))
+	otu_names[otu_names == 'CFU'] <- 'C. difficile'
+
 	interaction_data <- data %>% 
 		group_by(otu, affected_otu) %>% 
 		summarise(p_value = median(p_value),
@@ -34,41 +37,25 @@ test_data <- interaction_data %>%
 	filter(otu1 %in% c('Otu000001', 'Otu000003', 'Otu000004'), 
 		otu2 %in% c('Otu000001', 'Otu000003', 'Otu000004'))
 
-	num_nodes <- length(unique(data$otu1))
-	network_matrix <- matrix()
+	num_nodes <- length(unique(data$otu))
+	network_matrix <- matrix(interaction_data$adj_strength,
+		nrow = num_nodes, ncol = num_nodes)
+	diag(network_matrix) <- 0
+
+	network <- as.network(x = network_matrix,
+		directed = T,
+		loops = F,
+		matrix.type = 'adjacency')
+
+	network.vertex.names(network) <- otu_names
+	
+	plot.network(network, # our network object
+             vertex.col = 'gray', # color nodes by gender
+             vertex.cex = 2, # size nodes by their age
+             displaylabels = T, # show the node names
+             label.pos = 5 # display the names directly over nodes
+             )
+
+	
 
 }
-
-
-
-significant_output <- ccm_output %>% 
-	filter(pval_b_cause_a < 0.05 | pval_a_cause_b < 0.05) %>% 
-	unite(treatment, abx, dose, delayed_infection, otu) %>% 
-	filter(treatment == 'amp_0_5_Otu000011')
-	group_by(treatment) %>% 
-	summarise(cdiff_causes_otu = mean(cdiff_cause_otu),
-		p_cdiff_causes_otu = mean(pval_a_cause_b),
-		otu_causes_cdiff = mean(otu_cause_cdiff),
-		p_otu_causes_cdiff = mean(pval_b_cause_a),
-		number_of_repeats_detected = n()) 
-
-significant_otus <- rbind(
-	mutate(
-		select(significant_output, 
-			treatment,
-			interaction = cdiff_causes_otu, 
-			p_value = p_cdiff_causes_otu,
-			number_of_repeats_detected),
-		direction = c('cdiff_causes_otu')),
-	mutate(
-		select(significant_output, 
-			treatment,
-			interaction = otu_causes_cdiff, 
-			p_value = p_otu_causes_cdiff,
-			number_of_repeats_detected),
-		direction = c('otu_causes_cdiff'))
-	) %>% 
-	filter(p_value < 0.05, number_of_repeats_detected > 5) %>% 
-	separate(treatment, c('abx', 'dose', 'delayed_infection')
-	
-significant_otus#
