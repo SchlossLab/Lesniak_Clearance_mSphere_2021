@@ -14,31 +14,11 @@ for(treatment in treatment_list){
 	  map(~ read.table(file.path(data_path, .), header = T, stringsAsFactors = F)) %>% 
 	  reduce(rbind)
 
-test_data <- data %>% 
-	filter(otu1 %in% c('CFU', 'Otu000004', 'Otu000008'), 
-		otu2 %in% c('CFU', 'Otu000004', 'Otu000008')) %>% 
-test_data %>% 
-	select(otu1, otu2, otu1_cause_otu2, otu2_cause_otu1) %>% 
-	gather(interaction, strength, otu1_cause_otu2, otu2_cause_otu1) %>% 
-	separate(interaction, c('causal_otu', 'unused', 'affected_otu')) %>% 
-	mutate(causal_otu = case_when(causal_otu == 'otu1' ~ otu1,
-			causal_otu == 'otu2' ~ otu2,
-			TRUE ~ 'Error'),
-		affected_otu = case_when(affected_otu == 'otu1' ~ otu1,
-			affected_otu == 'otu2' ~ otu2,
-			TRUE ~ 'Error')) %>% 
-	group_by(causal_otu, affected_otu) %>% 
-	summarise(strength = median(strength)) 
-test_test <- data.frame(otu1 = rep(c('Ot1','Ot2','Ot3'), 3),
-	otu2 = rep(c('Ot1','Ot2','Ot3'), each = 3),
-	otu1_otu2 = sample(100, 9),
-	otu2_otu1 = sample(100, 9), stringsAsFactors = F) %>% 
-	gather(interaction, strength, otu1_otu2, otu2_otu1) %>% 
-	separate(interaction, c('causal_otu', 'affected_otu')) %>% 
-	
-	ccm_prediction_slope <- bind_rows(
-		select(data, otu = otu1, prediction_slope = otu1_prediction_slope, p_slope = otu1_prediction_slope_p, E = E_A),
-		select(data, otu = otu2, prediction_slope = otu2_prediction_slope, p_slope = otu2_prediction_slope_p, E = E_B))
+	data <- bind_rows(
+		select(data, otu = otu1, strength = otu1_cause_otu2, p_value = pval_a_cause_b, affected_otu = otu2,
+			prediction_slope = otu1_prediction_slope, p_slope = otu1_prediction_slope_p, E = E_A),
+		select(data, otu = otu2, strength = otu2_cause_otu1, p_value = pval_b_cause_a, affected_otu = otu1,
+			prediction_slope = otu2_prediction_slope, p_slope = otu2_prediction_slope_p, E = E_B))
 
 	interaction_data <- data %>% 
 		group_by(otu1, otu2) %>% 
