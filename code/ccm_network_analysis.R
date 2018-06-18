@@ -6,44 +6,49 @@ library(cowplot)
 data_path <- "scratch/ccm_all/"   # path to the data
 files <- dir(data_path, pattern = "ccm_raw_data*") # get file names
 treatment_list <- unique(gsub('\\d{,2}.txt', '', files))
+source('code/taxa_labels.R')
+taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
 
 for(treatment in treatment_list){
-	
+
 	files <- dir(data_path, pattern = paste0(treatment, "*")) # get file names
-	data <- files %>%
+	input_data <- files %>%
 	  # read in all the files, appending the path before the filename
 	  map(~ read.table(file.path(data_path, .), header = T, stringsAsFactors = F)) %>% 
 	  reduce(rbind)
 
-	data <- bind_rows(
-		select(data, otu = otu1, strength = otu1_cause_otu2, p_value = pval_a_cause_b, affected_otu = otu2,
+	input_data <- bind_rows(
+		select(input_data, otu = otu1, strength = otu1_cause_otu2, p_value = pval_a_cause_b, affected_otu = otu2,
 			prediction_slope = otu1_prediction_slope, p_slope = otu1_prediction_slope_p, E = E_A),
-		select(data, otu = otu2, strength = otu2_cause_otu1, p_value = pval_b_cause_a, affected_otu = otu1,
+		select(input_data, otu = otu2, strength = otu2_cause_otu1, p_value = pval_b_cause_a, affected_otu = otu1,
 			prediction_slope = otu2_prediction_slope, p_slope = otu2_prediction_slope_p, E = E_B))
 
-	otu_names <- gsub('Otu0+', 'OTU_', unique(data$otu))
-	otu_names[otu_names == 'CFU'] <- 'C. difficile'
+	taxonomic_labels <- get_taxa_labels(taxa_file = taxonomy_file,  taxa_level='genus', otu_subset=unique(data$otu)) %>% 
+		bind_rows(data.frame(otu = 'CFU', taxa = 'C. difficile', otu_label = 'C. difficile', 
+			tax_otu_label = 'C. difficile', stringsAsFactors = F))
+	#otu_names <- unique(input_data$otu)
+	#otu_names[otu_names == 'CFU'] <- 'C. difficile'
 
-	interaction_data <- data %>% 
+	interaction_data <- input_data %>% 
 		group_by(otu, affected_otu) %>% 
 		summarise(p_value = median(p_value),
 			strength = median(strength)) %>% 
 		ungroup() %>% 
 		mutate(adj_strength = ifelse(p_value > 0.05, 0, strength),
-			adj_strength = ifelse(otu == affected_otu, 0, adj_strength),
-			otu = ifelse(otu == 'CFU', 'C. difficile', gsub('Otu0+', "OTU_", otu)),
-			affected_otu = ifelse(affected_otu == 'CFU', 'C. difficile', 
-				gsub('Otu0+', "OTU_", affected_otu)))
+			adj_strength = ifelse(otu == affected_otu, 0, adj_strength)) %>% 
+		left_join(select(taxonomic_labels, otu, tax_otu_label)) %>% 
+		left_join(select(taxonomic_labels, otu, tax_otu_label), by = c('affected_otu'='otu')) %>% 
+		select(driver_taxa = tax_otu_label.x, driven_taxa = tax_otu_label.y, p_value, strength, adj_strength)
 
 	interaction_heatmap <- interaction_data %>% 
-		ggplot(aes(otu, affected_otu)) + geom_tile(aes(fill = adj_strength)) + 
+		ggplot(aes(driver_taxa, driven_taxa)) + geom_tile(aes(fill = adj_strength)) + 
 			scale_fill_gradient(low = 'white', high = 'blue') + 
 			theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 10)) + 
 			labs(title = paste0('Interactions from ', 
 				gsub('([[:alpha:]]+_){3}|_[[:alpha:]]+$', '', treatment)),
 			x = 'Effector OTU', y = 'Affected OTU')
 
-	num_nodes <- length(unique(data$otu))
+	num_nodes <- length(unique(input_data$otu))
 	network_matrix <- matrix(interaction_data$adj_strength,
 		nrow = num_nodes, ncol = num_nodes)
 	diag(network_matrix) <- 0
