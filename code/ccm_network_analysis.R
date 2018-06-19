@@ -23,7 +23,8 @@ for(treatment in treatment_list){
 		select(input_data, otu = otu2, strength = otu2_cause_otu1, p_value = pval_b_cause_a, affected_otu = otu1,
 			prediction_slope = otu2_prediction_slope, p_slope = otu2_prediction_slope_p, E = E_B))
 
-	taxonomic_labels <- get_taxa_labels(taxa_file = taxonomy_file,  taxa_level='genus', otu_subset=unique(data$otu)) %>% 
+	taxonomic_labels <- get_taxa_labels(taxa_file = taxonomy_file,  taxa_level='genus', 
+		otu_subset=unique(input_data$otu)) %>% 
 		bind_rows(data.frame(otu = 'CFU', taxa = 'C. difficile', otu_label = 'C. difficile', 
 			tax_otu_label = 'C. difficile', stringsAsFactors = F))
 	#otu_names <- unique(input_data$otu)
@@ -46,7 +47,7 @@ for(treatment in treatment_list){
 			theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 10)) + 
 			labs(title = paste0('Interactions from ', 
 				gsub('([[:alpha:]]+_){3}|_[[:alpha:]]+$', '', treatment)),
-			x = 'Effector OTU', y = 'Affected OTU')
+			x = 'Driver OTU', y = 'Driven OTU')
 
 	num_nodes <- length(unique(input_data$otu))
 	network_matrix <- matrix(interaction_data$adj_strength,
@@ -58,7 +59,7 @@ for(treatment in treatment_list){
 		loops = F,
 		matrix.type = 'adjacency')
 
-	network.vertex.names(network) <- otu_names
+	network.vertex.names(network) <- interaction_data$driver_taxa
 
 	#plot.network(network, # our network object
     #         vertex.col = 'gray', # color nodes by gender
@@ -69,13 +70,15 @@ for(treatment in treatment_list){
 
     interacting_otus <- interaction_data %>% 
     	filter(adj_strength > 0) %>% 
-    	gather(role, otu, otu, affected_otu) %>% 
-    	pull(otu) %>% 
+    	gather(role, taxa, driver_taxa, driven_taxa) %>% 
+    	pull(taxa) %>% 
     	unique
-	gg_network_data <- data.frame(from_id = interaction_data$otu,
-		to_id = interaction_data$affected_otu) %>% 
-		mutate(to_id = ifelse(interaction_data$adj_strength == 0, NA, interaction_data$affected_otu)) %>% 
-		filter(from_id %in% interacting_otus)
+	gg_network_data <- data.frame(from_id = interaction_data$driver_taxa,
+		to_id = interaction_data$driven_taxa) %>% 
+		mutate(to_id = ifelse(interaction_data$adj_strength == 0, NA, interaction_data$driven_taxa)) %>% 
+		filter(from_id %in% interacting_otus) %>% 
+		mutate(from_id = gsub(' \\(', '\n(', from_id),
+			to_id = gsub(' \\(', '\n(', to_id),)
 
 	## Using Name1 as the from node column and Name2 as the to node column.
 	## If this is not correct, rewrite dat so that the first 2 columns are from and to node, respectively.
