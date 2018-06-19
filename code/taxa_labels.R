@@ -19,14 +19,14 @@ library(tidyr)
 
 get_taxa_labels <- function(taxa_file,  taxa_level='genus', otu_subset=NULL){
   taxonomic_classification <- c("phylum", "class", "order", "family", "genus", "species")
-  taxa_level_num <- which(taxonomic_classification==taxa_level)
+  taxa_level_num <- which(taxonomic_classification == taxa_level)
   taxa_df <- read.table(taxonomy_file, header = T, stringsAsFactors=FALSE) # read in taxonomy file
   if(is.null(otu_subset)){ # create list of OTUs
     otu_list <- as.character(taxa_df$OTU) # if no OTUs supplied use all
   } else {
     otu_list <- as.character(otu_subset) # ensure supplied OTUs are read as character
   }
-  if (taxa_lvl_num %in% c(1:6)){ # convert taxonomy file list to dataframe
+  if (taxa_level_num %in% c(1:6)){ # convert taxonomy file list to dataframe
     otu_taxonomy <- taxa_df[taxa_df$OTU %in% otu_list,] # subset taxa_df by OTU list
     taxonomy_df <- select(otu_taxonomy, Taxonomy, otu = OTU) %>% 
       separate(Taxonomy,sep="\\(\\d*\\);", taxonomic_classification, extra = 'drop') %>%
