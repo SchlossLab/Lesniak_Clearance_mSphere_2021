@@ -10,7 +10,7 @@ source('code/taxa_labels.R')
 taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
 
 for(treatment in treatment_list){
-
+	current_treatment <- gsub('ccm_raw_data_(.+)_seed', '\\1', treatment)
 	files <- dir(data_path, pattern = paste0(treatment, "*")) # get file names
 	input_data <- files %>%
 	  # read in all the files, appending the path before the filename
@@ -41,13 +41,15 @@ for(treatment in treatment_list){
 		left_join(select(taxonomic_labels, otu, tax_otu_label), by = c('affected_otu'='otu')) %>% 
 		select(driver_taxa = tax_otu_label.x, driven_taxa = tax_otu_label.y, p_value, strength, adj_strength)
 
-	interaction_heatmap <- interaction_data %>% 
-		ggplot(aes(driver_taxa, driven_taxa)) + geom_tile(aes(fill = adj_strength)) + 
-			scale_fill_gradient(low = 'white', high = 'blue') + 
-			theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 10)) + 
-			labs(title = paste0('Interactions from ', 
-				gsub('([[:alpha:]]+_){3}|_[[:alpha:]]+$', '', treatment)),
-			x = 'Driver OTU', y = 'Driven OTU')
+	ggsave(paste0('scratch/ccm_networks/', current_treatment, '_interaction_matrix.jpg'),
+		interaction_data %>% 
+			ggplot(aes(driver_taxa, driven_taxa)) + geom_tile(aes(fill = adj_strength)) + 
+				scale_fill_gradient(low = 'white', high = 'blue') + 
+				theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 10)) + 
+				labs(title = paste0('Interactions from ', 
+					gsub('([[:alpha:]]+_){3}|_[[:alpha:]]+$', '', treatment)),
+					x = 'Driver OTU', y = 'Driven OTU'),
+		width = 12, height = 12)
 
 	num_nodes <- length(unique(input_data$otu))
 	network_matrix <- matrix(interaction_data$adj_strength,
@@ -87,20 +89,22 @@ for(treatment in treatment_list){
 
 	# create plot
 	set.seed(1)
-	network_plot <- ggplot(data = gg_network_data, aes(from_id = from_id, to_id = to_id)) +
-		geom_net(layout.alg = "kamadakawai", 
-			size = 2, labelon = TRUE, vjust = -0.6, ecolour = "grey60",
-			directed = TRUE, fontsize = 3, ealpha = 0.5) +
-		xlim(c(-0.05, 1.05)) +
-		theme_net() +
-		theme(legend.position = "bottom")
+	ggsave(paste0('scratch/ccm_networks/', current_treatment, '_network.jpg'),
+		ggplot(data = gg_network_data, aes(from_id = from_id, to_id = to_id)) +
+			geom_net(layout.alg = "kamadakawai", 
+				size = 2, labelon = TRUE, vjust = -0.6, ecolour = "grey60",
+				directed = TRUE, fontsize = 3, ealpha = 0.5) +
+			xlim(c(-0.05, 1.05)) +
+			theme_net() +
+			theme(legend.position = "bottom"),
+		width = 10, height = 10)
+
 
 	interacting_otus <- taxonomic_labels %>% 
 		filter(tax_otu_label %in% interacting_otus) %>% 
 		pull(otu) %>% 
 		c(., 'CFU')
 
-	current_treatment <- gsub('ccm_raw_data_(.+)_seed', '\\1', treatment)
 	meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 	meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
 		select(group, cage, mouse, day, C_difficile=CFU, cdiff, abx, dose, delayed) %>% 
@@ -139,8 +143,8 @@ for(treatment in treatment_list){
 				theme(legend.position = 'none')
 
 
-	ggsave(paste0('scratch/ccm_networks/ccm_network', treatment, '.jpg'),
-				interaction_heatmap + network_plot + {otu_temporal_plot + cdiff_temporal_plot + plot_layout(ncol = 1)},
-		width = 21, height = 7)
+	ggsave(paste0('scratch/ccm_networks/', current_treatment, '_dynamics.jpg'),
+		otu_temporal_plot + cdiff_temporal_plot + plot_layout(ncol = 1),
+		width = 10, height = 20)
 
 }
