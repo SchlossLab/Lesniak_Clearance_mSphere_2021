@@ -95,6 +95,50 @@ for(treatment in treatment_list){
 		theme_net() +
 		theme(legend.position = "bottom")
 
+	interacting_otus <- taxonomic_labels %>% 
+		filter(tax_otu_label %in% interacting_otus) %>% 
+		pull(otu) %>% 
+		c(., 'CFU')
+
+	current_treatment <- gsub('ccm_raw_data_(.+)_seed', '\\1', treatment)
+	meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
+	meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
+		select(group, cage, mouse, day, C_difficile=CFU, cdiff, abx, dose, delayed) %>% 
+		unite(treatment, abx, dose, delayed) %>% 
+		filter(cdiff == T, day >= 0, treatment == current_treatment)
+	shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
+	shared_file <- read.table(shared_file, sep = '\t', header = T)
+	abx_df <- meta_file %>% 
+		mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
+		inner_join(select(shared_file, one_of(c(interacting_otus, 'Group'))),
+			by = c('group' = "Group"))
+
+	otu_temporal_plot <- abx_df %>% 
+		select(cage, mouse, day, contains('Otu')) %>% 
+		gather(bacteria, counts, contains('Otu')) %>% 
+			ggplot(aes(x = day, y = counts, color = interaction(as.factor(mouse), as.factor(cage)), 
+				group = interaction(cage, mouse))) + 
+				geom_line() + 
+				facet_grid(bacteria~., scales = 'free_y') +
+				theme_bw() + 
+				labs(x = 'Day', y = 'Abundance \n (C difficle = CFU, Otu = 16s counts)', 
+					title = 'Temporal Dynamics', subtitle = 'Colored by mouse') + 
+				scale_x_continuous(breaks=seq(0,10, 1)) + 
+				theme_bw(base_size = 8) + 
+				theme(legend.position = 'none')
+	cdiff_temporal_plot <- abx_df %>% 
+		select(cage, mouse, day, C_difficile) %>% 
+			ggplot(aes(x = day, y = C_difficile + 1, color = interaction(as.factor(mouse), as.factor(cage)), 
+				group = interaction(cage, mouse))) + 
+				geom_line() + scale_y_log10() + 
+				theme_bw() + 
+				labs(x = 'Day', y = 'Abundance \n (C difficle = CFU)', 
+					title = 'Temporal Dynamics', subtitle = 'Colored by mouse') + 
+				scale_x_continuous(breaks=seq(0,10, 1)) + 
+				theme_bw(base_size = 8) + 
+				theme(legend.position = 'none')
+
+
 	ggsave(paste0('scratch/ccm_networks/ccm_network', treatment, '.jpg'),
 				plot_grid(interaction_heatmap, network_plot),
 		width = 14, height = 7)
