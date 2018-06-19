@@ -1,7 +1,7 @@
 library(tidyverse)
 library(statnet)
 library(geomnet)
-library(cowplot)
+library(patchwork)
 
 data_path <- "scratch/ccm_all/"   # path to the data
 files <- dir(data_path, pattern = "ccm_raw_data*") # get file names
@@ -140,7 +140,7 @@ for(treatment in treatment_list){
 
 
 	ggsave(paste0('scratch/ccm_networks/ccm_network', treatment, '.jpg'),
-				plot_grid(interaction_heatmap, network_plot),
-		width = 14, height = 7)
+				interaction_heatmap + network_plot + {otu_temporal_plot + cdiff_temporal_plot + plot_layout(ncol = 1)},
+		width = 21, height = 7)
 
 }
