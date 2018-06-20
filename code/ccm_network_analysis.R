@@ -3,6 +3,7 @@ library(statnet)
 library(geomnet)
 library(patchwork)
 
+save_dir <- 'scratch/ccm_networks_by_genus/'
 data_path <- "scratch/ccm_all/"   # path to the data
 files <- dir(data_path, pattern = "ccm_raw_data*") # get file names
 treatment_list <- unique(gsub('\\d{,2}.txt', '', files))
@@ -41,7 +42,7 @@ for(treatment in treatment_list){
 		left_join(select(taxonomic_labels, otu, tax_otu_label), by = c('affected_otu'='otu')) %>% 
 		select(driver_taxa = tax_otu_label.x, driven_taxa = tax_otu_label.y, p_value, strength, adj_strength)
 
-	ggsave(paste0('scratch/ccm_networks/', current_treatment, '_interaction_matrix.jpg'),
+	ggsave(paste0(save_dir, current_treatment, '_interaction_matrix.jpg'),
 		interaction_data %>% 
 			ggplot(aes(driver_taxa, driven_taxa)) + geom_tile(aes(fill = adj_strength)) + 
 				scale_fill_gradient(low = 'white', high = 'blue') + 
@@ -89,7 +90,7 @@ for(treatment in treatment_list){
 
 	# create plot
 	set.seed(1)
-	ggsave(paste0('scratch/ccm_networks/', current_treatment, '_network.jpg'),
+	ggsave(paste0(save_dir, current_treatment, '_network.jpg'),
 		ggplot(data = gg_network_data, aes(from_id = from_id, to_id = to_id)) +
 			geom_net(layout.alg = "kamadakawai", 
 				size = 2, labelon = TRUE, vjust = -0.6, ecolour = "grey60",
@@ -143,7 +144,7 @@ for(treatment in treatment_list){
 				theme(legend.position = 'none')
 
 
-	ggsave(paste0('scratch/ccm_networks/', current_treatment, '_dynamics.jpg'),
+	ggsave(paste0(save_dir, current_treatment, '_dynamics.jpg'),
 		otu_temporal_plot + cdiff_temporal_plot + plot_layout(ncol = 1),
 		width = 10, height = 20)
 
