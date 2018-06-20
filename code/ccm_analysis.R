@@ -21,7 +21,7 @@ library(cowplot)
 input_values <- commandArgs(TRUE)
 run_set <- input_values[1]
 set_E <- input_values[2]
-save_dir <- paste0('scratch/ccm_set_E_', set_E)
+save_dir <- paste0('scratch/ccm_set_E_', set_E, '/')
 print(paste0('Running set ', run_set))
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
@@ -50,7 +50,7 @@ print(paste0('Beginning seed ', seed))
 
 ifelse(!dir.exists(save_dir), dir.create(save_dir), print(paste0(save_dir, ' directory ready')))
 
-run_ccm <- function(otu, abx_df, treatment_subset){
+run_ccm <- function(otu, abx_df, treatment_subset, set_E){
 	Accm<-abx_df[ , otu[[1]] ]
 	Bccm<-abx_df[ , otu[[2]] ]
 	current_otu1 <- colnames(abx_df)[ otu[[1]] ]
@@ -82,8 +82,8 @@ run_ccm <- function(otu, abx_df, treatment_subset){
 #	#maximum E 
 #	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
 #	maxEmat <- Emat/c(2:maxE)
-	E_A<- set_E#c(2:maxE)[which(maxEmat[,1] == max(maxEmat[,1], na.rm =T))]
-	E_B<- set_E#c(2:maxE)[which(maxEmat[,2] == max(maxEmat[,2], na.rm =T))]
+	E_A<- as.numeric(set_E)#c(2:maxE)[which(maxEmat[,1] == max(maxEmat[,1], na.rm =T))]
+	E_B<- as.numeric(set_E)#c(2:maxE)[which(maxEmat[,2] == max(maxEmat[,2], na.rm =T))]
 
 #	fix to use two otus
 
@@ -244,7 +244,7 @@ run_ccm <- function(otu, abx_df, treatment_subset){
 
 	otu_combinations <- cross2(1:ncol(abx_df), 1:ncol(abx_df))
 
-	output <- map_df(otu_combinations, ~ run_ccm(., abx_df = abx_df, treatment_subset = treatment_subset))
+	output <- map_df(otu_combinations, ~ run_ccm(., abx_df = abx_df, treatment_subset = treatment_subset, set_E = set_E))
 	write.table(output, paste0(save_dir, 'ccm_by_genus_raw_data_', treatment_subset, '_seed', seed, '.txt'), 
 		quote = F, row.names = F)
 
