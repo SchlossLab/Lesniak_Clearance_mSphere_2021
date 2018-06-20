@@ -128,11 +128,13 @@ run_ccm <- function(otu, abx_df, treatment_subset){
 	#Test for significant causal signal
 	#See R function for details
 	CCM_significance_test<-ccmtest(CCM_boot_A, CCM_boot_B)
-	current_ccm <- data.frame(t(CCM_significance_test), 
-		otu1_cause_otu2 = max(CCM_boot_A$rho), 
-		otu2_cause_otu1 = max(CCM_boot_B$rho),
+	current_ccm <- data.frame( 
 		otu1 = current_otu1,
 		otu2 = current_otu2,
+		otu1_cause_otu2 = max(CCM_boot_A$rho), 
+		otu2_cause_otu1 = max(CCM_boot_B$rho),
+		pval_otu1_casue_otu2 = CCM_significance_test[['pval_a_cause_b']],
+		pval_otu2_casue_otu1 = CCM_significance_test[['pval_b_cause_a']],
 		E_A = E_A,
 		E_B = E_B,
 		otu1_prediction_slope = paste(signal_A_out$rho_pre_slope['Estimate']),
