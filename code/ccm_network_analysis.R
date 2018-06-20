@@ -10,6 +10,10 @@ treatment_list <- unique(gsub('\\d{,2}.txt', '', files))
 source('code/taxa_labels.R')
 taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
 
+meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
+meta_df   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) 
+shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
+shared_df <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F)
 for(treatment in treatment_list){
 	current_treatment <- gsub('ccm_raw_data_(.+)_seed', '\\1', treatment)
 	files <- dir(data_path, pattern = paste0(treatment, "*")) # get file names
@@ -106,8 +110,7 @@ for(treatment in treatment_list){
 		pull(otu) %>% 
 		c(., 'CFU')
 
-	meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
-	meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
+	abx_df <- meta_df %>% 
 		select(group, cage, mouse, day, C_difficile=CFU, cdiff, abx, dose, delayed) %>% 
 		unite(treatment, abx, dose, delayed) %>% 
 		filter(cdiff == T, day >= 0, treatment == current_treatment)
