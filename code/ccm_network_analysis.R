@@ -5,7 +5,7 @@ library(patchwork)
 
 save_dir <- 'scratch/ccm_networks_by_genus/'
 data_path <- "scratch/ccm_all/"   # path to the data
-files <- dir(data_path, pattern = "ccm_raw_data*") # get file names
+files <- dir(data_path, pattern = "ccm_by*") # get file names
 treatment_list <- unique(gsub('\\d{,2}.txt', '', files))
 source('code/taxa_labels.R')
 taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
@@ -14,8 +14,14 @@ meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 meta_df   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) 
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 shared_df <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F)
+source('code/sum_otu_by_taxa.R')
+taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
+shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file, 
+	otu_df = shared_df, 
+	taxa_level = 'genus')
+
 for(treatment in treatment_list){
-	current_treatment <- gsub('ccm_raw_data_(.+)_seed', '\\1', treatment)
+	current_treatment <- gsub('.*_data_(.+)_seed', '\\1', treatment)
 	files <- dir(data_path, pattern = paste0(treatment, "*")) # get file names
 	input_data <- files %>%
 	  # read in all the files, appending the path before the filename
@@ -28,10 +34,10 @@ for(treatment in treatment_list){
 		select(input_data, otu = otu2, strength = otu2_cause_otu1, p_value = pval_b_cause_a, affected_otu = otu1,
 			prediction_slope = otu2_prediction_slope, p_slope = otu2_prediction_slope_p, E = E_B))
 
-	taxonomic_labels <- get_taxa_labels(taxa_file = taxonomy_file,  taxa_level='genus', 
-		otu_subset=unique(input_data$otu)) %>% 
-		bind_rows(data.frame(otu = 'CFU', taxa = 'C. difficile', otu_label = 'C. difficile', 
-			tax_otu_label = 'C. difficile', stringsAsFactors = F))
+#	taxonomic_labels <- get_taxa_labels(taxa_file = taxonomy_file,  taxa_level='genus', 
+#		otu_subset=unique(input_data$otu)) %>% 
+#		bind_rows(data.frame(otu = 'CFU', taxa = 'C. difficile', otu_label = 'C. difficile', 
+#			tax_otu_label = 'C. difficile', stringsAsFactors = F))
 	#otu_names <- unique(input_data$otu)
 	#otu_names[otu_names == 'CFU'] <- 'C. difficile'
 
@@ -42,9 +48,11 @@ for(treatment in treatment_list){
 		ungroup() %>% 
 		mutate(adj_strength = ifelse(p_value > 0.05, 0, strength),
 			adj_strength = ifelse(otu == affected_otu, 0, adj_strength)) %>% 
-		left_join(select(taxonomic_labels, otu, tax_otu_label)) %>% 
-		left_join(select(taxonomic_labels, otu, tax_otu_label), by = c('affected_otu'='otu')) %>% 
-		select(driver_taxa = tax_otu_label.x, driven_taxa = tax_otu_label.y, p_value, strength, adj_strength)
+#		left_join(select(taxonomic_labels, otu, tax_otu_label)) %>% 
+#		left_join(select(taxonomic_labels, otu, tax_otu_label), by = c('affected_otu'='otu')) %>% 
+		select(driver_taxa = otu, #tax_otu_label.x, 
+			driven_taxa = affected_otu, #tax_otu_label.y, 
+			p_value, strength, adj_strength)
 
 	ggsave(paste0(save_dir, current_treatment, '_interaction_matrix.jpg'),
 		interaction_data %>% 
@@ -105,25 +113,24 @@ for(treatment in treatment_list){
 		width = 10, height = 10)
 
 
-	interacting_otus <- taxonomic_labels %>% 
-		filter(tax_otu_label %in% interacting_otus) %>% 
-		pull(otu) %>% 
-		c(., 'CFU')
+	#interacting_otus <- taxonomic_labels %>% 
+	#	filter(tax_otu_label %in% interacting_otus) %>% 
+	#	pull(otu) %>% 
+	#	c(., 'CFU')
+	interacting_otus <- unique(gg_network_data$from_id)
 
 	abx_df <- meta_df %>% 
 		select(group, cage, mouse, day, C_difficile=CFU, cdiff, abx, dose, delayed) %>% 
 		unite(treatment, abx, dose, delayed) %>% 
-		filter(cdiff == T, day >= 0, treatment == current_treatment)
-	shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
-	shared_file <- read.table(shared_file, sep = '\t', header = T)
-	abx_df <- meta_file %>% 
+		filter(cdiff == T, day >= 0, treatment == current_treatment) %>% 
 		mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
-		inner_join(select(shared_file, one_of(c(interacting_otus, 'Group'))),
+		inner_join(select(shared_by_genus, one_of(c(interacting_otus, 'Group'))),
 			by = c('group' = "Group"))
 
+
 	otu_temporal_plot <- abx_df %>% 
-		select(cage, mouse, day, contains('Otu')) %>% 
-		gather(bacteria, counts, contains('Otu')) %>% 
+		select(cage, mouse, day, one_of(interacting_otus)) %>% 
+		gather(bacteria, counts, one_of(interacting_otus)) %>% 
 			ggplot(aes(x = day, y = counts, color = interaction(as.factor(mouse), as.factor(cage)), 
 				group = interaction(cage, mouse))) + 
 				geom_line() + 
