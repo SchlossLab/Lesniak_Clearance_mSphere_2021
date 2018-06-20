@@ -21,6 +21,7 @@ library(cowplot)
 
 run_set <- commandArgs(TRUE)
 
+save_dir <- paste0('scratch/ccm_set_E_', set_E)
 print(paste0('Running set ', run_set))
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
@@ -47,7 +48,7 @@ set.seed(seed)
 
 print(paste0('Beginning seed ', seed))
 
-ifelse(!dir.exists('scratch/ccm_all'), dir.create('scratch/ccm_all'), print('ccm_all/ directory ready'))
+ifelse(!dir.exists(save_dir), dir.create(save_dir), print(paste0(save_dir, ' directory ready'))
 
 run_ccm <- function(otu, abx_df, treatment_subset){
 	Accm<-abx_df[ , otu[[1]] ]
@@ -244,7 +245,7 @@ run_ccm <- function(otu, abx_df, treatment_subset){
 	otu_combinations <- cross2(1:ncol(abx_df), 1:ncol(abx_df))
 
 	output <- map_df(otu_combinations, ~ run_ccm(., abx_df = abx_df, treatment_subset = treatment_subset))
-	write.table(output, paste0('scratch/ccm_all/ccm_by_genus_raw_data_', treatment_subset, '_seed', seed, '.txt'), 
+	write.table(output, paste0(save_dir, 'ccm_by_genus_raw_data_', treatment_subset, '_seed', seed, '.txt'), 
 		quote = F, row.names = F)
 
 	print(paste0('Completed treatment set - ', treatment_subset))
