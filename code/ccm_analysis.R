@@ -29,7 +29,7 @@ meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = 
 	unite(treatment, abx, dose, delayed) %>% 
 	filter(cdiff == T, day >= 0, treatment != 'none_NA_FALSE')
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
-shared_file <- read.table(shared_file, sep = '\t', header = T)
+shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F)
 
 seed_treatment <- expand.grid(seed = 1:10, treatment = unique(meta_file$treatment))[run_set, ]
 seed <- seed_treatment$seed
@@ -202,12 +202,15 @@ run_ccm <- function(otu, abx_df, treatment_subset){
 		inner_join(select(shared_file, -label, -numOtus),
 			by = c('group' = "Group"))
 	
-	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 ))
+# remove otus that are present in less than 10 samples
+	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 )) 
 
+# find which mice are missing data for day 0
 	missing_day_0 <- summarise(group_by(abx_df, unique_id), first_day = min(day)) %>% 
 		filter(first_day != 0) %>% 
 		pull(unique_id)
 
+# add day 0 back to those missing and randomize the order of the mice
 	if(length(missing_day_0) > 0){
 		abx_df <- abx_df %>% 
 			bind_rows(data.frame(unique_id = missing_day_0, day = 0)) %>% 
