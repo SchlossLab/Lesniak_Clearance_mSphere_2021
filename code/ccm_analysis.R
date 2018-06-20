@@ -48,7 +48,7 @@ set.seed(seed)
 
 print(paste0('Beginning seed ', seed))
 
-ifelse(!dir.exists(save_dir), dir.create(save_dir), print(paste0(save_dir, ' directory ready'))
+ifelse(!dir.exists(save_dir), dir.create(save_dir), print(paste0(save_dir, ' directory ready')))
 
 run_ccm <- function(otu, abx_df, treatment_subset){
 	Accm<-abx_df[ , otu[[1]] ]
