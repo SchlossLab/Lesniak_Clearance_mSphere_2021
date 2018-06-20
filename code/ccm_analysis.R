@@ -18,9 +18,9 @@ library(cowplot)
 #	cef_0.3_false - day 4 and 7 missing 1;
 #	strep_5_false - day 2 missing 1;
 #	amp_0.5_true - day 0 and 4 missing 1
-
-run_set <- commandArgs(TRUE)
-
+input_values <- commandArgs(TRUE)
+run_set <- input_values[1]
+set_E <- input_values[2]
 save_dir <- paste0('scratch/ccm_set_E_', set_E)
 print(paste0('Running set ', run_set))
 
@@ -42,7 +42,7 @@ seed_treatment <- expand.grid(seed = 1:10, treatment = unique(meta_file$treatmen
 seed <- seed_treatment$seed
 treatment_subset <- as.character(seed_treatment$treatment)
 
-print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset, ' using seed ', seed))
+print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset, ' using seed ', seed, ', and setting E to ', set_E))
 
 set.seed(seed)
 
@@ -67,23 +67,23 @@ run_ccm <- function(otu, abx_df, treatment_subset){
 #				labs(title = paste(current_otu)) + 
 #				theme_bw(base_size = 8)
 	#Maximum E to test - one less than number of observations per sample
-	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
-	maxE<- 6 #length(unique(abx_df$day)) - 2 # one less for separating NAs and one less sample
-	#Matrix for storing output
-	Emat<-matrix(nrow=maxE-1, ncol=2); colnames(Emat)<-c(current_otu1, current_otu2)
-	#Loop over potential E values and calculate predictive ability
-	#of each process for its own dynamics
-	for(E in 2:maxE) {
-	#Uses defaults of looking forward one prediction step (predstep)
-	#And using time lag intervals of one time step (tau)
-	Emat[E-1,1]<-SSR_pred_boot(A=Accm, E=E, predstep=1, tau=1)$rho
-	Emat[E-1,2]<-SSR_pred_boot(A=Bccm, E=E, predstep=1, tau=1)$rho
-	}
-	#maximum E 
-	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
-	maxEmat <- Emat/c(2:maxE)
-	E_A<-c(2:maxE)[which(maxEmat[,1] == max(maxEmat[,1], na.rm =T))]
-	E_B<-c(2:maxE)[which(maxEmat[,2] == max(maxEmat[,2], na.rm =T))]
+#	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
+#	maxE<- 6 #length(unique(abx_df$day)) - 2 # one less for separating NAs and one less sample
+#	#Matrix for storing output
+#	Emat<-matrix(nrow=maxE-1, ncol=2); colnames(Emat)<-c(current_otu1, current_otu2)
+#	#Loop over potential E values and calculate predictive ability
+#	#of each process for its own dynamics
+#	for(E in 2:maxE) {
+#	#Uses defaults of looking forward one prediction step (predstep)
+#	#And using time lag intervals of one time step (tau)
+#	Emat[E-1,1]<-SSR_pred_boot(A=Accm, E=E, predstep=1, tau=1)$rho
+#	Emat[E-1,2]<-SSR_pred_boot(A=Bccm, E=E, predstep=1, tau=1)$rho
+#	}
+#	#maximum E 
+#	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
+#	maxEmat <- Emat/c(2:maxE)
+	E_A<- set_E#c(2:maxE)[which(maxEmat[,1] == max(maxEmat[,1], na.rm =T))]
+	E_B<- set_E#c(2:maxE)[which(maxEmat[,2] == max(maxEmat[,2], na.rm =T))]
 
 #	fix to use two otus
 
