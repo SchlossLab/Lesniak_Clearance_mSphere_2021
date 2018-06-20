@@ -30,6 +30,12 @@ meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = 
 	filter(cdiff == T, day >= 0, treatment != 'none_NA_FALSE')
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F)
+source('code/sum_otu_by_taxa.R')
+taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
+shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file, 
+	otu_df = shared_file, 
+	taxa_level = 'genus')
+taxa_list <- colnames(shared_by_genus)[colnames(shared_by_genus) != 'Group']
 
 seed_treatment <- expand.grid(seed = 1:10, treatment = unique(meta_file$treatment))[run_set, ]
 seed <- seed_treatment$seed
@@ -199,8 +205,7 @@ run_ccm <- function(otu, abx_df, treatment_subset){
 	abx_df <- meta_file %>% 
 		filter(treatment == treatment_subset) %>%
 		mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
-		inner_join(select(shared_file, -label, -numOtus),
-			by = c('group' = "Group"))
+		inner_join(shared_by_genus, by = c('group' = "Group"))
 	
 # remove otus that are present in less than 10 samples
 	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 )) 
@@ -217,13 +222,13 @@ run_ccm <- function(otu, abx_df, treatment_subset){
 			mutate(random_order = as.numeric(factor(unique_id, levels = 
 				sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
 			arrange(random_order, day) %>%  
-			select(day, CFU, contains('Otu'))
+			select(day, C_difficile = CFU, one_of(taxa_list))#contains('Otu'))
 		} else {
 		abx_df <- abx_df %>% 
 			mutate(random_order = as.numeric(factor(unique_id, levels = 
 				sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
 			arrange(random_order, day) %>%  
-			select(day, CFU, contains('Otu'))
+			select(day, C_difficile = CFU, one_of(taxa_list))#contains('Otu'))
 		}
 
 	NA_list <- which(abx_df$day == 0)
@@ -239,7 +244,7 @@ run_ccm <- function(otu, abx_df, treatment_subset){
 	otu_combinations <- cross2(1:ncol(abx_df), 1:ncol(abx_df))
 
 	output <- map_df(otu_combinations, ~ run_ccm(., abx_df = abx_df, treatment_subset = treatment_subset))
-	write.table(output, paste0('scratch/ccm_all/ccm_raw_data_', treatment_subset, '_seed', seed, '.txt'), 
+	write.table(output, paste0('scratch/ccm_all/ccm_by_genus_raw_data_', treatment_subset, '_seed', seed, '.txt'), 
 		quote = F, row.names = F)
 
 	print(paste0('Completed treatment set - ', treatment_subset))
