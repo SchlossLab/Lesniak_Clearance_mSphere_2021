@@ -29,9 +29,9 @@ for(treatment in treatment_list){
 	  reduce(rbind)
 
 	input_data <- bind_rows(
-		select(input_data, otu = otu1, strength = otu1_cause_otu2, p_value = pval_otu1_casue_otu2, affected_otu = otu2,
+		select(input_data, otu = otu1, strength = otu1_cause_otu2, p_value = pval_otu1_cause_otu2, affected_otu = otu2,
 			prediction_slope = otu1_prediction_slope, p_slope = otu1_prediction_slope_p, E = E_A),
-		select(input_data, otu = otu2, strength = otu2_cause_otu1, p_value = pval_otu2_casue_otu1, affected_otu = otu1,
+		select(input_data, otu = otu2, strength = otu2_cause_otu1, p_value = pval_otu2_cause_otu1, affected_otu = otu1,
 			prediction_slope = otu2_prediction_slope, p_slope = otu2_prediction_slope_p, E = E_B))
 
 #	taxonomic_labels <- get_taxa_labels(taxa_file = taxonomy_file,  taxa_level='genus', 
