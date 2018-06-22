@@ -210,6 +210,12 @@ run_ccm <- function(otu, abx_df, treatment_subset, set_E){
 # remove otus that are present in less than 10 samples
 	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 )) 
 	taxa_list <- colnames(select(abx_df, -day, -CFU, -cage, -mouse, -treatment, -unique_id))
+# create a 1st differenced dataframe
+	abx_df_1diff <- abx_df %>% 
+		arrange(unique_id, day) %>% 
+		group_by(unique_id) %>% 
+		mutate_at(vars(c('CFU', taxa_list)) , funs(. - lag(.))) %>% 
+		ungroup
 
 # find which mice are missing data for day 0
 	missing_day_0 <- summarise(group_by(abx_df, unique_id), first_day = min(day)) %>% 
@@ -217,26 +223,33 @@ run_ccm <- function(otu, abx_df, treatment_subset, set_E){
 		pull(unique_id)
 
 # add day 0 back to those missing and randomize the order of the mice
-	if(length(missing_day_0) > 0){
-		abx_df <- abx_df %>% 
-			bind_rows(data.frame(unique_id = missing_day_0, day = 0)) %>% 
-			mutate(random_order = as.numeric(factor(unique_id, levels = 
-				sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
-			arrange(random_order, day) %>%  
-			select(day, C_difficile = CFU, one_of(taxa_list))#contains('Otu'))
-		} else {
-		abx_df <- abx_df %>% 
-			mutate(random_order = as.numeric(factor(unique_id, levels = 
-				sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
-			arrange(random_order, day) %>%  
-			select(day, C_difficile = CFU, one_of(taxa_list))#contains('Otu'))
-		}
+	randomize_order <- function(input_df){
+		if(length(missing_day_0) > 0){
+			output_df <- input_df %>% 
+				bind_rows(data.frame(unique_id = missing_day_0, day = 0)) %>% 
+				mutate(random_order = as.numeric(factor(unique_id, levels = 
+					sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
+				arrange(random_order, day) %>%  
+				select(day, C_difficile = CFU, one_of(taxa_list))#contains('Otu'))
 
-	NA_list <- which(abx_df$day == 0)
-	zero_subset <- abx_df == 0 & !is.na(abx_df)
-	abx_df[zero_subset] <-  sample(100,sum(zero_subset), replace = T)/100
-	abx_df[NA_list, ] <- NA
-	abx_df <- select(abx_df, -day)
+		} else {
+			output_df <- input_df %>% 
+				mutate(random_order = as.numeric(factor(unique_id, levels = 
+					sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
+				arrange(random_order, day) %>%  
+				select(day, C_difficile = CFU, one_of(taxa_list))#contains('Otu'))
+		}
+		NA_list <- which(output_df$day == 0)
+		zero_subset <- output_df == 0 & !is.na(output_df)
+		output_df[zero_subset] <-  sample(100,sum(zero_subset), replace = T)/100
+		output_df[NA_list, ] <- NA
+		output_df <- select(output_df, -day)
+		return(output_df)
+	}
+
+	abx_df <- randomize_order(abx_df)
+	abx_df_1diff <- randomize_order(abx_df_1diff)
+
 
 	# create folder for treatment set
 #	ifelse(!dir.exists(file.path('scratch/ccm_all', treatment_subset)), 
