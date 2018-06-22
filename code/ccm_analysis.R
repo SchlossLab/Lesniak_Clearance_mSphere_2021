@@ -36,7 +36,6 @@ taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.uniq
 shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file, 
 	otu_df = shared_file, 
 	taxa_level = 'genus')
-taxa_list <- colnames(shared_by_genus)[colnames(shared_by_genus) != 'Group']
 
 seed_treatment <- expand.grid(seed = 1:10, treatment = unique(meta_file$treatment))[run_set, ]
 seed <- seed_treatment$seed
@@ -210,6 +209,7 @@ run_ccm <- function(otu, abx_df, treatment_subset, set_E){
 	
 # remove otus that are present in less than 10 samples
 	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 )) 
+	taxa_list <- colnames(select(abx_df, -day, -CFU, -cage, -mouse, -treatment, -unique_id))
 
 # find which mice are missing data for day 0
 	missing_day_0 <- summarise(group_by(abx_df, unique_id), first_day = min(day)) %>% 
