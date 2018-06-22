@@ -49,56 +49,61 @@ print(paste0('Beginning seed ', seed))
 
 ifelse(!dir.exists(save_dir), dir.create(save_dir), print(paste0(save_dir, ' directory ready')))
 
-run_ccm <- function(otu, abx_df, treatment_subset, set_E){
-	Accm<-abx_df[ , otu[[1]] ]
-	Bccm<-abx_df[ , otu[[2]] ]
-	current_otu1 <- colnames(abx_df)[ otu[[1]] ]
-	current_otu2 <- colnames(abx_df)[ otu[[2]] ]
+# use to test function
+#otu <- list(c(1), c(15))
+#input_df <- abx_df
+#input_df <- abx_df_1diff
+
+run_ccm <- function(otu, input_df, treatment_subset, set_E){
+	Accm<- select(input_df, -day)[ , otu[[1]] ]
+	Bccm<- select(input_df, -day)[ , otu[[2]] ]
+#	Accm_diff1 <- select(abx_df_1diff, -day)[ , otu[[1]] ]
+#	Bccm_diff1 <- select(abx_df_1diff, -day)[ , otu[[2]] ]
+	current_otu1 <- colnames(select(input_df, -day))[ otu[[1]] ]
+	current_otu2 <- colnames(select(input_df, -day))[ otu[[2]] ]
 	print(paste0('Beginning ', current_otu1, ' and ', current_otu2, ' in from ', treatment_subset))
-# fix to use two otus
 
-#		lagged_dynamics_plot <- data.frame(day = abx_df$day,
-#			t1 = abx_df[,i],
-#			t0 = c(abx_df[-1,i], NA))  %>% 
-#			filter(!is.na(t0), !is.na(t1)) %>% 
-#			ggplot(aes(x = t0, y = t1, color = day)) + 
-#				geom_point() + 
-#				labs(title = paste(current_otu)) + 
-#				theme_bw(base_size = 8)
+	lagged_dynamics_plot <- input_df %>% 
+			select(day, one_of(current_otu1, current_otu2)) %>% 
+			gather(otu, t0, -day) %>% 
+			mutate(t1 = lag(t0)) %>% 
+			filter(!is.na(t1), !is.na(t0)) %>% 
+			ggplot(aes(x = t0, y = t1, color = day)) + 
+				geom_point() + facet_wrap(~otu, scales = 'free') +  
+				theme_bw(base_size = 8)
+
 	#Maximum E to test - one less than number of observations per sample
-#	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
-#	maxE<- 6 #length(unique(abx_df$day)) - 2 # one less for separating NAs and one less sample
-#	#Matrix for storing output
-#	Emat<-matrix(nrow=maxE-1, ncol=2); colnames(Emat)<-c(current_otu1, current_otu2)
-#	#Loop over potential E values and calculate predictive ability
-#	#of each process for its own dynamics
-#	for(E in 2:maxE) {
-#	#Uses defaults of looking forward one prediction step (predstep)
-#	#And using time lag intervals of one time step (tau)
-#	Emat[E-1,1]<-SSR_pred_boot(A=Accm, E=E, predstep=1, tau=1)$rho
-#	Emat[E-1,2]<-SSR_pred_boot(A=Bccm, E=E, predstep=1, tau=1)$rho
-#	}
-#	#maximum E 
-#	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
-#	maxEmat <- Emat/c(2:maxE)
-	E_A<- as.numeric(set_E)#c(2:maxE)[which(maxEmat[,1] == max(maxEmat[,1], na.rm =T))]
-	E_B<- as.numeric(set_E)#c(2:maxE)[which(maxEmat[,2] == max(maxEmat[,2], na.rm =T))]
+	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
+	maxE<- 7 #length(unique(abx_df$day)) - 2 # one less for separating NAs and one less sample
+	#Matrix for storing output
+	Emat<-matrix(nrow=maxE-1, ncol=2); colnames(Emat)<-c(current_otu1, current_otu2)
+	#Loop over potential E values and calculate predictive ability
+	#of each process for its own dynamics
+	for(E in 2:maxE) {
+	#Uses defaults of looking forward one prediction step (predstep)
+	#And using time lag intervals of one time step (tau)
+	Emat[E-1,1]<-SSR_pred_boot(A=Accm, E=E, predstep=1, tau=1)$rho
+	Emat[E-1,2]<-SSR_pred_boot(A=Bccm, E=E, predstep=1, tau=1)$rho
+	}
+	#maximum E 
+	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
+	maxEmat <- Emat/c(2:maxE)
+	E_A<- c(2:maxE)[which(maxEmat[,1] == max(maxEmat[,1], na.rm =T))]
+	E_B<- c(2:maxE)[which(maxEmat[,2] == max(maxEmat[,2], na.rm =T))]
 
-#	fix to use two otus
-
-#		embedding_dim_plot <- data.frame(cbind(Emat, E = c(2:maxE))) %>% 
-#			gather(bacteria, rho, -E) %>% 
-#			left_join(data.frame(bacteria = c('C_difficile', current_otu), Selected_E = c(E_A, E_B))) %>% 
-#			ggplot(aes(x = E, y = rho, color = bacteria)) + 
-#				geom_line() + 
-#				geom_vline(aes(xintercept = Selected_E, color = bacteria), 
-#					linetype = 'dashed', size = 0.5, show.legend = FALSE) +
-#				labs(x = 'E', y = 'Pearson correlation coefficient (rho)', title = 'Embedding Dimension Selection',
-#					subtitle = 'Dimension of highest predictive power') + 
-#				theme_bw(base_size = 8) + 
-#				theme(legend.position = c(0.8, 0.8), legend.title=element_blank(), 
-#					legend.background=element_blank()) + 
-#				scale_x_continuous(breaks = seq(2, maxE, 1))			
+	embedding_dim_plot <- data.frame(cbind(Emat, E = c(2:maxE))) %>% 
+		gather(bacteria, rho, -E) %>% 
+		left_join(data.frame(bacteria = c(current_otu1, current_otu2), Selected_E = c(E_A, E_B))) %>% 
+		ggplot(aes(x = E, y = rho, color = bacteria)) + 
+			geom_line() + 
+			geom_vline(aes(xintercept = Selected_E, color = bacteria), 
+				linetype = 'dashed', size = 0.5, show.legend = FALSE) +
+			labs(x = 'E', y = 'Pearson correlation coefficient (rho)', title = 'Embedding Dimension Selection',
+				subtitle = 'Dimension of highest predictive power') + 
+			theme_bw(base_size = 8) + 
+			theme(legend.position = c(0.8, 0.8), legend.title=element_blank(), 
+				legend.background=element_blank()) + 
+			scale_x_continuous(breaks = seq(2, maxE, 1))
 
 	#Check data for nonlinear signal that is not dominated by noise
 	#Checks whether predictive ability of processes declines with
@@ -109,28 +114,26 @@ run_ccm <- function(otu, abx_df, treatment_subset, set_E){
 	signal_B_out<-SSR_check_signal(A=Bccm, E=E_B, tau=1,
 	predsteplist=1:10)
 
-#	fix to use two otus
-
-#		prediction_step_plot <- rbind(data.frame(signal_A_out$predatout, bacteria = 'C_difficile'),
-#			data.frame(signal_B_out$predatout, bacteria = current_otu)) %>% 
-#			ggplot(aes(x = predstep, y = rho, color = bacteria)) + 
-#				geom_line() + 
-#				labs(x = 'Prediction Steps', y = 'Pearson correlation coefficient (rho)', 
-#					title = 'Predictive Power') + 
-#				theme_bw(base_size = 8) + 
-#				theme(legend.position = c(0.8, 0.8), legend.title=element_blank(), 
-#					legend.background=element_blank()) + 
-#				scale_x_continuous(breaks = seq(1, 10, 1))
+	prediction_step_plot <- rbind(data.frame(signal_A_out$predatout, bacteria = current_otu1),
+		data.frame(signal_B_out$predatout, bacteria = current_otu2)) %>% 
+		ggplot(aes(x = predstep, y = rho, color = bacteria)) + 
+			geom_line() + 
+			labs(x = 'Prediction Steps', y = 'Pearson correlation coefficient (rho)', 
+				title = 'Predictive Power') + 
+			theme_bw(base_size = 8) + 
+			theme(legend.position = c(0.8, 0.8), legend.title=element_blank(), 
+				legend.background=element_blank()) + 
+			scale_x_continuous(breaks = seq(1, 10, 1))
 
 	#Run the CCM test
 	#E_A and E_B are the embedding dimensions for A and B.
 	#tau is the length of time steps used (default is 1)
 	#iterations is the number of bootsrap iterations (default 100)
 	# Does A "cause" B?
-	#Note - increase iterations to 100 for consistant results
-	CCM_boot_A<-CCM_boot(Accm, Bccm, E_A, tau=1, iterations=100)
+	#Note - increase iterations to 1000 for consistant results
+	CCM_boot_A<-CCM_boot(Accm, Bccm, E_A, tau=1, iterations=1000)
 	# Does B "cause" A?
-	CCM_boot_B<-CCM_boot(Bccm, Accm, E_B, tau=1, iterations=100)
+	CCM_boot_B<-CCM_boot(Bccm, Accm, E_B, tau=1, iterations=1000)
 	#Test for significant causal signal
 	#See R function for details
 	CCM_significance_test<-ccmtest(CCM_boot_A, CCM_boot_B)
@@ -150,47 +153,45 @@ run_ccm <- function(otu, abx_df, treatment_subset, set_E){
 		treatment = treatment_subset) %>% 
 		separate(treatment, c('abx', 'dose', 'delayed_infection'), sep = '_')
 
-# fix to use 2 otus
+#	if(current_ccm$pval_b_cause_a <= 0.1){		
+	causal_otu <- c(current_otu1, current_otu2)
+	CCM_plot <- rbind(data.frame(causal = paste0(current_otu1, '_causes_', current_otu2), 
+		lobs = CCM_boot_A$Lobs,
+		rho = CCM_boot_A$rho,
+		stdev_min = CCM_boot_A$rho - CCM_boot_A$sdevrho,
+		stdev_max = CCM_boot_A$rho + CCM_boot_A$sdevrho),
+	data.frame(causal = paste0(current_otu2, '_causes_', current_otu1), 
+		lobs = CCM_boot_B$Lobs,
+		rho = CCM_boot_B$rho,
+		stdev_min = CCM_boot_B$rho - CCM_boot_B$sdevrho,
+		stdev_max = CCM_boot_B$rho + CCM_boot_B$sdevrho)) %>% 
+		#gather(level, value, rho, stdev_min, stdev_max) %>% 
+		ggplot(aes(x = lobs)) + 
+			#geom_line(aes(y = rho, color = causal)) + 
+			geom_ribbon(aes(ymin = stdev_min, ymax = stdev_max, fill = causal), alpha = 0.2) + 
+			geom_point(aes(y = rho, color = causal), alpha = 0.4) + 
+			labs(x = 'L', y = 'Pearson correlation coefficient (rho)', color = '', fill = '') + 
+			theme_bw() + 
+			theme(legend.position="top", legend.direction="horizontal")
 
-#		if(current_ccm$pval_b_cause_a <= 0.1){
-#			causal_otu <- as.character(current_ccm$otu)
-#			CCM_plot <- rbind(data.frame(causal = paste0('Cdiff_causes_', causal_otu), 
-#				lobs = CCM_boot_A$Lobs,
-#				rho = CCM_boot_A$rho,
-#				stdev_min = CCM_boot_A$rho - CCM_boot_A$sdevrho,
-#				stdev_max = CCM_boot_A$rho + CCM_boot_A$sdevrho),
-#			data.frame(causal = paste0(causal_otu, '_causes_Cdiff'), 
-#				lobs = CCM_boot_B$Lobs,
-#				rho = CCM_boot_B$rho,
-#				stdev_min = CCM_boot_B$rho - CCM_boot_B$sdevrho,
-#				stdev_max = CCM_boot_B$rho + CCM_boot_B$sdevrho )) %>% 
-#			#gather(level, value, rho, stdev_min, stdev_max) %>% 
-#			ggplot(aes(x = lobs)) + 
-#				geom_line(aes(y = rho, color = causal)) + 
-#				geom_ribbon(aes(ymin = stdev_min, ymax = stdev_max, fill = causal), alpha = 0.3) + 
-#				labs(x = 'L', y = 'Pearson correlation coefficient (rho)', color = '', fill = '') + 
-#				theme_bw() + 
-#				theme(legend.position="top", legend.direction="horizontal")
-#
-#			dynamics_plot <- meta_file %>% 
-#				filter(treatment == treatment_subset) %>%
-#				inner_join(select(shared_file, -label, -numOtus),
-#					by = c('group' = "Group")) %>%
-#				select(cage, mouse, day, CFU, one_of(causal_otu)) %>% 
-#				gather(bacteria, counts, CFU, one_of(causal_otu)) %>% 
-#					ggplot(aes(x = day, y = counts, color = interaction(as.factor(mouse), as.factor(cage)), group = interaction(cage, mouse))) + 
-#						geom_line() + 
-#						facet_grid(bacteria~., scales = 'free_y') +
-#						theme_bw() + 
-#						labs(x = 'Day', y = 'Abundance \n (C difficle = CFU, Otu = 16s counts)', 
-#							title = 'Temporal Dynamics', subtitle = 'Colored by mouse') + 
-#						scale_x_continuous(breaks=seq(0,10, 1)) + 
-#						theme_bw(base_size = 8) + 
-#						theme(legend.position = 'none')
-#
-#			#ggsave(paste0('scratch/ccm/', treatment_subset, '/ccm_cdiff_caused_by_', causal_otu, '_seed', seed, '.jpg'),
-#			#	plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
-#			#		CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'))
+	dynamics_plot <- meta_file %>% 
+		filter(treatment == treatment_subset) %>%
+		inner_join(shared_by_genus, by = c('group' = "Group")) %>%
+		select(cage, mouse, day, C_difficile = CFU, one_of(current_otu1, current_otu2)) %>% 
+		gather(bacteria, counts, one_of(current_otu1, current_otu2)) %>% 
+			ggplot(aes(x = day, y = counts, color = interaction(as.factor(mouse), as.factor(cage)), group = interaction(cage, mouse))) + 
+				geom_line() + 
+				facet_grid(bacteria~., scales = 'free_y') +
+				theme_bw() + 
+				labs(x = 'Day', y = 'Abundance \n (C difficle = CFU, Otu = 16s counts)', 
+					title = 'Temporal Dynamics', subtitle = 'Colored by mouse') + 
+				scale_x_continuous(breaks=seq(0,10, 1)) + 
+				theme_bw(base_size = 8) + 
+				theme(legend.position = 'none')
+
+	#ggsave(paste0('scratch/ccm/', treatment_subset, '/ccm_cdiff_caused_by_', causal_otu, '_seed', seed, '.jpg'),
+	#	plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
+	#		CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'))
 	
 	print(paste0('Completed ', current_otu1, ' and ', current_otu2,  ' from ', treatment_subset))
 	return(current_ccm)
@@ -243,7 +244,7 @@ run_ccm <- function(otu, abx_df, treatment_subset, set_E){
 		zero_subset <- output_df == 0 & !is.na(output_df)
 		output_df[zero_subset] <-  sample(100,sum(zero_subset), replace = T)/100
 		output_df[NA_list, ] <- NA
-		output_df <- select(output_df, -day)
+		#output_df <- select(output_df, -day)
 		return(output_df)
 	}
 
