@@ -237,8 +237,8 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 # add day 0 back to those missing and randomize the order of the mice
 	randomize_order <- function(input_df){
 		if(length(missing_day_0) > 0){
-			output_df <- input_df %>% 
-				bind_rows(data.frame(unique_id = missing_day_0, day = 0)) %>% 
+			output_df <- input_df abx_df_1diff %>% 
+				bind_rows(data.frame(unique_id = missing_day_0, day = 0, stringsAsFactors = F)) %>% 
 				mutate(random_order = as.numeric(factor(unique_id, levels = 
 					sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
 				arrange(random_order, day) %>%  
