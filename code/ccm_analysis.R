@@ -21,7 +21,7 @@ library(cowplot)
 input_values <- commandArgs(TRUE)
 run_set <- input_values[1]
 set_E <- input_values[2]
-save_dir <- paste0('scratch/ccm_set_E_', set_E, '/')
+save_dir <- paste0('scratch/ccm/')
 print(paste0('Running set ', run_set))
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
@@ -48,13 +48,16 @@ set.seed(seed)
 print(paste0('Beginning seed ', seed))
 
 ifelse(!dir.exists(save_dir), dir.create(save_dir), print(paste0(save_dir, ' directory ready')))
+ifelse(!dir.exists(paste0(save_dir, treatment_subset)), 
+	dir.create(paste0(save_dir, treatment_subset)), 
+	print(paste0(paste0(save_dir, treatment_subset), ' directory ready')))
 
 # use to test function
 #otu <- list(c(1), c(15))
 #input_df <- abx_df
 #input_df <- abx_df_1diff
 
-run_ccm <- function(otu, input_df, treatment_subset, set_E){
+run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 	Accm<- select(input_df, -day)[ , otu[[1]] ]
 	Bccm<- select(input_df, -day)[ , otu[[2]] ]
 #	Accm_diff1 <- select(abx_df_1diff, -day)[ , otu[[1]] ]
@@ -256,23 +259,20 @@ run_ccm <- function(otu, input_df, treatment_subset, set_E){
 		return(output_df)
 	}
 
-	abx_df <- randomize_order(abx_df)
-	abx_df_1diff <- randomize_order(abx_df_1diff)
+abx_df <- randomize_order(abx_df)
+abx_df_1diff <- randomize_order(abx_df_1diff)
 
+otu_combinations <- cross2(1:ncol(abx_df), 1:ncol(abx_df))
 
-	# create folder for treatment set
-#	ifelse(!dir.exists(file.path('scratch/ccm_all', treatment_subset)), 
-#		dir.create(file.path('scratch/ccm_all', treatment_subset)), FALSE)
+output <- map_df(otu_combinations, ~ run_ccm(., input_df = abx_df, treatment_subset = treatment_subset, data_diff = "not_differenced"))
+write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_genus_', treatment_subset, '_not_differenced_', seed, 'seed.txt'), 
+	quote = F, row.names = F)
 
-	otu_combinations <- cross2(1:ncol(abx_df), 1:ncol(abx_df))
+output <- map_df(otu_combinations, ~ run_ccm(., input_df = abx_df_1diff, treatment_subset = treatment_subset, data_diff = 'first_differenced'))
+write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_genus_', treatment_subset, '_first_differenced_', seed, 'seed.txt'), 
+	quote = F, row.names = F)
 
-	output <- map_df(otu_combinations, ~ run_ccm(., abx_df = abx_df, treatment_subset = treatment_subset, set_E = set_E))
-	write.table(output, paste0(save_dir, 'ccm_by_genus_raw_data_', treatment_subset, '_seed', seed, '.txt'), 
-		quote = F, row.names = F)
-
-	print(paste0('Completed treatment set - ', treatment_subset))
-#}
-#map_par(unique(meta_file$treatment), run_each_treatment)
+print(paste0('Completed treatment set - ', treatment_subset))
 
 print(paste0('Completed seed ', seed))
 
