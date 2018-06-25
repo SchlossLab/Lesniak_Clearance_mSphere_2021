@@ -189,9 +189,17 @@ run_ccm <- function(otu, input_df, treatment_subset, set_E){
 				theme_bw(base_size = 8) + 
 				theme(legend.position = 'none')
 
-	#ggsave(paste0('scratch/ccm/', treatment_subset, '/ccm_cdiff_caused_by_', causal_otu, '_seed', seed, '.jpg'),
-	#	plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
-	#		CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'))
+	title <- ggdraw() + 
+	  draw_label(paste0(treatment_subset, ' with ', current_otu1, ' and ', causal_otu,
+	  	'\n(Data is ', data_diff, ', using seed', seed,
+	  	')\n(treatment = Antibiotic_Dose_Allow recovery before C difficile Challenge)'),
+		fontface = 'bold')
+
+	ggsave(filename = paste0(save_dir, treatment_subset, '/ccm_', current_otu1, 
+			'_', causal_otu, '_', data_diff, '_seed', seed, '.jpg'),
+		plot = plot_grid(title, plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
+			CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'),  ncol = 1, rel_heights = c(0.1, 1)),
+		width = 7, height = 10, device = 'jpeg')
 	
 	print(paste0('Completed ', current_otu1, ' and ', current_otu2,  ' from ', treatment_subset))
 	return(current_ccm)
