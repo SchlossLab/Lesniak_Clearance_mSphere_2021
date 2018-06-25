@@ -41,7 +41,7 @@ seed_treatment <- expand.grid(seed = 1:10, treatment = unique(meta_file$treatmen
 seed <- seed_treatment$seed
 treatment_subset <- as.character(seed_treatment$treatment)
 
-print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset, ' using seed ', seed, ', and setting E to ', set_E))
+print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset, ' using seed ', seed))
 
 set.seed(seed)
 
@@ -221,12 +221,12 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 	
 # remove otus that are present in less than 10 samples
 	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 )) 
-	taxa_list <- colnames(select(abx_df, -day, -CFU, -cage, -mouse, -treatment, -unique_id))
+	taxa_list <- colnames(select(abx_df, -day, -group, -cage, -mouse, -treatment, -unique_id))
 # create a 1st differenced dataframe
 	abx_df_1diff <- abx_df %>% 
 		arrange(unique_id, day) %>% 
 		group_by(unique_id) %>% 
-		mutate_at(vars(c('CFU', taxa_list)) , funs(. - lag(.))) %>% 
+		mutate_at(vars(taxa_list) , funs(. - lag(.))) %>% 
 		ungroup
 
 # find which mice are missing data for day 0
