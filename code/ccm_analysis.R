@@ -217,8 +217,9 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 	abx_df <- meta_file %>% 
 		filter(treatment == treatment_subset) %>%
 		mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
-		inner_join(shared_by_genus, by = c('group' = "Group"))
-	
+		inner_join(shared_by_genus, by = c('group' = "Group")) %>% 
+		select(-group)
+		
 # remove otus that are present in less than 10 samples
 	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 )) 
 	taxa_list <- colnames(select(abx_df, -day, -cage, -mouse, -treatment, -unique_id))
