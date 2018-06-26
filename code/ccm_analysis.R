@@ -269,7 +269,9 @@ output <- map_df(otu_combinations, ~ run_ccm(., input_df = abx_df, treatment_sub
 write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_genus_', treatment_subset, '_not_differenced_', seed, 'seed.txt'), 
 	quote = F, row.names = F)
 
-output <- map_df(otu_combinations, ~ run_ccm(., input_df = abx_df_1diff, treatment_subset = treatment_subset, data_diff = 'first_differenced'))
+print('Beginning 1st differenced CCM')
+
+output <- map_df(otu_combinations, ~ run_ccm(., input_df = data.frame(abx_df_1diff), treatment_subset = treatment_subset, data_diff = 'first_differenced'))
 write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_genus_', treatment_subset, '_first_differenced_', seed, 'seed.txt'), 
 	quote = F, row.names = F)
 
