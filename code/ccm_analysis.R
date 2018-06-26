@@ -221,7 +221,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 	
 # remove otus that are present in less than 10 samples
 	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 )) 
-	taxa_list <- colnames(select(abx_df, -day, -group, -cage, -mouse, -treatment, -unique_id))
+	taxa_list <- colnames(select(abx_df, -day, -cage, -mouse, -treatment, -unique_id))
 # create a 1st differenced dataframe
 	abx_df_1diff <- abx_df %>% 
 		arrange(unique_id, day) %>% 
@@ -237,7 +237,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 # add day 0 back to those missing and randomize the order of the mice
 	randomize_order <- function(input_df){
 		if(length(missing_day_0) > 0){
-			output_df <- input_df abx_df_1diff %>% 
+			output_df <- input_df %>% 
 				bind_rows(data.frame(unique_id = missing_day_0, day = 0, stringsAsFactors = F)) %>% 
 				mutate(random_order = as.numeric(factor(unique_id, levels = 
 					sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
@@ -275,7 +275,6 @@ write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_genus_', treatme
 print(paste0('Completed treatment set - ', treatment_subset))
 
 print(paste0('Completed seed ', seed))
-
 
 #
 #
