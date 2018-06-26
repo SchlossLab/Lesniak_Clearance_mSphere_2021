@@ -262,7 +262,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 abx_df <- randomize_order(abx_df)
 abx_df_1diff <- randomize_order(abx_df_1diff)
 
-otu_combinations <- cross2(1:ncol(abx_df), 1:ncol(abx_df))
+otu_combinations <- cross2(1:length(taxa_list), 1:length(taxa_list))
 
 output <- map_df(otu_combinations, ~ run_ccm(., input_df = abx_df, treatment_subset = treatment_subset, data_diff = "not_differenced"))
 write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_genus_', treatment_subset, '_not_differenced_', seed, 'seed.txt'), 
