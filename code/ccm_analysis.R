@@ -36,20 +36,20 @@ shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file,
 	otu_df = shared_file, 
 	taxa_level = 'genus')
 
-seed_treatment <- expand.grid(seed = 1:10, treatment = unique(meta_file$treatment))[run_set, ]
-seed <- seed_treatment$seed
-treatment_subset <- as.character(seed_treatment$treatment)
+#seed_treatment <- expand.grid(seed = 1:10, treatment = unique(meta_file$treatment))[run_set, ]
+#seed <- seed_treatment$seed
+treatment_subset <- unique(meta_file$treatment)[run_set]#as.character(seed_treatment$treatment)
 
-print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset, ' using seed ', seed))
+print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))#, ' using seed ', seed))
 
-set.seed(seed)
+#set.seed(seed)
 
-print(paste0('Beginning seed ', seed))
+#print(paste0('Beginning seed ', seed))
 
 ifelse(!dir.exists(save_dir), dir.create(save_dir), print(paste0(save_dir, ' directory ready')))
 ifelse(!dir.exists(paste0(save_dir, treatment_subset)), 
 	dir.create(paste0(save_dir, treatment_subset)), 
-	print(paste0(paste0(save_dir, treatment_subset), ' directory ready')))
+	print(paste0(save_dir, treatment_subset, ' directory ready')))
 
 # use to test function
 #otu <- list(c(1), c(15))
@@ -271,7 +271,7 @@ write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_genus_', treatme
 
 print(paste0('Completed treatment set - ', treatment_subset))
 
-print(paste0('Completed seed ', seed))
+#print(paste0('Completed seed ', seed))
 
 #
 #
