@@ -79,15 +79,6 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 	current_otu2 <- colnames(select(input_df, -day))[ otu[[2]] ]
 	print(paste0('Beginning ', current_otu1, ' and ', current_otu2, ' in from ', treatment_subset))
 
-	lagged_dynamics_plot <- input_df %>% 
-			select(day, one_of(current_otu1, current_otu2)) %>% 
-			gather(otu, t0, -day) %>% 
-			mutate(t1 = lag(t0)) %>% 
-			filter(!is.na(t1), !is.na(t0)) %>% 
-			ggplot(aes(x = t0, y = t1, color = day)) + 
-				geom_point() + facet_wrap(~otu, scales = 'free') +  
-				theme_bw(base_size = 8)
-
 	#Maximum E to test - one less than number of observations per sample
 	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
 	maxE<- 7 #length(unique(abx_df$day)) - 2 # one less for separating NAs and one less sample
@@ -107,20 +98,6 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 	E_A<- c(2:maxE)[which(maxEmat[,1] == max(maxEmat[,1], na.rm =T))]
 	E_B<- c(2:maxE)[which(maxEmat[,2] == max(maxEmat[,2], na.rm =T))]
 
-	embedding_dim_plot <- data.frame(cbind(Emat, E = c(2:maxE))) %>% 
-		gather(bacteria, rho, -E) %>% 
-		left_join(data.frame(bacteria = c(current_otu1, current_otu2), Selected_E = c(E_A, E_B))) %>% 
-		ggplot(aes(x = E, y = rho, color = bacteria)) + 
-			geom_line() + 
-			geom_vline(aes(xintercept = Selected_E, color = bacteria), 
-				linetype = 'dashed', size = 0.5, show.legend = FALSE) +
-			labs(x = 'E', y = 'Pearson correlation coefficient (rho)', title = 'Embedding Dimension Selection',
-				subtitle = 'Dimension of highest predictive power') + 
-			theme_bw(base_size = 8) + 
-			theme(legend.position = c(0.8, 0.8), legend.title=element_blank(), 
-				legend.background=element_blank()) + 
-			scale_x_continuous(breaks = seq(2, maxE, 1))
-
 	#Check data for nonlinear signal that is not dominated by noise
 	#Checks whether predictive ability of processes declines with
 	#increasing time distance
@@ -130,23 +107,11 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 	signal_B_out<-SSR_check_signal(A=Bccm, E=E_B, tau=1,
 	predsteplist=1:10)
 
-	prediction_step_plot <- rbind(data.frame(signal_A_out$predatout, bacteria = current_otu1),
-		data.frame(signal_B_out$predatout, bacteria = current_otu2)) %>% 
-		ggplot(aes(x = predstep, y = rho, color = bacteria)) + 
-			geom_line() + 
-			labs(x = 'Prediction Steps', y = 'Pearson correlation coefficient (rho)', 
-				title = 'Predictive Power') + 
-			theme_bw(base_size = 8) + 
-			theme(legend.position = c(0.8, 0.8), legend.title=element_blank(), 
-				legend.background=element_blank()) + 
-			scale_x_continuous(breaks = seq(1, 10, 1))
-
 	#Run the CCM test
 	#E_A and E_B are the embedding dimensions for A and B.
 	#tau is the length of time steps used (default is 1)
 	#iterations is the number of bootsrap iterations (default 100)
 	# Does A "cause" B?
-	#Note - increase iterations to 1000 for consistant results
 	CCM_boot_A<-CCM_boot(Accm, Bccm, E_A, tau=1, iterations=1000)
 	# Does B "cause" A?
 	CCM_boot_B<-CCM_boot(Bccm, Accm, E_B, tau=1, iterations=1000)
@@ -169,27 +134,16 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 		treatment = treatment_subset) %>% 
 		separate(treatment, c('abx', 'dose', 'delayed_infection'), sep = '_')
 
-#	if(current_ccm$pval_b_cause_a <= 0.1){		
-	causal_otu <- c(current_otu1, current_otu2)
-	CCM_plot <- rbind(data.frame(causal = paste0(current_otu1, '_causes_', current_otu2), 
-		lobs = CCM_boot_A$Lobs,
-		rho = CCM_boot_A$rho,
-		stdev_min = CCM_boot_A$rho - CCM_boot_A$sdevrho,
-		stdev_max = CCM_boot_A$rho + CCM_boot_A$sdevrho),
-	data.frame(causal = paste0(current_otu2, '_causes_', current_otu1), 
-		lobs = CCM_boot_B$Lobs,
-		rho = CCM_boot_B$rho,
-		stdev_min = CCM_boot_B$rho - CCM_boot_B$sdevrho,
-		stdev_max = CCM_boot_B$rho + CCM_boot_B$sdevrho)) %>% 
-		#gather(level, value, rho, stdev_min, stdev_max) %>% 
-		ggplot(aes(x = lobs)) + 
-			#geom_line(aes(y = rho, color = causal)) + 
-			geom_ribbon(aes(ymin = stdev_min, ymax = stdev_max, fill = causal), alpha = 0.2) + 
-			geom_point(aes(y = rho, color = causal), alpha = 0.4) + 
-			labs(x = 'L', y = 'Pearson correlation coefficient (rho)', color = '', fill = '') + 
-			theme_bw() + 
-			theme(legend.position="top", legend.direction="horizontal")
-
+	# plot each time point agasint the previous day
+	lagged_dynamics_plot <- input_df %>% 
+			select(day, one_of(current_otu1, current_otu2)) %>% 
+			gather(otu, t0, -day) %>% 
+			mutate(t1 = lag(t0)) %>% 
+			filter(!is.na(t1), !is.na(t0)) %>% 
+			ggplot(aes(x = t0, y = t1, color = day)) + 
+				geom_point() + facet_wrap(~otu, scales = 'free') +  
+				theme_bw(base_size = 8)
+	# plot temporal dynamics of otus
 	dynamics_plot <- meta_file %>% 
 		filter(treatment == treatment_subset) %>%
 		inner_join(shared_by_genus, by = c('group' = "Group")) %>%
@@ -204,6 +158,50 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 				scale_x_continuous(breaks=seq(0,10, 1)) + 
 				theme_bw(base_size = 8) + 
 				theme(legend.position = 'none')
+	# plot embedding dimension of each otu/sample with the indicated used value for E
+	embedding_dim_plot <- data.frame(cbind(Emat, E = c(2:maxE))) %>% 
+		gather(bacteria, rho, -E) %>% 
+		left_join(data.frame(bacteria = c(current_otu1, current_otu2), Selected_E = c(E_A, E_B))) %>% 
+		ggplot(aes(x = E, y = rho, color = bacteria)) + 
+			geom_line() + 
+			geom_vline(aes(xintercept = Selected_E, color = bacteria), 
+				linetype = 'dashed', size = 0.5, show.legend = FALSE) +
+			labs(x = 'E', y = 'Pearson correlation coefficient (rho)', title = 'Embedding Dimension Selection',
+				subtitle = 'Dimension of highest predictive power') + 
+			theme_bw(base_size = 8) + 
+			theme(legend.position = c(0.8, 0.8), legend.title=element_blank(), 
+				legend.background=element_blank()) + 
+			scale_x_continuous(breaks = seq(2, maxE, 1))
+	# plot prediction over time, to determine if prediction decays with time (indicative of non-linearity)
+	prediction_step_plot <- rbind(data.frame(signal_A_out$predatout, bacteria = current_otu1),
+		data.frame(signal_B_out$predatout, bacteria = current_otu2)) %>% 
+		ggplot(aes(x = predstep, y = rho, color = bacteria)) + 
+			geom_line() + 
+			labs(x = 'Prediction Steps', y = 'Pearson correlation coefficient (rho)', 
+				title = 'Predictive Power') + 
+			theme_bw(base_size = 8) + 
+			theme(legend.position = c(0.8, 0.8), legend.title=element_blank(), 
+				legend.background=element_blank()) + 
+			scale_x_continuous(breaks = seq(1, 10, 1))
+	# plot the ability of otu to predict the other otu
+	CCM_plot <- rbind(data.frame(causal = paste0(current_otu1, '_causes_', current_otu2), 
+			lobs = CCM_boot_A$Lobs,
+			rho = CCM_boot_A$rho,
+			stdev_min = CCM_boot_A$rho - CCM_boot_A$sdevrho,
+			stdev_max = CCM_boot_A$rho + CCM_boot_A$sdevrho),
+		data.frame(causal = paste0(current_otu2, '_causes_', current_otu1), 
+			lobs = CCM_boot_B$Lobs,
+			rho = CCM_boot_B$rho,
+			stdev_min = CCM_boot_B$rho - CCM_boot_B$sdevrho,
+			stdev_max = CCM_boot_B$rho + CCM_boot_B$sdevrho)) %>% 
+		#gather(level, value, rho, stdev_min, stdev_max) %>% 
+		ggplot(aes(x = lobs)) + 
+			#geom_line(aes(y = rho, color = causal)) + 
+			geom_ribbon(aes(ymin = stdev_min, ymax = stdev_max, fill = causal), alpha = 0.2) + 
+			geom_point(aes(y = rho, color = causal), alpha = 0.4) + 
+			labs(x = 'L', y = 'Pearson correlation coefficient (rho)', color = '', fill = '') + 
+			theme_bw() + 
+			theme(legend.position="top", legend.direction="horizontal")
 
 	title <- ggdraw() + 
 	  draw_label(paste0(treatment_subset, ' with ', current_otu1, ' and ', current_otu2,
