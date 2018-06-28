@@ -56,7 +56,21 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset)),
 #input_df <- abx_df
 #input_df <- abx_df_1diff
 
+setup_df_for_mccm <- function(input_df){
+	# reorder mice
+	output_df <- input_df %>% 
+		mutate(random_order = as.numeric(factor(unique_id, 
+			levels = sample(unique(unique_id), length(unique(unique_id)), 
+				replace = F)))) %>% 
+		arrange(random_order, day) %>%  
+		select(day, C_difficile = CFU, one_of(taxa_list))#contains('Otu'))
+	# set day 0 to NA to separate data by mouse for ccm
+	output_df[which(output_df$day == 0), ] <- NA
+	return(output_df)
+}
+
 run_ccm <- function(otu, input_df, treatment_subset, data_diff){
+	input_df <- setup_df_for_mccm(input_df)
 	Accm<- select(input_df, -day)[ , otu[[1]] ]
 	Bccm<- select(input_df, -day)[ , otu[[2]] ]
 #	Accm_diff1 <- select(abx_df_1diff, -day)[ , otu[[1]] ]
@@ -244,22 +258,6 @@ abx_df_1diff <- abx_df %>%
 	group_by(unique_id) %>% 
 	mutate_at(vars(taxa_list) , funs(. - lag(.))) %>% 
 	ungroup
-
-setup_df_for_mccm <- function(input_df){
-	# reorder mice
-	output_df <- input_df %>% 
-		mutate(random_order = as.numeric(factor(unique_id, 
-			levels = sample(unique(unique_id), length(unique(unique_id)), 
-				replace = F)))) %>% 
-		arrange(random_order, day) %>%  
-		select(day, C_difficile = CFU, one_of(taxa_list))#contains('Otu'))
-	# set day 0 to NA to separate data by mouse for ccm
-	output_df[which(output_df$day == 0), ] <- NA
-	return(output_df)
-}
-
-abx_df <- setup_df_for_mccm(abx_df)
-abx_df_1diff <- setup_df_for_mccm(abx_df_1diff)
 
 otu_combinations <- cross2(1:length(taxa_list), 1:length(taxa_list))
 
