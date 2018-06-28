@@ -213,54 +213,53 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 	# treatment_subset <- 'amp_0.5_FALSE' # test for missing day 0 (missing 2)
 	# treatment_subset <- 'cef_0.1_FALSE' # test for missing day 0 (none missing)
 
-	abx_df <- meta_file %>% 
-		filter(treatment == treatment_subset) %>%
-		mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
-		inner_join(shared_by_genus, by = c('group' = "Group")) %>% 
-		select(-group)
+abx_df <- meta_file %>% 
+	filter(treatment == treatment_subset) %>%
+	mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
+	inner_join(shared_by_genus, by = c('group' = "Group")) %>% 
+	select(-group)
 		
 # remove otus that are present in less than 10 samples
-	abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 )) 
-	taxa_list <- colnames(select(abx_df, -day, -cage, -mouse, -treatment, -unique_id))
-# create a 1st differenced dataframe
-	abx_df_1diff <- abx_df %>% 
-		arrange(unique_id, day) %>% 
-		group_by(unique_id) %>% 
-		mutate_at(vars(taxa_list) , funs(. - lag(.))) %>% 
-		ungroup
+abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 )) 
+taxa_list <- colnames(select(abx_df, -day, -cage, -mouse, -treatment, -unique_id))
+# replace all 0s with random value between 0 and 1
+abx_df <- abx_df %>% 
+	gather(taxa, abundance, one_of(taxa_list)) %>% 
+	mutate(abundance = ifelse(abundance == 0, 
+		sample(100, sum(abundance == 0), replace = T)/100, abundance)) %>% 
+	spread(taxa, abundance)
 
 # find which mice are missing data for day 0
-	missing_day_0 <- summarise(group_by(abx_df, unique_id), first_day = min(day)) %>% 
-		filter(first_day != 0) %>% 
-		pull(unique_id)
+missing_day_0 <- summarise(group_by(abx_df, unique_id), first_day = min(day)) %>% 
+	filter(first_day != 0) %>% 
+	pull(unique_id)
 
-# add day 0 back to those missing and randomize the order of the mice
-	randomize_order <- function(input_df){
-		if(length(missing_day_0) > 0){
-			output_df <- input_df %>% 
-				bind_rows(data.frame(unique_id = missing_day_0, day = 0, stringsAsFactors = F)) %>% 
-				mutate(random_order = as.numeric(factor(unique_id, levels = 
-					sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
-				arrange(random_order, day) %>%  
-				select(day, C_difficile = CFU, one_of(taxa_list))#contains('Otu'))
+if(length(missing_day_0) > 0){
+	abx_df <- bind_rows(abx_df, data.frame(unique_id = missing_day_0, day = 0, stringsAsFactors = F))
+}	
 
-		} else {
-			output_df <- input_df %>% 
-				mutate(random_order = as.numeric(factor(unique_id, levels = 
-					sample(unique(unique_id), length(unique(unique_id)), replace = F)))) %>% 
-				arrange(random_order, day) %>%  
-				select(day, C_difficile = CFU, one_of(taxa_list))#contains('Otu'))
-		}
-		NA_list <- which(output_df$day == 0)
-		zero_subset <- output_df == 0 & !is.na(output_df)
-		output_df[zero_subset] <-  sample(100,sum(zero_subset), replace = T)/100
-		output_df[NA_list, ] <- NA
-		#output_df <- select(output_df, -day)
-		return(output_df)
-	}
+# create a 1st differenced dataframe
+abx_df_1diff <- abx_df %>% 
+	arrange(unique_id, day) %>% 
+	group_by(unique_id) %>% 
+	mutate_at(vars(taxa_list) , funs(. - lag(.))) %>% 
+	ungroup
 
-abx_df <- randomize_order(abx_df)
-abx_df_1diff <- randomize_order(abx_df_1diff)
+setup_df_for_mccm <- function(input_df){
+	# reorder mice
+	output_df <- input_df %>% 
+		mutate(random_order = as.numeric(factor(unique_id, 
+			levels = sample(unique(unique_id), length(unique(unique_id)), 
+				replace = F)))) %>% 
+		arrange(random_order, day) %>%  
+		select(day, C_difficile = CFU, one_of(taxa_list))#contains('Otu'))
+	# set day 0 to NA to separate data by mouse for ccm
+	output_df[which(output_df$day == 0), ] <- NA
+	return(output_df)
+}
+
+abx_df <- setup_df_for_mccm(abx_df)
+abx_df_1diff <- setup_df_for_mccm(abx_df_1diff)
 
 otu_combinations <- cross2(1:length(taxa_list), 1:length(taxa_list))
 
