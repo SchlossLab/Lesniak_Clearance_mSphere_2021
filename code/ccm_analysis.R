@@ -20,7 +20,6 @@ library(cowplot)
 #	amp_0.5_true - day 0 and 4 missing 1
 input_values <- commandArgs(TRUE)
 run_set <- input_values[1]
-set_E <- input_values[2]
 save_dir <- paste0('scratch/ccm/')
 print(paste0('Running set ', run_set))
 
