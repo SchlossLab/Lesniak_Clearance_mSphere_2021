@@ -63,7 +63,7 @@ setup_df_for_mccm <- function(input_df){
 			levels = sample(unique(unique_id), length(unique(unique_id)), 
 				replace = F)))) %>% 
 		arrange(random_order, day) %>%  
-		select(day, C_difficile = CFU, one_of(taxa_list))#contains('Otu'))
+		select(day, one_of(taxa_list))#contains('Otu'))
 	# set day 0 to NA to separate data by mouse for ccm
 	output_df[which(output_df$day == 0), ] <- NA
 	return(output_df)
@@ -147,7 +147,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 	dynamics_plot <- meta_file %>% 
 		filter(treatment == treatment_subset) %>%
 		inner_join(shared_by_genus, by = c('group' = "Group")) %>%
-		select(cage, mouse, day, C_difficile = CFU, one_of(current_otu1, current_otu2)) %>% 
+		select(cage, mouse, day, one_of(current_otu1, current_otu2)) %>% 
 		gather(bacteria, counts, one_of(current_otu1, current_otu2)) %>% 
 			ggplot(aes(x = day, y = counts, color = interaction(as.factor(mouse), as.factor(cage)), group = interaction(cage, mouse))) + 
 				geom_line() + 
@@ -229,10 +229,11 @@ abx_df <- meta_file %>%
 	filter(treatment == treatment_subset) %>%
 	mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
 	inner_join(shared_by_genus, by = c('group' = "Group")) %>% 
-	select(-group)
+	select(-group)%>% 
+	rename(C_difficile = CFU)
 		
 # remove otus that are present in less than 10 samples
-abx_df <- select(abx_df, day, CFU, which(apply(abx_df > 1, 2, sum) > 10 )) 
+abx_df <- select(abx_df, day, C_difficile, which(apply(abx_df > 1, 2, sum) > 10 )) 
 taxa_list <- colnames(select(abx_df, -day, -cage, -mouse, -treatment, -unique_id))
 # replace all 0s with random value between 0 and 1
 abx_df <- abx_df %>% 
