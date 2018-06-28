@@ -37,12 +37,12 @@ shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file,
 	taxa_level = 'genus')
 
 #seed_treatment <- expand.grid(seed = 1:10, treatment = unique(meta_file$treatment))[run_set, ]
-#seed <- seed_treatment$seed
+seed <- 062818#seed_treatment$seed
 treatment_subset <- unique(meta_file$treatment)[run_set]#as.character(seed_treatment$treatment)
 
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))#, ' using seed ', seed))
 
-#set.seed(seed)
+set.seed(seed)
 
 #print(paste0('Beginning seed ', seed))
 
