@@ -263,11 +263,7 @@ abx_df_1diff <- setup_df_for_mccm(abx_df_1diff)
 
 otu_combinations <- cross2(1:length(taxa_list), 1:length(taxa_list))
 
-output <- map_df(otu_combinations, ~ run_ccm(., input_df = abx_df, treatment_subset = treatment_subset, data_diff = "not_differenced"))
-write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_genus_', treatment_subset, '_not_differenced_', seed, 'seed.txt'), 
-	quote = F, row.names = F)
-
-print('Beginning 1st differenced CCM')
+print('Beginning CCM on 1st differenced data')
 
 output <- map_df(otu_combinations, ~ run_ccm(., input_df = data.frame(abx_df_1diff), treatment_subset = treatment_subset, data_diff = 'first_differenced'))
 write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_genus_', treatment_subset, '_first_differenced_', seed, 'seed.txt'), 
