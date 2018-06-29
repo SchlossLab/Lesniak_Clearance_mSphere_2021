@@ -55,6 +55,7 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset)),
 #otu <- list(c(1), c(15))
 #input_df <- abx_df
 #input_df <- abx_df_1diff
+#otu <- otu_combinations[[34]]
 
 setup_df_for_mccm <- function(input_df){
 	# reorder mice
@@ -69,9 +70,9 @@ setup_df_for_mccm <- function(input_df){
 	return(output_df)
 }
 
-run_ccm <- function(otu, input_df, treatment_subset, data_diff){
-	current_otu1 <- colnames(select(ccm_df, -day))[ otu[[1]] ]
-	current_otu2 <- colnames(select(ccm_df, -day))[ otu[[2]] ]
+run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
+	current_otu1 <- taxa_list[ otu[[1]] ]
+	current_otu2 <- taxa_list[ otu[[2]] ]
 	
 	embedding_dim_df <- c()
 	pred_plot_df <- c()
@@ -80,8 +81,8 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 
 	for(i in 1:10){
 		ccm_df <- data.frame(setup_df_for_mccm(input_df))
-		Accm<- select(ccm_df, -day)[ , otu[[1]] ]
-		Bccm<- select(ccm_df, -day)[ , otu[[2]] ]
+		Accm <- pull(ccm_df, current_otu1)
+		Bccm <- pull(ccm_df, current_otu2)
 		print(paste0('Beginning ', current_otu1, ' and ', current_otu2, ' in from ', 
 			treatment_subset, ' (Run ', i, ')'))
 
@@ -178,6 +179,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 	dynamics_plot <- meta_file %>% 
 		filter(treatment == treatment_subset) %>%
 		inner_join(shared_by_genus, by = c('group' = "Group")) %>%
+		rename(C_difficile = CFU) %>% 
 		select(cage, mouse, day, one_of(current_otu1, current_otu2)) %>% 
 		gather(bacteria, counts, one_of(current_otu1, current_otu2)) %>% 
 			ggplot(aes(x = day, y = counts, color = interaction(as.factor(mouse), as.factor(cage)), group = interaction(cage, mouse))) + 
@@ -281,9 +283,16 @@ otu_combinations <- cross2(1:length(taxa_list), 1:length(taxa_list))
 
 print('Beginning CCM on 1st differenced data')
 
-output <- map_df(otu_combinations, ~ run_ccm(., input_df = data.frame(abx_df_1diff), treatment_subset = treatment_subset, data_diff = 'first_differenced'))
+output <- map_df(otu_combinations, ~ run_ccm(., input_df = data.frame(abx_df_1diff), 
+	treatment_subset = treatment_subset, data_diff = 'first_differenced', taxa_list = taxa_list))
 write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_genus_', treatment_subset, '_first_differenced_', seed, 'seed.txt'), 
 	quote = F, row.names = F)
+
+#output %>% 
+#	group_by(otu1, otu2) %>% 
+#	summarise_all(funs(mean(as.numeric(.)))) %>% 
+#	data.frame
+
 
 print(paste0('Completed treatment set - ', treatment_subset))
 
