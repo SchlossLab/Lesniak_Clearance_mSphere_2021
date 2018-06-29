@@ -70,69 +70,100 @@ setup_df_for_mccm <- function(input_df){
 }
 
 run_ccm <- function(otu, input_df, treatment_subset, data_diff){
-	input_df <- setup_df_for_mccm(input_df)
-	Accm<- select(input_df, -day)[ , otu[[1]] ]
-	Bccm<- select(input_df, -day)[ , otu[[2]] ]
-#	Accm_diff1 <- select(abx_df_1diff, -day)[ , otu[[1]] ]
-#	Bccm_diff1 <- select(abx_df_1diff, -day)[ , otu[[2]] ]
-	current_otu1 <- colnames(select(input_df, -day))[ otu[[1]] ]
-	current_otu2 <- colnames(select(input_df, -day))[ otu[[2]] ]
-	print(paste0('Beginning ', current_otu1, ' and ', current_otu2, ' in from ', treatment_subset))
+	current_otu1 <- colnames(select(ccm_df, -day))[ otu[[1]] ]
+	current_otu2 <- colnames(select(ccm_df, -day))[ otu[[2]] ]
+	
+	embedding_dim_df <- c()
+	pred_plot_df <- c()
+	ccm_plot_df <- c()
+	ccm_data <- c()
 
-	#Maximum E to test - one less than number of observations per sample
-	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
-	maxE<- 7 #length(unique(abx_df$day)) - 2 # one less for separating NAs and one less sample
-	#Matrix for storing output
-	Emat<-matrix(nrow=maxE-1, ncol=2); colnames(Emat)<-c(current_otu1, current_otu2)
-	#Loop over potential E values and calculate predictive ability
-	#of each process for its own dynamics
-	for(E in 2:maxE) {
-	#Uses defaults of looking forward one prediction step (predstep)
-	#And using time lag intervals of one time step (tau)
-	Emat[E-1,1]<-SSR_pred_boot(A=Accm, E=E, predstep=1, tau=1)$rho
-	Emat[E-1,2]<-SSR_pred_boot(A=Bccm, E=E, predstep=1, tau=1)$rho
-	}
-	#maximum E 
-	# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
-	maxEmat <- Emat/c(2:maxE)
-	E_A<- c(2:maxE)[which(maxEmat[,1] == max(maxEmat[,1], na.rm =T))]
-	E_B<- c(2:maxE)[which(maxEmat[,2] == max(maxEmat[,2], na.rm =T))]
+	for(i in 1:10){
+		ccm_df <- data.frame(setup_df_for_mccm(input_df))
+		Accm<- select(ccm_df, -day)[ , otu[[1]] ]
+		Bccm<- select(ccm_df, -day)[ , otu[[2]] ]
+		print(paste0('Beginning ', current_otu1, ' and ', current_otu2, ' in from ', 
+			treatment_subset, ' (Run ', i, ')'))
 
-	#Check data for nonlinear signal that is not dominated by noise
-	#Checks whether predictive ability of processes declines with
-	#increasing time distance
-	#See manuscript and R code for details
-	signal_A_out<-SSR_check_signal(A=Accm, E=E_A, tau=1,
-	predsteplist=1:10)
-	signal_B_out<-SSR_check_signal(A=Bccm, E=E_B, tau=1,
-	predsteplist=1:10)
+		#Maximum E to test - one less than number of observations per sample
+		# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
+		maxE<- 7 #length(unique(abx_df$day)) - 2 # one less for separating NAs and one less sample
+		#Matrix for storing output
+		Emat<-matrix(nrow=maxE-1, ncol=2); colnames(Emat)<-c(current_otu1, current_otu2)
+		#Loop over potential E values and calculate predictive ability
+		#of each process for its own dynamics
+		for(E in 2:maxE) {
+		#Uses defaults of looking forward one prediction step (predstep)
+		#And using time lag intervals of one time step (tau)
+		Emat[E-1,1]<-SSR_pred_boot(A=Accm, E=E, predstep=1, tau=1)$rho
+		Emat[E-1,2]<-SSR_pred_boot(A=Bccm, E=E, predstep=1, tau=1)$rho
+		}
+		#maximum E 
+		# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
+		maxEmat <- Emat/c(2:maxE)
+		E_A<- c(2:maxE)[which(maxEmat[,1] == max(maxEmat[,1], na.rm =T))]
+		E_B<- c(2:maxE)[which(maxEmat[,2] == max(maxEmat[,2], na.rm =T))]
+		
+		# create df for embedding dim plot
+		embedding_dim_df <- bind_rows(embedding_dim_df, 
+			data.frame(cbind(Emat, E = c(2:maxE))) %>% 
+				gather(bacteria, rho, -E) %>% 
+				left_join(data.frame(bacteria = c(current_otu1, current_otu2), 
+					Selected_E = c(E_A, E_B),
+					run = i )))
 
-	#Run the CCM test
-	#E_A and E_B are the embedding dimensions for A and B.
-	#tau is the length of time steps used (default is 1)
-	#iterations is the number of bootsrap iterations (default 100)
-	# Does A "cause" B?
-	CCM_boot_A<-CCM_boot(Accm, Bccm, E_A, tau=1, iterations=1000)
-	# Does B "cause" A?
-	CCM_boot_B<-CCM_boot(Bccm, Accm, E_B, tau=1, iterations=1000)
-	#Test for significant causal signal
-	#See R function for details
-	CCM_significance_test<-ccmtest(CCM_boot_A, CCM_boot_B)
-	current_ccm <- data.frame( 
-		otu1 = current_otu1,
-		otu2 = current_otu2,
-		otu1_cause_otu2 = max(CCM_boot_A$rho), 
-		otu2_cause_otu1 = max(CCM_boot_B$rho),
-		pval_otu1_cause_otu2 = CCM_significance_test[['pval_a_cause_b']],
-		pval_otu2_cause_otu1 = CCM_significance_test[['pval_b_cause_a']],
-		E_A = E_A,
-		E_B = E_B,
-		otu1_prediction_slope = paste(signal_A_out$rho_pre_slope['Estimate']),
-		otu1_prediction_slope_p = paste(signal_A_out$rho_pre_slope['Pr(>|t|)']),
-		otu2_prediction_slope = paste(signal_B_out$rho_pre_slope['Estimate']),
-		otu2_prediction_slope_p = paste(signal_B_out$rho_pre_slope['Pr(>|t|)']),
-		treatment = treatment_subset) %>% 
-		separate(treatment, c('abx', 'dose', 'delayed_infection'), sep = '_')
+		#Check data for nonlinear signal that is not dominated by noise
+		#Checks whether predictive ability of processes declines with
+		#increasing time distance
+		#See manuscript and R code for details
+		signal_A_out<-SSR_check_signal(A=Accm, E=E_A, tau=1,
+		predsteplist=1:10)
+		signal_B_out<-SSR_check_signal(A=Bccm, E=E_B, tau=1,
+		predsteplist=1:10)
+
+		pred_plot_df <- bind_rows(pred_plot_df,
+			rbind(data.frame(signal_A_out$predatout, bacteria = current_otu1, run = i),
+				data.frame(signal_B_out$predatout, bacteria = current_otu2, run = i)))
+		
+		#Run the CCM test
+		#E_A and E_B are the embedding dimensions for A and B.
+		#tau is the length of time steps used (default is 1)
+		#iterations is the number of bootsrap iterations (default 100)
+		# Does A "cause" B?
+		CCM_boot_A<-CCM_boot(Accm, Bccm, E_A, tau=1, iterations=1000)
+		# Does B "cause" A?
+		CCM_boot_B<-CCM_boot(Bccm, Accm, E_B, tau=1, iterations=1000)
+		ccm_plot_df <- bind_rows(ccm_plot_df,
+			rbind(data.frame(causal = paste0(current_otu1, '_causes_', current_otu2), 
+					lobs = CCM_boot_A$Lobs,
+					rho = CCM_boot_A$rho,
+					stdev_min = CCM_boot_A$rho - CCM_boot_A$sdevrho,
+					stdev_max = CCM_boot_A$rho + CCM_boot_A$sdevrho),
+				data.frame(causal = paste0(current_otu2, '_causes_', current_otu1), 
+					lobs = CCM_boot_B$Lobs,
+					rho = CCM_boot_B$rho,
+					stdev_min = CCM_boot_B$rho - CCM_boot_B$sdevrho,
+					stdev_max = CCM_boot_B$rho + CCM_boot_B$sdevrho)))
+		#Test for significant causal signal
+		#See R function for details
+		CCM_significance_test<-ccmtest(CCM_boot_A, CCM_boot_B)
+		ccm_data <- bind_rows(ccm_data, data.frame( 
+			otu1 = current_otu1,
+			otu2 = current_otu2,
+			otu1_cause_otu2 = max(CCM_boot_A$rho), 
+			otu2_cause_otu1 = max(CCM_boot_B$rho),
+			pval_otu1_cause_otu2 = CCM_significance_test[['pval_a_cause_b']],
+			pval_otu2_cause_otu1 = CCM_significance_test[['pval_b_cause_a']],
+			E_A = E_A,
+			E_B = E_B,
+			otu1_prediction_slope = paste(signal_A_out$rho_pre_slope['Estimate']),
+			otu1_prediction_slope_p = paste(signal_A_out$rho_pre_slope['Pr(>|t|)']),
+			otu2_prediction_slope = paste(signal_B_out$rho_pre_slope['Estimate']),
+			otu2_prediction_slope_p = paste(signal_B_out$rho_pre_slope['Pr(>|t|)']),
+			treatment = treatment_subset) %>% 
+			separate(treatment, c('abx', 'dose', 'delayed_infection'), sep = '_'))
+		}
+	print('CCM completed, generating plots now')
 
 	# plot each time point agasint the previous day
 	lagged_dynamics_plot <- input_df %>% 
@@ -159,23 +190,20 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 				theme_bw(base_size = 8) + 
 				theme(legend.position = 'none')
 	# plot embedding dimension of each otu/sample with the indicated used value for E
-	embedding_dim_plot <- data.frame(cbind(Emat, E = c(2:maxE))) %>% 
-		gather(bacteria, rho, -E) %>% 
-		left_join(data.frame(bacteria = c(current_otu1, current_otu2), Selected_E = c(E_A, E_B))) %>% 
-		ggplot(aes(x = E, y = rho, color = bacteria)) + 
+	embedding_dim_plot <- embedding_dim_df %>% 
+		ggplot(aes(x = E, y = rho, color = bacteria, group = interaction(bacteria, run))) + 
 			geom_line() + 
 			geom_vline(aes(xintercept = Selected_E, color = bacteria), 
-				linetype = 'dashed', size = 0.5, show.legend = FALSE) +
+				linetype = 'dashed', size = 0.5, alpha = 0.3, show.legend = FALSE) +
 			labs(x = 'E', y = 'Pearson correlation coefficient (rho)', title = 'Embedding Dimension Selection',
 				subtitle = 'Dimension of highest predictive power') + 
 			theme_bw(base_size = 8) + 
-			theme(legend.position = c(0.8, 0.8), legend.title=element_blank(), 
+			theme(legend.position = c(0.2, 0.9), legend.title=element_blank(), 
 				legend.background=element_blank()) + 
 			scale_x_continuous(breaks = seq(2, maxE, 1))
 	# plot prediction over time, to determine if prediction decays with time (indicative of non-linearity)
-	prediction_step_plot <- rbind(data.frame(signal_A_out$predatout, bacteria = current_otu1),
-		data.frame(signal_B_out$predatout, bacteria = current_otu2)) %>% 
-		ggplot(aes(x = predstep, y = rho, color = bacteria)) + 
+	prediction_step_plot <- pred_plot_df %>% 
+		ggplot(aes(x = predstep, y = rho, color = bacteria, group = interaction(bacteria, run))) + 
 			geom_line() + 
 			labs(x = 'Prediction Steps', y = 'Pearson correlation coefficient (rho)', 
 				title = 'Predictive Power') + 
@@ -184,39 +212,30 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff){
 				legend.background=element_blank()) + 
 			scale_x_continuous(breaks = seq(1, 10, 1))
 	# plot the ability of otu to predict the other otu
-	CCM_plot <- rbind(data.frame(causal = paste0(current_otu1, '_causes_', current_otu2), 
-			lobs = CCM_boot_A$Lobs,
-			rho = CCM_boot_A$rho,
-			stdev_min = CCM_boot_A$rho - CCM_boot_A$sdevrho,
-			stdev_max = CCM_boot_A$rho + CCM_boot_A$sdevrho),
-		data.frame(causal = paste0(current_otu2, '_causes_', current_otu1), 
-			lobs = CCM_boot_B$Lobs,
-			rho = CCM_boot_B$rho,
-			stdev_min = CCM_boot_B$rho - CCM_boot_B$sdevrho,
-			stdev_max = CCM_boot_B$rho + CCM_boot_B$sdevrho)) %>% 
-		#gather(level, value, rho, stdev_min, stdev_max) %>% 
-		ggplot(aes(x = lobs)) + 
-			#geom_line(aes(y = rho, color = causal)) + 
-			geom_ribbon(aes(ymin = stdev_min, ymax = stdev_max, fill = causal), alpha = 0.2) + 
-			geom_point(aes(y = rho, color = causal), alpha = 0.4) + 
+	CCM_plot <- ccm_plot_df %>% 
+		group_by(causal, lobs) %>% 
+		ggplot(aes(x = lobs, y = rho, group = causal)) + 
+			stat_summary(fun.y = 'mean', geom = 'line', aes(color = causal)) + 
+			stat_summary(fun.data = 'mean_sdl', geom = 'ribbon', alpha = 0.2, aes(fill = causal)) + 
+			geom_point(aes(color = causal), alpha = 0.4) + 
 			labs(x = 'L', y = 'Pearson correlation coefficient (rho)', color = '', fill = '') + 
 			theme_bw() + 
 			theme(legend.position="top", legend.direction="horizontal")
 
 	title <- ggdraw() + 
 	  draw_label(paste0(treatment_subset, ' with ', current_otu1, ' and ', current_otu2,
-	  	'\n(Data is ', data_diff, ', using seed', seed,
+	  	'\n(Data is ', data_diff,
 	  	')\n(treatment = Antibiotic_Dose_Allow recovery before C difficile Challenge)'),
 		fontface = 'bold')
 
 	ggsave(filename = paste0(save_dir, treatment_subset, '/ccm_', current_otu1, 
-			'_', current_otu2, '_', data_diff, '_seed', seed, '.jpg'),
+			'_', current_otu2, '_', data_diff, '.jpg'),
 		plot = plot_grid(title, plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
 			CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'),  ncol = 1, rel_heights = c(0.1, 1)),
 		width = 7, height = 10, device = 'jpeg')
 	
 	print(paste0('Completed ', current_otu1, ' and ', current_otu2,  ' from ', treatment_subset))
-	return(current_ccm)
+	return(ccm_data)
 }
 
 #run_each_treatment <- function(treatment_subset){
