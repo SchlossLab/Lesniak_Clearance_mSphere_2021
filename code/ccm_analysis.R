@@ -19,7 +19,7 @@ library(cowplot)
 #	strep_5_false - day 2 missing 1;
 #	amp_0.5_true - day 0 and 4 missing 1
 input_values <- commandArgs(TRUE)
-run_set <- input_values[1]
+run_set <- as.numeric(input_values[1])
 save_dir <- paste0('scratch/ccm/')
 print(paste0('Running set ', run_set))
 
