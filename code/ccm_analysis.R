@@ -42,8 +42,6 @@ treatment_subset <- unique(meta_file$treatment)[run_set]#as.character(seed_treat
 
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))#, ' using seed ', seed))
 
-set.seed(seed)
-
 #print(paste0('Beginning seed ', seed))
 
 ifelse(!dir.exists(save_dir), dir.create(save_dir), print(paste0(save_dir, ' directory ready')))
@@ -78,6 +76,8 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 	pred_plot_df <- c()
 	ccm_plot_df <- c()
 	ccm_data <- c()
+
+	set.seed(seed)
 
 	for(i in 1:10){
 		ccm_df <- data.frame(setup_df_for_mccm(input_df))
