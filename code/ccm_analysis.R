@@ -280,6 +280,13 @@ abx_df_1diff <- abx_df %>%
 	ungroup
 
 otu_combinations <- cross2(1:length(taxa_list), 1:length(taxa_list))
+	# dont need all combinations since each run checks both so can change this 
+	# to only unique combinations. However when comparing the two plots with the 
+	# same otus, some were significantly different, suggesting the order has an
+	# effect that would be missed with only testing 10 combinations. Need to 
+	# revisit how running different orders is being conducted to ensure we get
+	# a reliable estimation regardless of whch order and how many mice are in
+	# the treatment group
 
 print('Beginning CCM on 1st differenced data')
 
