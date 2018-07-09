@@ -78,14 +78,9 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 	current_otu1 <- taxa_list[ otu[[1]][1] ]
 	current_otu2 <- taxa_list[ otu[[1]][2] ]
 	
-	embedding_dim_df <- c()
-	pred_plot_df <- c()
-	ccm_plot_df <- c()
-	ccm_data <- c()
-
 	set.seed(seed)
 
-	for(i in 1:100){
+	ccm_run_results <- lapply(1:10, function(i){
 		ccm_df <- data.frame(setup_df_for_mccm(input_df))
 		Accm <- pull(ccm_df, current_otu1)
 		Bccm <- pull(ccm_df, current_otu2)
@@ -112,12 +107,11 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 		E_B<- c(2:maxE)[which(maxEmat[,2] == max(maxEmat[,2], na.rm =T))]
 		
 		# create df for embedding dim plot
-		embedding_dim_df <- bind_rows(embedding_dim_df, 
-			data.frame(cbind(Emat, E = c(2:maxE))) %>% 
+		embedding_dim_df <- data.frame(cbind(Emat, E = c(2:maxE))) %>% 
 				gather(bacteria, rho, -E) %>% 
 				left_join(data.frame(bacteria = c(current_otu1, current_otu2), 
 					Selected_E = c(E_A, E_B),
-					run = i )))
+					run = i ))
 
 		#Check data for nonlinear signal that is not dominated by noise
 		#Checks whether predictive ability of processes declines with
@@ -128,9 +122,8 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 		signal_B_out<-SSR_check_signal(A=Bccm, E=E_B, tau=1,
 		predsteplist=1:10)
 
-		pred_plot_df <- bind_rows(pred_plot_df,
-			rbind(data.frame(signal_A_out$predatout, bacteria = current_otu1, run = i),
-				data.frame(signal_B_out$predatout, bacteria = current_otu2, run = i)))
+		pred_plot_df <- rbind(data.frame(signal_A_out$predatout, bacteria = current_otu1, run = i),
+				data.frame(signal_B_out$predatout, bacteria = current_otu2, run = i))
 		
 		#Run the CCM test
 		#E_A and E_B are the embedding dimensions for A and B.
@@ -141,8 +134,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 		CCM_boot_A<-CCM_boot(Accm, Bccm, E_A, tau=1, iterations=100)
 		# Does B "cause" A?
 		CCM_boot_B<-CCM_boot(Bccm, Accm, E_B, tau=1, iterations=100)
-		ccm_plot_df <- bind_rows(ccm_plot_df,
-			rbind(data.frame(causal = paste0(current_otu1, '_causes_', current_otu2), 
+		ccm_plot_df <- rbind(data.frame(causal = paste0(current_otu1, '_causes_', current_otu2), 
 					lobs = CCM_boot_A$Lobs,
 					rho = CCM_boot_A$rho,
 					stdev_min = CCM_boot_A$rho - CCM_boot_A$sdevrho,
@@ -151,11 +143,11 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 					lobs = CCM_boot_B$Lobs,
 					rho = CCM_boot_B$rho,
 					stdev_min = CCM_boot_B$rho - CCM_boot_B$sdevrho,
-					stdev_max = CCM_boot_B$rho + CCM_boot_B$sdevrho)))
+					stdev_max = CCM_boot_B$rho + CCM_boot_B$sdevrho))
 		#Test for significant causal signal
 		#See R function for details
 		CCM_significance_test<-ccmtest(CCM_boot_A, CCM_boot_B)
-		ccm_data <- bind_rows(ccm_data, data.frame( 
+		ccm_data <- data.frame( 
 			otu1 = current_otu1,
 			otu2 = current_otu2,
 			otu1_cause_otu2 = max(CCM_boot_A$rho), 
@@ -169,9 +161,15 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 			otu2_prediction_slope = paste(signal_B_out$rho_pre_slope['Estimate']),
 			otu2_prediction_slope_p = paste(signal_B_out$rho_pre_slope['Pr(>|t|)']),
 			treatment = treatment_subset) %>% 
-			separate(treatment, c('abx', 'dose', 'delayed_infection'), sep = '_'))
-		}
+			separate(treatment, c('abx', 'dose', 'delayed_infection'), sep = '_')
+		return(list(embed = embedding_dim_df, pred = pred_plot_df, ccm = ccm_plot_df, data = ccm_data))
+	})
 	print('CCM completed, generating plots now')
+
+	embedding_dim_df <- do.call('rbind', lapply(ccm_run_results, '[[', 'embed'))
+	pred_plot_df <- do.call('rbind', lapply(ccm_run_results, '[[', 'pred'))
+	ccm_plot_df <- do.call('rbind', lapply(ccm_run_results, '[[', 'ccm'))
+	ccm_data <- do.call('rbind', lapply(ccm_run_results, '[[', 'data'))
 
 	# plot each time point agasint the previous day
 	lagged_dynamics_plot <- input_df %>% 
