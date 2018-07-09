@@ -75,8 +75,8 @@ setup_df_for_mccm <- function(input_df){
 }
 
 run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
-	current_otu1 <- taxa_list[ otu[[1]] ]
-	current_otu2 <- taxa_list[ otu[[2]] ]
+	current_otu1 <- taxa_list[ otu[[1]][1] ]
+	current_otu2 <- taxa_list[ otu[[1]][2] ]
 	
 	embedding_dim_df <- c()
 	pred_plot_df <- c()
