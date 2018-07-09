@@ -1,6 +1,7 @@
 library(multispatialCCM)
 library(tidyverse)
 library(cowplot)
+library(gtools)
 
 #		test workflow with short simulated RPS data
 #		setup to work with diff abx combinations
@@ -284,15 +285,8 @@ abx_df_1diff <- abx_df %>%
 	group_by(unique_id) %>% 
 	mutate_at(vars(taxa_list) , funs(. - lag(.))) %>% 
 	ungroup
-
-otu_combinations <- cross2(1:length(taxa_list), 1:length(taxa_list))
-	# dont need all combinations since each run checks both so can change this 
-	# to only unique combinations. However when comparing the two plots with the 
-	# same otus, some were significantly different, suggesting the order has an
-	# effect that would be missed with only testing 10 combinations. Need to 
-	# revisit how running different orders is being conducted to ensure we get
-	# a reliable estimation regardless of whch order and how many mice are in
-	# the treatment group
+# create a list of all combinations of taxa
+otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, list)
 
 print('Beginning CCM on 1st differenced data')
 
