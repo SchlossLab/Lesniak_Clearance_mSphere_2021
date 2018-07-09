@@ -57,13 +57,18 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset)),
 
 setup_df_for_mccm <- function(input_df){
 	# reorder mice
-	output_df <- input_df %>% 
-		mutate(random_order = as.numeric(factor(unique_id, 
-			levels = sample(unique(unique_id), length(unique(unique_id)), 
-				replace = F)))) %>% 
-		arrange(random_order, day) %>%  
-		select(day, one_of(taxa_list))#contains('Otu'))
-	# set day 0 to NA to separate data by mouse for ccm
+	mouse_list <- names(which(table(input_df$unique_id) == max(table(input_df$unique_id))))
+	n_mice <- length(unique(input_df$unique_id))
+	sample_mice <- sample(mouse_list, length(unique(input_df$unique_id)), replace = T)
+	output_df <- data.frame(unique_id = sample_mice, sample = 1:n_mice) %>% 
+		inner_join(input_df) %>% 
+		# need to remove abundance of 0 since ccm uses 0 to split samples
+		gather(taxa, abundance, one_of(taxa_list)) %>% 
+		mutate(abundance = ifelse(abundance == 0, 0.001, abundance)) %>% 
+		spread(taxa, abundance) %>% 
+		arrange(sample, day) %>%  
+		select(day, one_of(taxa_list))
+	# set day 0 to NA to separate data by mouse for ccm (for 1st differenced, day 0 == NA)
 	output_df[which(output_df$day == 0), ] <- NA
 	return(output_df)
 }
@@ -79,7 +84,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 
 	set.seed(seed)
 
-	for(i in 1:10){
+	for(i in 1:100){
 		ccm_df <- data.frame(setup_df_for_mccm(input_df))
 		Accm <- pull(ccm_df, current_otu1)
 		Bccm <- pull(ccm_df, current_otu2)
@@ -130,10 +135,11 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 		#E_A and E_B are the embedding dimensions for A and B.
 		#tau is the length of time steps used (default is 1)
 		#iterations is the number of bootsrap iterations (default 100)
+		# 100 iterations is sufficient to reduce the range in performance
 		# Does A "cause" B?
-		CCM_boot_A<-CCM_boot(Accm, Bccm, E_A, tau=1, iterations=1000)
+		CCM_boot_A<-CCM_boot(Accm, Bccm, E_A, tau=1, iterations=100)
 		# Does B "cause" A?
-		CCM_boot_B<-CCM_boot(Bccm, Accm, E_B, tau=1, iterations=1000)
+		CCM_boot_B<-CCM_boot(Bccm, Accm, E_B, tau=1, iterations=100)
 		ccm_plot_df <- bind_rows(ccm_plot_df,
 			rbind(data.frame(causal = paste0(current_otu1, '_causes_', current_otu2), 
 					lobs = CCM_boot_A$Lobs,
