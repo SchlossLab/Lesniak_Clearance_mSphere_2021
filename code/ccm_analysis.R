@@ -60,8 +60,8 @@ setup_df_for_mccm <- function(input_df){
 	# reorder mice
 	mouse_list <- names(which(table(input_df$unique_id) == max(table(input_df$unique_id))))
 	n_mice <- length(unique(input_df$unique_id))
-	sample_mice <- sample(mouse_list, length(unique(input_df$unique_id)), replace = T)
-	output_df <- data.frame(unique_id = sample_mice, sample = 1:n_mice) %>% 
+	sample_mice <- sample(mouse_list, n_mice, replace = T)
+	output_df <- data.frame(unique_id = sample_mice, sample = 1:n_mice, stringsAsFactors = F) %>% 
 		inner_join(input_df) %>% 
 		# need to remove abundance of 0 since ccm uses 0 to split samples
 		gather(taxa, abundance, one_of(taxa_list)) %>% 
@@ -71,7 +71,7 @@ setup_df_for_mccm <- function(input_df){
 		select(day, one_of(taxa_list))
 	# set day 0 to NA to separate data by mouse for ccm (for 1st differenced, day 0 == NA)
 	output_df[which(output_df$day == 0), ] <- NA
-	return(output_df)
+	return(list(abundance_df = output_df, mice_order = sample_mice))
 }
 
 run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
@@ -81,9 +81,10 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 	set.seed(seed)
 
 	ccm_run_results <- lapply(1:10, function(i){
-		ccm_df <- data.frame(setup_df_for_mccm(input_df))
-		Accm <- pull(ccm_df, current_otu1)
-		Bccm <- pull(ccm_df, current_otu2)
+		ccm_df <- setup_df_for_mccm(input_df)
+		Accm <- pull(ccm_df$abundance_df, current_otu1)
+		Bccm <- pull(ccm_df$abundance_df, current_otu2)
+		mice_order <- paste(ccm_df$mice_order, collapse = '--')
 		print(paste0('Beginning ', current_otu1, ' and ', current_otu2, ' in from ', 
 			treatment_subset, ' (Run ', i, ')'))
 
