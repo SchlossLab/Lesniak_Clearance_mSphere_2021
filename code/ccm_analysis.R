@@ -148,20 +148,31 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 		#Test for significant causal signal
 		#See R function for details
 		CCM_significance_test<-ccmtest(CCM_boot_A, CCM_boot_B)
-		ccm_data <- data.frame( 
-			otu1 = current_otu1,
-			otu2 = current_otu2,
-			otu1_cause_otu2 = max(CCM_boot_A$rho), 
-			otu2_cause_otu1 = max(CCM_boot_B$rho),
-			pval_otu1_cause_otu2 = CCM_significance_test[['pval_a_cause_b']],
-			pval_otu2_cause_otu1 = CCM_significance_test[['pval_b_cause_a']],
-			E_A = E_A,
-			E_B = E_B,
-			otu1_prediction_slope = paste(signal_A_out$rho_pre_slope['Estimate']),
-			otu1_prediction_slope_p = paste(signal_A_out$rho_pre_slope['Pr(>|t|)']),
-			otu2_prediction_slope = paste(signal_B_out$rho_pre_slope['Estimate']),
-			otu2_prediction_slope_p = paste(signal_B_out$rho_pre_slope['Pr(>|t|)']),
-			treatment = treatment_subset) %>% 
+		ccm_data <- rbind(data.frame(
+				run = i,  
+				driver_otu = current_otu1,
+				driven_otu = current_otu2,
+				driver_predicts_driven = max(CCM_boot_A$rho), 
+				# pval = 1 - ( # of iterations final rho > last rho / total iterations)
+				portion_causal = CCM_significance_test[['pval_a_cause_b']], 
+				E = E_A,
+				# slope and p determined using summary(lm())
+				self_prediction_slope = signal_A_out$rho_pre_slope['Estimate'],
+				slope_p = signal_A_out$rho_pre_slope['Pr(>|t|)'],
+				treatment = treatment_subset, mice = mice_order, stringsAsFactors = F), 
+			data.frame(
+				run = i,  
+				driver_otu = current_otu2,
+				driven_otu = current_otu1,
+				driver_predicts_driven = max(CCM_boot_B$rho),
+				# pval = 1 - ( # of iterations final rho > last rho / total iterations)
+				portion_causal = CCM_significance_test[['pval_b_cause_a']],
+				E = E_B,
+				# slope and p determined using summary(lm())
+				self_prediction_slope = signal_B_out$rho_pre_slope['Estimate'],
+				slope_p = signal_B_out$rho_pre_slope['Pr(>|t|)'],
+				treatment = treatment_subset, mice = mice_order, stringsAsFactors = F)) %>% 
+			mutate(non_linear = ifelse(slope_p < ( 0.05/nrow(ccm_data) ), T, F)) %>% 
 			separate(treatment, c('abx', 'dose', 'delayed_infection'), sep = '_')
 		return(list(embed = embedding_dim_df, pred = pred_plot_df, ccm = ccm_plot_df, data = ccm_data))
 	})
