@@ -217,29 +217,39 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 			labs(x = 'E', y = 'Pearson correlation coefficient (rho)', title = 'Embedding Dimension Selection',
 				subtitle = 'Dimension of highest predictive power') + 
 			theme_bw(base_size = 8) + 
-			theme(legend.position = c(0.2, 0.9), legend.title=element_blank(), 
-				legend.background=element_blank()) + 
+			theme(legend.position = c(0.2, 0.2), legend.title=element_blank(), 
+				legend.background=element_blank(), panel.grid.minor = element_blank()) + 
 			scale_x_continuous(breaks = seq(2, maxE, 1))
 	# plot prediction over time, to determine if prediction decays with time (indicative of non-linearity)
 	prediction_step_plot <- pred_plot_df %>% 
-		ggplot(aes(x = predstep, y = rho, color = bacteria, group = interaction(bacteria, run))) + 
-			geom_line() + 
+		left_join(select(ccm_data, non_linear, run, driver_otu), 
+			by = c('bacteria' = 'driver_otu', 'run')) %>% 
+		ggplot(aes(x = predstep, y = rho, color = non_linear, group = interaction(bacteria, run))) + 
+			geom_line(alpha = 0.3) + facet_grid(bacteria~., scales = 'free_y') + 
 			labs(x = 'Prediction Steps', y = 'Pearson correlation coefficient (rho)', 
-				title = 'Predictive Power') + 
+				title = 'Predictive Power', color = 'Nonlinear') + 
 			theme_bw(base_size = 8) + 
-			theme(legend.position = c(0.8, 0.8), legend.title=element_blank(), 
-				legend.background=element_blank()) + 
-			scale_x_continuous(breaks = seq(1, 10, 1))
+			theme(legend.position = c(0.9, 0.9), legend.background=element_blank(),
+				panel.grid.minor = element_blank()) + 
+			scale_x_continuous(breaks = seq(1, 10, 1)) +
+			scale_color_manual(values = c('gray', 'red'))
 	# plot the ability of otu to predict the other otu
 	CCM_plot <- ccm_plot_df %>% 
-		group_by(causal, lobs) %>% 
-		ggplot(aes(x = lobs, y = rho, group = causal)) + 
-			stat_summary(fun.y = 'mean', geom = 'line', aes(color = causal)) + 
-			stat_summary(fun.data = 'mean_sdl', geom = 'ribbon', alpha = 0.2, aes(fill = causal)) + 
-			geom_point(aes(color = causal), alpha = 0.4) + 
+		left_join(select(ccm_data, non_linear, run, driver_otu), 
+				by = c('driver_otu', 'run')) %>% 
+		mutate(causal = paste0(driver_otu, ' causes ', driven_otu)) %>% 
+		#group_by(causal, lobs) %>% 
+		ggplot(aes(x = lobs, y = rho)) +
+			facet_grid(non_linear~causal) +  
+			geom_point(alpha = 0.1, aes(color = causal)) + 
+			geom_smooth() + 
+			#stat_summary(fun.y = 'mean', geom = 'line', aes(color = causal)) + 
+			#stat_summary(fun.data = 'mean_sdl', geom = 'ribbon', alpha = 0.2, aes(fill = causal)) + 
+			#geom_point(aes(color = causal), alpha = 0.4) + 
 			labs(x = 'L', y = 'Pearson correlation coefficient (rho)', color = '', fill = '') + 
 			theme_bw() + 
-			theme(legend.position="top", legend.direction="horizontal")
+			theme(legend.position='none') + 
+			guides(colour = guide_legend(override.aes = list(alpha = 1)))
 
 	title <- ggdraw() + 
 	  draw_label(paste0(treatment_subset, ' with ', current_otu1, ' and ', current_otu2,
