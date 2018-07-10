@@ -135,16 +135,16 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 		CCM_boot_A<-CCM_boot(Accm, Bccm, E_A, tau=1, iterations=100)
 		# Does B "cause" A?
 		CCM_boot_B<-CCM_boot(Bccm, Accm, E_B, tau=1, iterations=100)
-		ccm_plot_df <- rbind(data.frame(causal = paste0(current_otu1, '_causes_', current_otu2), 
-					lobs = CCM_boot_A$Lobs,
-					rho = CCM_boot_A$rho,
-					stdev_min = CCM_boot_A$rho - CCM_boot_A$sdevrho,
-					stdev_max = CCM_boot_A$rho + CCM_boot_A$sdevrho),
-				data.frame(causal = paste0(current_otu2, '_causes_', current_otu1), 
-					lobs = CCM_boot_B$Lobs,
-					rho = CCM_boot_B$rho,
-					stdev_min = CCM_boot_B$rho - CCM_boot_B$sdevrho,
-					stdev_max = CCM_boot_B$rho + CCM_boot_B$sdevrho))
+		ccm_plot_df <- rbind(data.frame(driver_otu = current_otu1,
+					driven_otu = current_otu2,
+					run = i,
+					gather(data.frame(CCM_boot_A$FULLinfo, lobs = CCM_boot_A$Lobs),
+						iter, rho, -lobs)),
+				data.frame(driver_otu = current_otu2,
+					driven_otu = current_otu1,
+					run = i,
+					gather(data.frame(CCM_boot_B$FULLinfo, lobs = CCM_boot_B$Lobs),
+						iter, rho, -lobs)))
 		#Test for significant causal signal
 		#See R function for details
 		CCM_significance_test<-ccmtest(CCM_boot_A, CCM_boot_B)
