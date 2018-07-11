@@ -80,7 +80,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 	
 	set.seed(seed)
 
-	ccm_run_results <- lapply(1:10, function(i){
+	ccm_run_results <- lapply(1:100, function(i){
 		ccm_df <- setup_df_for_mccm(input_df)
 		Accm <- pull(ccm_df$abundance_df, current_otu1)
 		Bccm <- pull(ccm_df$abundance_df, current_otu2)
