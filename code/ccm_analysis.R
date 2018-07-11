@@ -200,14 +200,16 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 		select(cage, mouse, day, one_of(current_otu1, current_otu2)) %>% 
 		gather(bacteria, counts, one_of(current_otu1, current_otu2)) %>% 
 			ggplot(aes(x = day, y = counts, color = interaction(as.factor(mouse), as.factor(cage)), group = interaction(cage, mouse))) + 
-				geom_line() + 
+				geom_line(alpha = 0.4) + 
+				geom_point() + 
 				facet_grid(bacteria~., scales = 'free_y') +
 				theme_bw() + 
 				labs(x = 'Day', y = 'Abundance \n (C difficle = CFU, Otu = 16s counts)', 
 					title = 'Temporal Dynamics', subtitle = 'Colored by mouse') + 
 				scale_x_continuous(breaks=seq(0,10, 1)) + 
 				theme_bw(base_size = 8) + 
-				theme(legend.position = 'none')
+				theme(legend.position = 'none',
+					,panel.grid.minor = element_blank())
 	# plot embedding dimension of each otu/sample with the indicated used value for E
 	embedding_dim_plot <- embedding_dim_df %>% 
 		ggplot(aes(x = E, y = rho, color = bacteria, group = interaction(bacteria, run))) + 
