@@ -243,11 +243,12 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 		#group_by(causal, lobs) %>% 
 		ggplot(aes(x = lobs, y = rho)) +
 			facet_grid(non_linear~causal) +  
-			geom_point(alpha = 0.1, aes(color = causal)) + 
-			geom_smooth() + 
-			#stat_summary(fun.y = 'mean', geom = 'line', aes(color = causal)) + 
-			#stat_summary(fun.data = 'mean_sdl', geom = 'ribbon', alpha = 0.2, aes(fill = causal)) + 
-			#geom_point(aes(color = causal), alpha = 0.4) + 
+			geom_violin(aes(group = cut_width(lobs, 10))) + 
+			#geom_point(alpha = 0.1, aes(color = causal)) + 
+			#geom_smooth() + 
+			stat_summary(fun.y = 'median', geom = 'line', aes(color = causal)) + 
+			##stat_summary(fun.data = 'mean_sdl', geom = 'ribbon', alpha = 0.2, aes(fill = causal)) + 
+			##geom_point(aes(color = causal), alpha = 0.4) + 
 			labs(x = 'L', y = 'Pearson correlation coefficient (rho)', color = '', fill = '') + 
 			theme_bw() + 
 			theme(legend.position='none') + 
