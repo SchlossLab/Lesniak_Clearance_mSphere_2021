@@ -54,16 +54,13 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset)),
 	print(paste0(save_dir, treatment_subset, ' directory ready')))
 
 # use to test function
-#otu <- list(c(1), c(15))
 #input_df <- abx_df
 #input_df <- abx_df_1diff
 #otu <- otu_combinations[[34]]
 
-setup_df_for_mccm <- function(input_df){
+setup_df_for_mccm <- function(input_df, mouse_list, n_mice){
 	# reorder mice
-	sample_mice <- sample(mouse_list, n_mice, replace = T)
-	mouse_list <- names(which(table(input_df$unique_id) == 11)) # list of mice with all days
-	n_mice <- length(unique(input_df$unique_id)) # number of mice in treatment group
+	sample_mice <- sample(mouse_list, n_mice, replace = T) 
 	output_df <- data.frame(unique_id = sample_mice, sample = 1:n_mice, stringsAsFactors = F) %>% 
 		inner_join(input_df) %>% 
 		# need to remove abundance of 0 since ccm uses 0 to split samples
@@ -80,11 +77,13 @@ setup_df_for_mccm <- function(input_df){
 run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 	current_otu1 <- taxa_list[ otu[[1]][1] ]
 	current_otu2 <- taxa_list[ otu[[1]][2] ]
-	
+	mouse_list <- names(which(table(input_df$unique_id) == 11)) # list of mice with all days
+	n_mice <- length(unique(input_df$unique_id)) # number of mice in treatment group
+
 	set.seed(seed)
 
 	ccm_run_results <- lapply(1:100, function(i){
-		ccm_df <- setup_df_for_mccm(input_df)
+		ccm_df <- setup_df_for_mccm(input_df, mouse_list, n_mice)
 		Accm <- pull(ccm_df$abundance_df, current_otu1)
 		Bccm <- pull(ccm_df$abundance_df, current_otu2)
 		mice_order <- paste(ccm_df$mice_order, collapse = '--')
