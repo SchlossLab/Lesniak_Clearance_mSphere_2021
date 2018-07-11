@@ -1,0 +1,165 @@
+# some mice are missing a few samples but when combining with shared file, 
+# many samples are being lost. let's see where the samples are being lost
+
+# read in the meta and shared files
+meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
+meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
+	select(group, cage, mouse, day, CFU, cdiff, abx, dose, delayed) %>% 
+	unite(treatment, abx, dose, delayed) %>% 
+	filter(cdiff == T, day >= 0, treatment != 'none_NA_FALSE')
+shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
+shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F)
+source('code/sum_otu_by_taxa.R')
+meta_shared <- meta_file %>% 
+	mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
+	inner_join(shared_by_genus, by = c('group' = "Group")) %>% 
+	select(-group)
+# how many days are missing from each treatment (from the meta file)
+days_df <- c()
+for(i in unique(meta_file$treatment)){
+	total_mice <- length(meta_file %>% 
+		mutate(unique_id = paste(mouse, cage, sep = '_')) %>% 
+		filter(treatment == i) %>% 
+		pull(unique_id) %>% 
+		unique)
+	day_counts <- meta_file %>%
+			filter(treatment == i) %>%
+			count(day) %>%
+			pull(n) %>% t
+	temp <- data.frame(i, total_mice, total_mice - day_counts)
+	colnames(temp) <- c('treatment', 'total mice', as.character(0:10))
+	days_df <- rbind(days_df, temp)
+}
+days_df$meta_samples_missing <- apply(days_df[ , 4:13], 1, sum)
+#          treatment total mice 0 1 2 3 4 5 6 7 8 9 10 meta_samples_missing
+#    clinda_10_FALSE         11 0 0 0 0 1 0 0 0 0 0  0                    1
+#   vanc_0.625_FALSE          6 0 0 0 1 1 0 0 0 0 0  0                    2
+#     cipro_10_FALSE          5 0 0 0 0 0 1 0 0 0 0  0                    1
+#      amp_0.5_FALSE          9 2 0 0 0 1 0 0 0 0 4  0                    5
+#      cef_0.5_FALSE          6 0 0 0 0 0 0 0 0 0 0  0                    0
+#      metro_1_FALSE          7 0 0 3 0 0 0 0 0 0 1  1                    5
+#      cef_0.3_FALSE         13 0 0 0 0 1 0 0 1 0 0  0                    2
+#      cef_0.1_FALSE          6 0 0 0 0 0 0 0 0 0 0  0                    0
+#    strep_0.1_FALSE         10 0 0 0 0 0 0 0 0 0 0  0                    0
+#      strep_5_FALSE          8 0 0 1 0 0 0 0 0 0 0  0                    1
+#    strep_0.5_FALSE          9 0 0 0 0 0 4 0 1 0 0  0                    5
+#     vanc_0.3_FALSE          8 0 0 1 3 0 0 0 0 0 0  0                    4
+#     vanc_0.1_FALSE          9 0 0 2 1 0 0 0 0 0 1  0                    4
+#       metro_1_TRUE         14 0 0 0 0 0 0 0 0 0 0  0                    0
+#       amp_0.5_TRUE         14 1 0 0 0 1 0 0 0 0 0  0                    1
+
+# how many samples go missing when joining with the shared file
+days_df_sh <- c()
+for(i in unique(meta_shared$treatment)){
+	total_mice <- length(meta_shared %>% 
+		mutate(unique_id = paste(mouse, cage, sep = '_')) %>% 
+		filter(treatment == i) %>% 
+		pull(unique_id) %>% 
+		unique)
+	day_counts <- meta_shared %>%
+			filter(treatment == i) %>%
+			count(day) %>%
+			pull(n) %>% t
+	temp <- data.frame(i, total_mice, total_mice - day_counts)
+	colnames(temp) <- c('treatment', 'total mice', as.character(0:10))
+	days_df_sh <- rbind(days_df_sh, temp)
+}
+days_df_sh$shared_samples_missing <- apply(days_df_sh[ , 4:13], 1, sum)
+#          treatment total mice 0 1 2 3 4 5 6 7 8 9 10 shared_samples_missing
+#    clinda_10_FALSE         11 0 0 0 0 1 0 0 0 0 0  0                      1
+#   vanc_0.625_FALSE          6 0 0 0 1 2 0 0 0 0 0  0                      3
+#     cipro_10_FALSE          5 0 0 0 0 0 1 0 0 0 0  0                      1
+#      amp_0.5_FALSE          9 4 2 0 2 3 2 3 2 0 5  0                     19
+#      cef_0.5_FALSE          6 4 2 3 1 0 1 1 1 2 3  0                     14
+#      metro_1_FALSE          7 0 1 4 2 0 0 1 0 0 1  1                     10
+#      cef_0.3_FALSE         13 1 0 0 0 1 0 0 1 0 0  0                      2
+#      cef_0.1_FALSE          6 0 0 0 0 0 0 0 0 0 0  0                      0
+#    strep_0.1_FALSE         10 0 1 3 3 2 2 1 0 2 0  1                     15
+#      strep_5_FALSE          8 0 0 2 0 0 0 1 0 0 0  0                      3
+#    strep_0.5_FALSE          9 0 1 1 0 1 6 0 3 1 1  1                     15
+#     vanc_0.3_FALSE          8 0 0 1 3 0 0 1 0 4 2  1                     12
+#     vanc_0.1_FALSE          9 0 0 2 2 0 0 1 1 1 1  1                      9
+#       metro_1_TRUE         14 1 0 1 2 3 0 0 2 1 2  2                     13
+#       amp_0.5_TRUE         14 1 6 0 1 5 3 1 3 0 0  1                     20
+days_df_sh$lost <- days_df_sh$shared_samples_missing - days_df$meta_samples_missing
+# samples lost to sequencing are
+#          treatment lost
+#    clinda_10_FALSE    0
+#   vanc_0.625_FALSE    1
+#     cipro_10_FALSE    0
+#      amp_0.5_FALSE   14
+#      cef_0.5_FALSE   14
+#      metro_1_FALSE    5
+#      cef_0.3_FALSE    0
+#      cef_0.1_FALSE    0
+#    strep_0.1_FALSE   15
+#      strep_5_FALSE    2
+#    strep_0.5_FALSE   10
+#     vanc_0.3_FALSE    8
+#     vanc_0.1_FALSE    5
+#       metro_1_TRUE   13
+#       amp_0.5_TRUE   19
+
+# what is the distribution of lost days?
+apply(days_df[,3:13], 2, sum)
+#day 		0  1  2  3  4  5  6  7  8  9 10 
+#missing 	3  0  7  5  5  5  0  2  0  6  1 
+apply(days_df_sh[,3:13], 2, sum)
+#day 		0  1  2  3  4  5  6  7  8  9  10 
+#missing	11 13 17 17 18 15 10 13 11 15  8 
+# lost to sequencing by day
+#day 		0  1  2  3  4  5  6  7  8  9 10 
+#missing 	8 13 10 12 13 10 10 11 11  9  7 
+# day 0 is not included since it is used as the separator
+
+meta_shared	%>%
+	group_by(unique_id) %>%
+	count(unique_id) %>%
+	filter(n == 11) %>%
+	nrow
+# theres 135 mice in total but only 61 mice have data for all days
+meta_shared	%>%
+	group_by(unique_id) %>%
+	count(unique_id) %>% ungroup() %>%
+	full_join(meta_shared) %>%
+	filter(n == 11) %>% 
+	select(unique_id, treatment) %>%
+	unique %>%
+	count(treatment) %>%
+	select(treatment, n_mice_w_all_days = n) %>%
+	full_join(select(days_df, treatment, `total mice`, meta_samples_missing)) %>%
+	full_join(select(days_df_sh, treatment, lost))
+# each treatment has the following number of mice with all days
+#        treatment   total mice n_mice_w_all_days meta_samples_missing  lost_in_seq
+#     amp_0.5_TRUE           14                 3                    1           19
+#    cef_0.1_FALSE            6                 6                    0            0
+#    cef_0.3_FALSE           13                10                    2            0
+#   cipro_10_FALSE            5                 4                    1            0
+#  clinda_10_FALSE           11                10                    1            0
+#    metro_1_FALSE            7                 3                    5            5
+#     metro_1_TRUE           14                 5                    0           13
+#  strep_0.1_FALSE           10                 6                    0           15
+#    strep_5_FALSE            8                 5                    1            2
+#   vanc_0.1_FALSE            9                 4                    4            5
+#   vanc_0.3_FALSE            8                 2                    4            8
+# vanc_0.625_FALSE            6                 3                    2            1
+#    amp_0.5_FALSE            9                NA                    5           14
+#    cef_0.5_FALSE            6                NA                    0           14
+#  strep_0.5_FALSE            9                NA                    5           10
+
+
+days_by_mouse <- c()
+for(i in unique(meta_shared$treatment)){
+	total_mice <- length(meta_shared %>% 
+		mutate(unique_id = paste(mouse, cage, sep = '_')) %>% 
+		filter(treatment == i) %>% 
+		pull(unique_id) %>% 
+		unique)
+	day_counts <- meta_shared %>%
+			filter(treatment == i) %>%
+			count(day) %>%
+			pull(n) %>% t
+	temp <- data.frame(i, total_mice, total_mice - day_counts)
+	colnames(temp) <- c('treatment', 'total mice', as.character(0:10))
+	days_df_sh <- rbind(days_df_sh, temp)
+}
