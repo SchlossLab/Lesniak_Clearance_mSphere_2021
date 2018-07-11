@@ -253,20 +253,20 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 			theme(legend.position='none') + 
 			guides(colour = guide_legend(override.aes = list(alpha = 1)))
 
-beginning <- min(ccm_plot_df$lobs)
-end <- max(ccm_plot_df$lobs)
+	beginning <- min(ccm_plot_df$lobs)
+	end <- max(ccm_plot_df$lobs)
 
-ccm_plot_df %>% head 
-	filter(lobs %in% c(4, 76)) %>% 
-	group_by(driver_otu) %>% 
-	summarise(sign = 
-wilcox.test(pull(filter(ccm_plot_df, driver_otu == ),rho)
+	ccm_data <- ccm_plot_df %>% 
+		filter(lobs %in% c(beginning, end)) %>% 
+		group_by(driver_otu, run) %>% 
+		summarise(ccm_p_value = wilcox.test(rho~lobs)$p.value) %>%
+		full_join(ccm_data)
 
-wilcox.test(filter(ccm_plot_df, lobs == beginning, driver_otu == 'unclassified_Bacteria')$rho, 
-	filter(ccm_plot_df, lobs == end, driver_otu == 'unclassified_Bacteria')$rho)
-wilcox.test(filter(ccm_plot_df, non_linear == FALSE, lobs == beginning, driver_otu == 'Erysipelotrichaceae')$rho, 
-	filter(ccm_plot_df, non_linear == FALSE, lobs == end, driver_otu == 'Erysipelotrichaceae')$rho)
-
+	ccm_data <- ccm_plot_df %>% 
+		filter(lobs %in% c(beginning, end)) %>% 
+		group_by(driver_otu) %>% 
+		summarise(ccm_p_value_by_driver = wilcox.test(rho~lobs)$p.value) %>%
+		full_join(ccm_data)
 
 	title <- ggdraw() + 
 	  draw_label(paste0(treatment_subset, ' with ', current_otu1, ' and ', current_otu2,
