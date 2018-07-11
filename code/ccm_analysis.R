@@ -221,7 +221,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 			theme_bw(base_size = 8) + 
 			theme(legend.position = c(0.2, 0.2), legend.title=element_blank(), 
 				legend.background=element_blank(), panel.grid.minor = element_blank()) + 
-			scale_x_continuous(breaks = seq(2, maxE, 1))
+			scale_x_continuous(breaks = seq(2, max(embedding_dim_df$E), 1))
 	# plot prediction over time, to determine if prediction decays with time (indicative of non-linearity)
 	prediction_step_plot <- pred_plot_df %>% 
 		left_join(select(ccm_data, non_linear, run, driver_otu), 
