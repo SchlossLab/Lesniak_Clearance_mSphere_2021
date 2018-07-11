@@ -58,9 +58,9 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset)),
 
 setup_df_for_mccm <- function(input_df){
 	# reorder mice
-	mouse_list <- names(which(table(input_df$unique_id) == max(table(input_df$unique_id))))
-	n_mice <- length(unique(input_df$unique_id))
 	sample_mice <- sample(mouse_list, n_mice, replace = T)
+	mouse_list <- names(which(table(input_df$unique_id) == 11)) # list of mice with all days
+	n_mice <- length(unique(input_df$unique_id)) # number of mice in treatment group
 	output_df <- data.frame(unique_id = sample_mice, sample = 1:n_mice, stringsAsFactors = F) %>% 
 		inner_join(input_df) %>% 
 		# need to remove abundance of 0 since ccm uses 0 to split samples
