@@ -154,7 +154,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 				driven_otu = current_otu2,
 				driver_predicts_driven = max(CCM_boot_A$rho), 
 				# pval = 1 - ( # of iterations final rho > last rho / total iterations)
-				portion_causal = CCM_significance_test[['pval_a_cause_b']], 
+				portion_noncausal = CCM_significance_test[['pval_a_cause_b']], 
 				E = E_A,
 				# slope and p determined using summary(lm())
 				self_prediction_slope = signal_A_out$rho_pre_slope['Estimate'],
@@ -166,7 +166,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 				driven_otu = current_otu1,
 				driver_predicts_driven = max(CCM_boot_B$rho),
 				# pval = 1 - ( # of iterations final rho > last rho / total iterations)
-				portion_causal = CCM_significance_test[['pval_b_cause_a']],
+				portion_noncausal = CCM_significance_test[['pval_b_cause_a']],
 				E = E_B,
 				# slope and p determined using summary(lm())
 				self_prediction_slope = signal_B_out$rho_pre_slope['Estimate'],
