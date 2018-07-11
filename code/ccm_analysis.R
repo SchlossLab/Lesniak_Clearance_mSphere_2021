@@ -40,6 +40,9 @@ shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file,
 #seed_treatment <- expand.grid(seed = 1:10, treatment = unique(meta_file$treatment))[run_set, ]
 seed <- 062818#seed_treatment$seed
 treatment_subset <- unique(meta_file$treatment)[run_set]#as.character(seed_treatment$treatment)
+# most complete sample sets
+#treatment_subset <- 'cef_0.1_FALSE'
+#treatment_subset <- 'clinda_10_FALSE'
 
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))#, ' using seed ', seed))
 
