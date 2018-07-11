@@ -172,7 +172,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 				self_prediction_slope = signal_B_out$rho_pre_slope['Estimate'],
 				slope_p = signal_B_out$rho_pre_slope['Pr(>|t|)'],
 				treatment = treatment_subset, mice = mice_order, stringsAsFactors = F)) %>% 
-			mutate(non_linear = ifelse(slope_p < ( 0.05/nrow(ccm_data) ), T, F)) %>% 
+			mutate(non_linear = ifelse(slope_p < ( 0.05/length(run) ), T, F)) %>% 
 			separate(treatment, c('abx', 'dose', 'delayed_infection'), sep = '_')
 		return(list(embed = embedding_dim_df, pred = pred_plot_df, ccm = ccm_plot_df, data = ccm_data))
 	})
