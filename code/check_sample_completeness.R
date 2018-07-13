@@ -1,6 +1,6 @@
 # some mice are missing a few samples but when combining with shared file, 
 # many samples are being lost. let's see where the samples are being lost
-
+library(tidyverse)
 # read in the meta and shared files
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
@@ -10,10 +10,18 @@ meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = 
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F)
 source('code/sum_otu_by_taxa.R')
+taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
+shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file, 
+	otu_df = shared_file, 
+	taxa_level = 'genus')
 meta_shared <- meta_file %>% 
 	mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
 	inner_join(shared_by_genus, by = c('group' = "Group")) %>% 
 	select(-group)
+meta_shared <- meta_shared %>% 
+	full_join(data.frame(unique(select(meta_shared, treatment, unique_id)), day = 0), by = c('unique_id', 'day', 'treatment'))
+
+
 # how many days are missing from each treatment (from the meta file)
 days_df <- c()
 for(i in unique(meta_file$treatment)){
@@ -117,6 +125,7 @@ meta_shared	%>%
 	count(unique_id) %>%
 	filter(n == 11) %>%
 	nrow
+
 # theres 135 mice in total but only 61 mice have data for all days
 meta_shared	%>%
 	group_by(unique_id) %>%
@@ -130,23 +139,22 @@ meta_shared	%>%
 	full_join(select(days_df, treatment, `total mice`, meta_samples_missing)) %>%
 	full_join(select(days_df_sh, treatment, lost))
 # each treatment has the following number of mice with all days
-#        treatment   total mice n_mice_w_all_days meta_samples_missing  lost_in_seq
-#     amp_0.5_TRUE           14                 3                    1           19
-#    cef_0.1_FALSE            6                 6                    0            0
-#    cef_0.3_FALSE           13                10                    2            0
-#   cipro_10_FALSE            5                 4                    1            0
-#  clinda_10_FALSE           11                10                    1            0
-#    metro_1_FALSE            7                 3                    5            5
-#     metro_1_TRUE           14                 5                    0           13
-#  strep_0.1_FALSE           10                 6                    0           15
-#    strep_5_FALSE            8                 5                    1            2
-#   vanc_0.1_FALSE            9                 4                    4            5
-#   vanc_0.3_FALSE            8                 2                    4            8
-# vanc_0.625_FALSE            6                 3                    2            1
-#    amp_0.5_FALSE            9                NA                    5           14
-#    cef_0.5_FALSE            6                NA                    0           14
-#  strep_0.5_FALSE            9                NA                    5           10
-
+# treatment        n_mice_w_all_days  total mice  meta_samples_missing  lost
+# amp_0.5_TRUE                     3           14                    1    19
+# cef_0.1_FALSE                    6            6                    0     0
+# cef_0.3_FALSE                   11           13                    2     0
+# cef_0.5_FALSE                    2            6                    0    14
+# cipro_10_FALSE                   4            5                    1     0
+# clinda_10_FALSE                 10           11                    1     0
+# metro_1_FALSE                    3            7                    5     5
+# metro_1_TRUE                     5           14                    0    13
+# strep_0.1_FALSE                  6           10                    0    15
+# strep_5_FALSE                    5            8                    1     2
+# vanc_0.1_FALSE                   4            9                    4     5
+# vanc_0.3_FALSE                   2            8                    4     8
+# vanc_0.625_FALSE                 3            6                    2     1
+# amp_0.5_FALSE                   NA            9                    5    14
+# strep_0.5_FALSE                 NA            9                    5    10
 
 days_by_mouse <- c()
 for(i in unique(meta_shared$treatment)){
@@ -163,3 +171,33 @@ for(i in unique(meta_shared$treatment)){
 	colnames(temp) <- c('treatment', 'total mice', as.character(0:10))
 	days_df_sh <- rbind(days_df_sh, temp)
 }
+
+
+mouse_by_day <- select(meta_shared, treatment, unique_id)  %>% 
+	unique %>% 
+	count(treatment) %>% 
+	rename(n_mice = n)
+for(i in 0:10){
+	new_day <- meta_shared %>% 
+		filter(day %in% 0:i) %>% 
+		group_by(treatment) %>% 
+		count(unique_id) %>% 
+		filter(n == (i + 1)) %>% 
+		count(treatment)
+	colnames(new_day)[2] <- paste0('day_', i)
+	mouse_by_day <- full_join(mouse_by_day, new_day, by = 'treatment')
+}
+mouse_by_day[is.na(mouse_by_day)] <- 0
+#mouse_by_day <- rbind(mouse_by_day, c('total', apply(mouse_by_day[,-1], 2, sum)))	
+mouse_by_day %>% 
+	gather(day, mice, -treatment, -n_mice) %>% 
+	separate(day, c('x', 'day')) %>%
+	mutate(mice = as.numeric(mice), day = as.numeric(day)) %>%  
+	#mutate(mice = as.numeric(mice)/as.numeric(n_mice), day = as.numeric(day)) %>%  
+	ggplot(aes(x = day, y = mice, color = treatment)) + 
+		geom_line() + 
+		theme_bw() + 
+		labs(title = 'Number of mice per treatment with all previous days')
+
+#treatment_subset <- 'cef_0.1_FALSE'
+#treatment_subset <- 'clinda_10_FALSE'
