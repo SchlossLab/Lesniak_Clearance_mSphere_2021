@@ -188,8 +188,9 @@ for(i in 0:10){
 	mouse_by_day <- full_join(mouse_by_day, new_day, by = 'treatment')
 }
 mouse_by_day[is.na(mouse_by_day)] <- 0
-#mouse_by_day <- rbind(mouse_by_day, c('total', apply(mouse_by_day[,-1], 2, sum)))	
+mouse_by_day <- rbind(mouse_by_day, c('total', apply(mouse_by_day[,-1], 2, sum)))	
 mouse_by_day %>% 
+	filter(treatment != 'total') %>% 
 	gather(day, mice, -treatment, -n_mice) %>% 
 	separate(day, c('x', 'day')) %>%
 	mutate(mice = as.numeric(mice), day = as.numeric(day)) %>%  
