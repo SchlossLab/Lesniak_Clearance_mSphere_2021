@@ -189,16 +189,36 @@ for(i in 0:10){
 }
 mouse_by_day[is.na(mouse_by_day)] <- 0
 mouse_by_day <- rbind(mouse_by_day, c('total', apply(mouse_by_day[,-1], 2, sum)))	
-mouse_by_day %>% 
-	filter(treatment != 'total') %>% 
-	gather(day, mice, -treatment, -n_mice) %>% 
-	separate(day, c('x', 'day')) %>%
-	mutate(mice = as.numeric(mice), day = as.numeric(day)) %>%  
-	#mutate(mice = as.numeric(mice)/as.numeric(n_mice), day = as.numeric(day)) %>%  
-	ggplot(aes(x = day, y = mice, color = treatment)) + 
-		geom_line() + 
-		theme_bw() + 
-		labs(title = 'Number of mice per treatment with all previous days')
+ggsave('scratch/mouse_by_day.jpg',
+	mouse_by_day %>% 
+		filter(treatment != 'total') %>% 
+		gather(day, mice, -treatment, -n_mice) %>% 
+		separate(day, c('x', 'day')) %>%
+		mutate(mice = as.numeric(mice), day = as.numeric(day)) %>%  
+		#mutate(mice = as.numeric(mice)/as.numeric(n_mice), day = as.numeric(day)) %>%  
+		ggplot(aes(x = day, y = mice, color = treatment)) + 
+			geom_line() + 
+			theme_bw() + 
+			labs(title = 'Number of mice per treatment with all previous days')
+			)
+
+treatment			n_mice	day_0	day_1	day_2	day_3	day_4	day_5	day_6	day_7	day_8	day_9	day_10
+amp_0.5_FALSE		9		9		7		7		6		4		4		3		3		3		0		0     
+amp_0.5_TRUE		14		14		8		8		7		6		4		3		3		3		3		3     
+cef_0.1_FALSE		6		6		6		6		6		6		6		6		6		6		6		6     
+cef_0.3_FALSE		13		13		13		13		13		12		12		12		11		11		11		11    
+cef_0.5_FALSE		6		6		4		3		3		3		3		2		2		2		2		2     
+cipro_10_FALSE		5		5		5		5		5		5		4		4		4		4		4		4     
+clinda_10_FALSE		11		11		11		11		11		10		10		10		10		10		10		10    
+metro_1_FALSE		7		7		6		3		3		3		3		3		3		3		3		3     
+metro_1_TRUE		14		14		14		13		11		8		8		8		6		5		5		5     
+strep_0.1_FALSE		10		10		9		7		7		7		6		6		6		6		6		6     
+strep_0.5_FALSE		9		9		8		7		7		6		0		0		0		0		0		0     
+strep_5_FALSE		8		8		8		6		6		6		6		5		5		5		5		5     
+vanc_0.1_FALSE		9		9		9		7		5		5		5		5		4		4		4		4     
+vanc_0.3_FALSE		8		8		8		7		4		4		4		3		3		2		2		2     
+vanc_0.625_FALSE	6		6		6		6		5		3		3		3		3		3		3		3     
+total				135		135		122		109		99		88		78		73		69		67		64		64    
 
 #treatment_subset <- 'cef_0.1_FALSE'
 #treatment_subset <- 'clinda_10_FALSE'
