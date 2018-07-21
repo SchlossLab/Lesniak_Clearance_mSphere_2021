@@ -60,7 +60,7 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset)),
 
 setup_df_for_mccm <- function(input_df, mouse_list, n_mice){
 	# reorder mice
-	sample_mice <- sample(mouse_list, n_mice, replace = T) 
+	sample_mice <- sample(mouse_list, n_mice, replace = F) 
 	output_df <- data.frame(unique_id = sample_mice, sample = 1:n_mice, stringsAsFactors = F) %>% 
 		inner_join(input_df) %>% 
 		# need to remove abundance of 0 since ccm uses 0 to split samples
