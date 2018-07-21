@@ -2,6 +2,7 @@ library(multispatialCCM)
 library(tidyverse)
 library(cowplot)
 library(gtools)
+library(viridis)
 
 #1000 reorders @ 10 iters 20min
 #1000 reorders @ 50 iters 104-140min
@@ -243,20 +244,15 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 		left_join(select(ccm_data, non_linear, run, driver_otu), 
 				by = c('driver_otu', 'run')) %>% 
 		mutate(causal = paste0(driver_otu, ' causes ', driven_otu)) %>% 
-		#group_by(causal, lobs) %>% 
 		ggplot(aes(x = lobs, y = rho)) +
-			facet_grid(non_linear~causal) +  
-			geom_violin(aes(group = cut_width(lobs, 10))) + 
-			#geom_point(alpha = 0.1, aes(color = causal)) + 
-			#geom_smooth() + 
-			stat_summary(fun.y = 'median', geom = 'line', aes(color = causal)) + 
-			##stat_summary(fun.data = 'mean_sdl', geom = 'ribbon', alpha = 0.2, aes(fill = causal)) + 
-			##geom_point(aes(color = causal), alpha = 0.4) + 
-			labs(x = 'L', y = 'Pearson correlation coefficient (rho)', color = '', fill = '') + 
-			theme_bw() + 
-			theme(legend.position='none') + 
-			guides(colour = guide_legend(override.aes = list(alpha = 1)))
-
+				geom_hex(bins = 100) + 
+				scale_fill_viridis() + 
+				facet_grid(non_linear~causal) + 
+				theme(legend.position = 'none') + 
+				labs(x = 'L', y = 'Pearson correlation coefficient (rho)', color = '', fill = '') + 
+				theme_bw() + 
+				theme(legend.position='none') + 
+				guides(colour = guide_legend(override.aes = list(alpha = 1)))
 	beginning <- min(ccm_plot_df$lobs)
 	end <- max(ccm_plot_df$lobs)
 
