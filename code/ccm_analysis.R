@@ -80,7 +80,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 	current_otu1 <- taxa_list[ otu[[1]][1] ]
 	current_otu2 <- taxa_list[ otu[[1]][2] ]
 	mouse_list <- names(which(table(input_df$unique_id) == 11)) # list of mice with all days
-	n_mice <- length(unique(input_df$unique_id)) # number of mice in treatment group
+	n_mice <- length(mouse_list) # number of mice in treatment group
 
 	set.seed(seed)
 
