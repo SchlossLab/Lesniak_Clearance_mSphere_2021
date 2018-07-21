@@ -1,7 +1,7 @@
 #!/bin/sh
-#PBS -N CCM_by_seed_1-10_for_all_15_treatments
+#PBS -N reorder_CCM_for_all_15_treatments
 
-#PBS -l nodes=1:ppn=8,mem=6gb
+#PBS -l nodes=1:ppn=8,mem=30gb
 #PBS -l walltime=400:00:00
 
 #PBS -j oe
@@ -13,7 +13,7 @@
 #PBS -q fluxod
 #PBS -A pschloss_fluxod
 
-#PBS -t 1-150
+#PBS -t 1-15
 
 cd $PBS_O_WORKDIR
 
