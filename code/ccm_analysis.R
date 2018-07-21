@@ -3,10 +3,11 @@ library(tidyverse)
 library(cowplot)
 library(gtools)
 
+#1000 reorders @ 10 iters 20min
+#1000 reorders @ 50 iters 104-140min
+#1000 reorders @ 100 iters 280min
+
 #		test workflow with short simulated RPS data
-#		setup to work with diff abx combinations
-#		check into identification of otus with 0 abundance
-#		randomize mouse order in combining samples
 # what to do with mice with incomplete samples (missing days)?
 #	cipro_10_FALSE - day 5 missing 1;
 #	vanco_0.625_FALSE - day 3 and 4 missing 1;
@@ -65,7 +66,7 @@ setup_df_for_mccm <- function(input_df, mouse_list, n_mice){
 		inner_join(input_df) %>% 
 		# need to remove abundance of 0 since ccm uses 0 to split samples
 		gather(taxa, abundance, one_of(taxa_list)) %>% 
-		mutate(abundance = ifelse(abundance == 0, 0.001, abundance)) %>% 
+		#mutate(abundance = ifelse(abundance == 0, 0.001, abundance)) %>% 
 		spread(taxa, abundance) %>% 
 		arrange(sample, day) %>%  
 		select(day, one_of(taxa_list))
@@ -82,7 +83,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 
 	set.seed(seed)
 
-	ccm_run_results <- lapply(1:100, function(i){
+	ccm_run_results <- lapply(1:500, function(i){
 		ccm_df <- setup_df_for_mccm(input_df, mouse_list, n_mice)
 		Accm <- pull(ccm_df$abundance_df, current_otu1)
 		Bccm <- pull(ccm_df$abundance_df, current_otu2)
@@ -134,9 +135,9 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 		#iterations is the number of bootsrap iterations (default 100)
 		# 100 iterations is sufficient to reduce the range in performance
 		# Does A "cause" B?
-		CCM_boot_A<-CCM_boot(Accm, Bccm, E_A, tau=1, iterations=100)
+		CCM_boot_A<-CCM_boot(Accm, Bccm, E_A, tau=1, iterations=10)
 		# Does B "cause" A?
-		CCM_boot_B<-CCM_boot(Bccm, Accm, E_B, tau=1, iterations=100)
+		CCM_boot_B<-CCM_boot(Bccm, Accm, E_B, tau=1, iterations=10)
 		ccm_plot_df <- rbind(data.frame(driver_otu = current_otu1,
 					driven_otu = current_otu2,
 					run = i,
@@ -210,12 +211,11 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 					title = 'Temporal Dynamics', subtitle = 'Colored by mouse') + 
 				scale_x_continuous(breaks=seq(0,10, 1)) + 
 				theme_bw(base_size = 8) + 
-				theme(legend.position = 'none',
-					,panel.grid.minor = element_blank())
+				theme(legend.position = 'none', panel.grid.minor = element_blank())
 	# plot embedding dimension of each otu/sample with the indicated used value for E
 	embedding_dim_plot <- embedding_dim_df %>% 
 		ggplot(aes(x = E, y = rho, color = bacteria, group = interaction(bacteria, run))) + 
-			geom_line() + 
+			geom_line(alpha = 0.1) + 
 			geom_vline(aes(xintercept = Selected_E, color = bacteria), 
 				linetype = 'dashed', size = 0.5, alpha = 0.3, show.legend = FALSE) +
 			labs(x = 'E', y = 'Pearson correlation coefficient (rho)', title = 'Embedding Dimension Selection',
@@ -223,7 +223,8 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 			theme_bw(base_size = 8) + 
 			theme(legend.position = c(0.2, 0.2), legend.title=element_blank(), 
 				legend.background=element_blank(), panel.grid.minor = element_blank()) + 
-			scale_x_continuous(breaks = seq(2, max(embedding_dim_df$E), 1))
+			scale_x_continuous(breaks = seq(2, max(embedding_dim_df$E), 1)) + 
+			guides(colour = guide_legend(override.aes = list(alpha = 1)))
 	# plot prediction over time, to determine if prediction decays with time (indicative of non-linearity)
 	prediction_step_plot <- pred_plot_df %>% 
 		left_join(select(ccm_data, non_linear, run, driver_otu), 
