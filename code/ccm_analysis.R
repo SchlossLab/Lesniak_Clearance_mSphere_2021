@@ -43,8 +43,8 @@ shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file,
 seed <- 062818#seed_treatment$seed
 treatment_subset <- unique(meta_file$treatment)[run_set]#as.character(seed_treatment$treatment)
 # most complete sample sets
-#treatment_subset <- 'cef_0.1_FALSE'
-#treatment_subset <- 'clinda_10_FALSE'
+#	treatment_subset <- 'cef_0.1_FALSE'
+#	treatment_subset <- 'clinda_10_FALSE'
 
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))#, ' using seed ', seed))
 
@@ -59,6 +59,42 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset)),
 #input_df <- abx_df
 #input_df <- abx_df_1diff
 #otu <- otu_combinations[[34]]
+
+setup_data <- function(treatment_subset){
+	abx_df <- meta_file %>% 
+		filter(treatment == treatment_subset) %>%
+		mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
+		inner_join(shared_by_genus, by = c('group' = "Group")) %>% 
+		select(-group)%>% 
+		rename(C_difficile = CFU)
+			
+	# remove otus that are present in less than 10 samples
+	abx_df <- select(abx_df, day, C_difficile, which(apply(abx_df > 1, 2, sum) > 10 )) 
+	taxa_list <- colnames(select(abx_df, -day, -cage, -mouse, -treatment, -unique_id))
+	# replace all 0s with random value between 0 and 1
+	abx_df <- abx_df %>% 
+		gather(taxa, abundance, one_of(taxa_list)) %>% 
+		mutate(abundance = ifelse(abundance == 0, 
+			sample(100, sum(abundance == 0), replace = T)/100, abundance)) %>% 
+		spread(taxa, abundance)
+
+	# find which mice are missing data for day 0
+	missing_day_0 <- summarise(group_by(abx_df, unique_id), first_day = min(day)) %>% 
+		filter(first_day != 0) %>% 
+		pull(unique_id)
+
+	if(length(missing_day_0) > 0){
+		abx_df <- bind_rows(abx_df, data.frame(unique_id = missing_day_0, day = 0, stringsAsFactors = F))
+	}	
+
+	# create a 1st differenced dataframe
+	abx_df_1diff <- abx_df %>% 
+		arrange(unique_id, day) %>% 
+		group_by(unique_id) %>% 
+		mutate_at(vars(taxa_list) , funs(. - lag(.))) %>% 
+		ungroup
+	return(list(abx_df_1diff, taxa_list))
+}
 
 setup_df_for_mccm <- function(input_df, mouse_list, n_mice){
 	# reorder mice
@@ -293,44 +329,16 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 	return(ccm_data)
 }
 
-#run_each_treatment <- function(treatment_subset){
-	print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
+
+print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
 	# treatment_subset <- 'amp_0.5_TRUE' # test for missing day 0 (missing 1)
 	# treatment_subset <- 'amp_0.5_FALSE' # test for missing day 0 (missing 2)
 	# treatment_subset <- 'cef_0.1_FALSE' # test for missing day 0 (none missing)
 
-abx_df <- meta_file %>% 
-	filter(treatment == treatment_subset) %>%
-	mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
-	inner_join(shared_by_genus, by = c('group' = "Group")) %>% 
-	select(-group)%>% 
-	rename(C_difficile = CFU)
-		
-# remove otus that are present in less than 10 samples
-abx_df <- select(abx_df, day, C_difficile, which(apply(abx_df > 1, 2, sum) > 10 )) 
-taxa_list <- colnames(select(abx_df, -day, -cage, -mouse, -treatment, -unique_id))
-# replace all 0s with random value between 0 and 1
-abx_df <- abx_df %>% 
-	gather(taxa, abundance, one_of(taxa_list)) %>% 
-	mutate(abundance = ifelse(abundance == 0, 
-		sample(100, sum(abundance == 0), replace = T)/100, abundance)) %>% 
-	spread(taxa, abundance)
+df_subset_treatment <- setup_data(treatment_subset)
+taxa_list <- df_subset_treatment[[2]]
+abx_df_1diff <- df_subset_treatment[[1]]
 
-# find which mice are missing data for day 0
-missing_day_0 <- summarise(group_by(abx_df, unique_id), first_day = min(day)) %>% 
-	filter(first_day != 0) %>% 
-	pull(unique_id)
-
-if(length(missing_day_0) > 0){
-	abx_df <- bind_rows(abx_df, data.frame(unique_id = missing_day_0, day = 0, stringsAsFactors = F))
-}	
-
-# create a 1st differenced dataframe
-abx_df_1diff <- abx_df %>% 
-	arrange(unique_id, day) %>% 
-	group_by(unique_id) %>% 
-	mutate_at(vars(taxa_list) , funs(. - lag(.))) %>% 
-	ungroup
 # create a list of all combinations of taxa
 otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, list)
 
@@ -341,47 +349,4 @@ output <- map_df(otu_combinations, ~ run_ccm(., input_df = data.frame(abx_df_1di
 write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_genus_', treatment_subset, '_first_differenced_', seed, 'seed.txt'), 
 	quote = F, row.names = F)
 
-#output %>% 
-#	group_by(otu1, otu2) %>% 
-#	summarise_all(funs(mean(as.numeric(.)))) %>% 
-#	data.frame
-
-
 print(paste0('Completed treatment set - ', treatment_subset))
-
-#print(paste0('Completed seed ', seed))
-
-#
-#
-#ccm_output <- read.table('scratch/ccm/ccm_output.txt', header = T)
-#significant_output <- ccm_output %>% 
-#	filter(pval_b_cause_a < 0.05 | pval_a_cause_b < 0.05) %>% 
-#	unite(treatment, abx, dose, delayed_infection, otu) %>% 
-#	filter(treatment == 'amp_0_5_Otu000011')
-#	group_by(treatment) %>% 
-#	summarise(cdiff_causes_otu = mean(cdiff_cause_otu),
-#		p_cdiff_causes_otu = mean(pval_a_cause_b),
-#		otu_causes_cdiff = mean(otu_cause_cdiff),
-#		p_otu_causes_cdiff = mean(pval_b_cause_a),
-#		number_of_repeats_detected = n()) 
-#
-#significant_otus <- rbind(
-#	mutate(
-#		select(significant_output, 
-#			treatment,
-#			interaction = cdiff_causes_otu, 
-#			p_value = p_cdiff_causes_otu,
-#			number_of_repeats_detected),
-#		direction = c('cdiff_causes_otu')),
-#	mutate(
-#		select(significant_output, 
-#			treatment,
-#			interaction = otu_causes_cdiff, 
-#			p_value = p_otu_causes_cdiff,
-#			number_of_repeats_detected),
-#		direction = c('otu_causes_cdiff'))
-#	) %>% 
-#	filter(p_value < 0.05, number_of_repeats_detected > 5) %>% 
-#	separate(treatment, c('abx', 'dose', 'delayed_infection')
-#	
-#significant_otus#
