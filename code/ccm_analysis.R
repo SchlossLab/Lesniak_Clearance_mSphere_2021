@@ -253,17 +253,19 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 				theme_bw() + 
 				theme(legend.position='none') + 
 				guides(colour = guide_legend(override.aes = list(alpha = 1)))
-	beginning <- min(ccm_plot_df$lobs)
-	end <- max(ccm_plot_df$lobs)
+	initial_end <- ccm_plot_df %>% 
+		group_by(driver_otu) %>% 
+		summarise(min = min(lobs), max = max(lobs)) %>% 
+		summarise(initial = max(min), end = min(max))
 
 	ccm_data <- ccm_plot_df %>% 
-		filter(lobs %in% c(beginning, end)) %>% 
+		filter(lobs %in% unlist(initial_end)) %>% 
 		group_by(driver_otu, run) %>% 
 		summarise(ccm_p_value = wilcox.test(rho~lobs)$p.value) %>%
 		full_join(ccm_data)
 
 	ccm_data <- ccm_plot_df %>% 
-		filter(lobs %in% c(beginning, end)) %>% 
+		filter(lobs %in% unlist(initial_end)) %>% 
 		group_by(driver_otu) %>% 
 		summarise(ccm_p_value_by_driver = wilcox.test(rho~lobs)$p.value) %>%
 		full_join(ccm_data)
