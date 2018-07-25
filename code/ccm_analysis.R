@@ -4,6 +4,10 @@ library(cowplot)
 library(gtools)
 library(viridis)
 
+# to do
+# reduce interactions here through looking for a greater effect size or in network model by rho?
+# include more mice missing all 10 days by either reducing days used or filling in missing days with splines?
+
 #1000 reorders @ 10 iters 20min
 #1000 reorders @ 50 iters 104-140min
 #1000 reorders @ 100 iters 280min
