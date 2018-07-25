@@ -4,9 +4,9 @@ library(geomnet)
 library(patchwork)
 
 save_dir <- 'scratch/ccm_networks_by_genus/'
-data_path <- "scratch/ccm_all/"   # path to the data
-files <- dir(data_path, pattern = "ccm_by*") # get file names
-treatment_list <- unique(gsub('\\d{,2}.txt', '', files))
+data_path <- "scratch/ccm/"   # path to the data
+treatment_list <- list.files(data_path)
+
 source('code/taxa_labels.R')
 taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
 
@@ -20,49 +20,36 @@ shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file,
 	otu_df = shared_df, 
 	taxa_level = 'genus')
 
-for(treatment in treatment_list){
-	current_treatment <- gsub('.*_data_(.+)_seed', '\\1', treatment)
-	files <- dir(data_path, pattern = paste0(treatment, "*")) # get file names
-	input_data <- files %>%
-	  # read in all the files, appending the path before the filename
-	  map(~ read.table(file.path(data_path, .), header = T, stringsAsFactors = F)) %>% 
-	  reduce(rbind)
 
-	input_data <- bind_rows(
-		select(input_data, otu = otu1, strength = otu1_cause_otu2, p_value = pval_otu1_cause_otu2, affected_otu = otu2,
-			prediction_slope = otu1_prediction_slope, p_slope = otu1_prediction_slope_p, E = E_A),
-		select(input_data, otu = otu2, strength = otu2_cause_otu1, p_value = pval_otu2_cause_otu1, affected_otu = otu1,
-			prediction_slope = otu2_prediction_slope, p_slope = otu2_prediction_slope_p, E = E_B))
+lapply(treatment_list, function(current_treatment){
+	# get file name
+	file <- file.path(current_treatment, 
+		dir(paste0(data_path, current_treatment), pattern = "ccm_by*"))
 
-#	taxonomic_labels <- get_taxa_labels(taxa_file = taxonomy_file,  taxa_level='genus', 
-#		otu_subset=unique(input_data$otu)) %>% 
-#		bind_rows(data.frame(otu = 'CFU', taxa = 'C. difficile', otu_label = 'C. difficile', 
-#			tax_otu_label = 'C. difficile', stringsAsFactors = F))
-	#otu_names <- unique(input_data$otu)
-	#otu_names[otu_names == 'CFU'] <- 'C. difficile'
-
+	input_data <- read.table(file.path(data_path, file), header = T, stringsAsFactors = F)
+	
 	interaction_data <- input_data %>% 
-		group_by(otu, affected_otu) %>% 
-		summarise(p_value = median(p_value),
-			strength = median(strength)) %>% 
+		group_by(driver_otu, driven_otu) %>% 
+		summarise(p_value = median(ccm_p_value_by_driver),
+			strength = median(driver_predicts_driven)) %>% 
 		ungroup() %>% 
 		mutate(adj_strength = ifelse(p_value > 0.05, 0, strength),
-			adj_strength = ifelse(otu == affected_otu, 0, adj_strength)) %>% 
-#		left_join(select(taxonomic_labels, otu, tax_otu_label)) %>% 
-#		left_join(select(taxonomic_labels, otu, tax_otu_label), by = c('affected_otu'='otu')) %>% 
-		select(driver_taxa = otu, #tax_otu_label.x, 
-			driven_taxa = affected_otu, #tax_otu_label.y, 
+			adj_strength = ifelse(driver_otu == driven_otu, 0, adj_strength),
+			adj_strength = abs(adj_strength)) %>% 
+	#	left_join(select(taxonomic_labels, otu, tax_otu_label)) %>% 
+	#	left_join(select(taxonomic_labels, otu, tax_otu_label), by = c('affected_otu'='otu')) %>% 
+		select(driver_taxa = driver_otu, #tax_otu_label.x, 
+			driven_taxa = driven_otu, #tax_otu_label.y, 
 			p_value, strength, adj_strength)
 
-	ggsave(paste0(save_dir, current_treatment, '_interaction_matrix.jpg'),
-		interaction_data %>% 
-			ggplot(aes(driver_taxa, driven_taxa)) + geom_tile(aes(fill = adj_strength)) + 
-				scale_fill_gradient(low = 'white', high = 'blue') + 
-				theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 10)) + 
-				labs(title = paste0('Interactions from ', 
-					gsub('([[:alpha:]]+_){3}|_[[:alpha:]]+$', '', treatment)),
-					x = 'Driver OTU', y = 'Driven OTU'),
-		width = 12, height = 12)
+	interaction_matrix_plot <- interaction_data %>% 
+		ggplot(aes(driver_taxa, driven_taxa)) + geom_tile(aes(fill = adj_strength)) + 
+			scale_fill_gradient(low = 'white', high = 'blue') + 
+			theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 10)) + 
+			labs(title = paste0('Interactions from ', 
+				current_treatment),
+				x = 'Driver OTU', y = 'Driven OTU')
+
 	if(sum(interaction_data$adj_strength) > 0){
 		num_nodes <- length(unique(input_data$otu))
 		network_matrix <- matrix(interaction_data$adj_strength,
@@ -102,16 +89,14 @@ for(treatment in treatment_list){
 
 		# create plot
 		set.seed(1)
-		ggsave(paste0(save_dir, current_treatment, '_network.jpg'),
-			ggplot(data = gg_network_data, aes(from_id = from_id, to_id = to_id)) +
+		network_plot <- gg_network_data %>% 
+			ggplot(aes(from_id = from_id, to_id = to_id)) +
 				geom_net(layout.alg = "kamadakawai", 
 					size = 2, labelon = TRUE, vjust = -0.6, ecolour = "grey60",
 					directed = TRUE, fontsize = 3, ealpha = 0.5) +
 				xlim(c(-0.05, 1.05)) +
 				theme_net() +
-				theme(legend.position = "bottom"),
-			width = 10, height = 10)
-
+				theme(legend.position = "bottom")
 
 		#interacting_otus <- taxonomic_labels %>% 
 		#	filter(tax_otu_label %in% interacting_otus) %>% 
@@ -134,7 +119,7 @@ for(treatment in treatment_list){
 				ggplot(aes(x = day, y = counts, color = interaction(as.factor(mouse), as.factor(cage)), 
 					group = interaction(cage, mouse))) + 
 					geom_line() + 
-					facet_grid(bacteria~., scales = 'free_y') +
+					facet_wrap(~bacteria, scales = 'free_y', ncol = 2) +
 					theme_bw() + 
 					labs(x = 'Day', y = 'Abundance \n (C difficle = CFU, Otu = 16s counts)', 
 						title = 'Temporal Dynamics', subtitle = 'Colored by mouse') + 
@@ -155,8 +140,12 @@ for(treatment in treatment_list){
 
 
 		ggsave(paste0(save_dir, current_treatment, '_dynamics.jpg'),
-			otu_temporal_plot + cdiff_temporal_plot + plot_layout(ncol = 1),
-			width = 10, height = 20)
+			(otu_temporal_plot | cdiff_temporal_plot) / 
+			(network_plot | interaction_matrix_plot ),
+			width = 20, height = 20)
+	} else {
+		ggsave(paste0(save_dir, current_treatment, '_dynamics_nonsig.jpg'),
+			interaction_matrix_plot,
+			width = 20, height = 20)
 	}
-
-}
+})
