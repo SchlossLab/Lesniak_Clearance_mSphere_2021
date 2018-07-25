@@ -282,7 +282,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 		ggplot(aes(x = lobs, y = rho)) +
 				geom_hex(bins = 100) + 
 				scale_fill_viridis() + 
-				facet_grid(non_linear~causal) + 
+				facet_grid(.~causal) + 
 				theme(legend.position = 'none') + 
 				labs(x = 'L', y = 'Pearson correlation coefficient (rho)', color = '', fill = '') + 
 				theme_bw() + 
