@@ -288,21 +288,20 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 				theme_bw() + 
 				theme(legend.position='none') + 
 				guides(colour = guide_legend(override.aes = list(alpha = 1)))
-	initial_end <- ccm_plot_df %>% 
-		group_by(driver_otu) %>% 
-		summarise(min = min(lobs), max = max(lobs)) %>% 
-		summarise(initial = max(min), end = min(max))
+	
+	initial_end <- data.frame(
+		initial = head(sort(unique(ccm_plot_df$lobs)), 
+			round(length(unique(ccm_plot_df$lobs))*0.10)),
+		end = tail(sort(unique(ccm_plot_df$lobs)), 
+			round(length(unique(ccm_plot_df$lobs))*0.10)))
 
 	ccm_data <- ccm_plot_df %>% 
 		filter(lobs %in% unlist(initial_end)) %>% 
-		group_by(driver_otu, run) %>% 
-		summarise(ccm_p_value = wilcox.test(rho~lobs)$p.value) %>%
-		full_join(ccm_data)
-
-	ccm_data <- ccm_plot_df %>% 
-		filter(lobs %in% unlist(initial_end)) %>% 
+		mutate(time_point = case_when(lobs %in% initial_end$initial ~ 'initial',
+			lobs %in% initial_end$end ~ 'end',
+			T ~ 'NA')) %>% 
 		group_by(driver_otu) %>% 
-		summarise(ccm_p_value_by_driver = wilcox.test(rho~lobs)$p.value) %>%
+		summarise(ccm_p_value = wilcox.test(rho~time_point, alternative = 'greater')$p.value) %>%
 		full_join(ccm_data)
 
 	title <- ggdraw() + 
