@@ -100,7 +100,7 @@ setup_df_for_mccm <- function(input_df, mouse_list, n_mice){
 	# reorder mice
 	sample_mice <- sample(mouse_list, n_mice, replace = F) 
 	output_df <- data.frame(unique_id = sample_mice, sample = 1:n_mice, stringsAsFactors = F) %>% 
-		inner_join(input_df) %>% 
+		inner_join(input_df, by = 'unique_id') %>% 
 		# need to remove abundance of 0 since ccm uses 0 to split samples
 		gather(taxa, abundance, one_of(taxa_list)) %>% 
 		#mutate(abundance = ifelse(abundance == 0, 0.001, abundance)) %>% 
@@ -119,14 +119,13 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 	n_mice <- length(mouse_list) # number of mice in treatment group
 
 	set.seed(seed)
+	print(paste0('Beginning ', current_otu1, ' and ', current_otu2, ' in from ', treatment_subset))
 
 	ccm_run_results <- lapply(1:500, function(i){
 		ccm_df <- setup_df_for_mccm(input_df, mouse_list, n_mice)
 		Accm <- pull(ccm_df$abundance_df, current_otu1)
 		Bccm <- pull(ccm_df$abundance_df, current_otu2)
 		mice_order <- paste(ccm_df$mice_order, collapse = '--')
-		print(paste0('Beginning ', current_otu1, ' and ', current_otu2, ' in from ', 
-			treatment_subset, ' (Run ', i, ')'))
 
 		#Maximum E to test - one less than number of observations per sample
 		# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
@@ -152,7 +151,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 				gather(bacteria, rho, -E) %>% 
 				left_join(data.frame(bacteria = c(current_otu1, current_otu2), 
 					Selected_E = c(E_A, E_B),
-					run = i ))
+					run = i ), by = 'bacteria')
 
 		#Check data for nonlinear signal that is not dominated by noise
 		#Checks whether predictive ability of processes declines with
