@@ -20,6 +20,10 @@ shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file,
 	otu_df = shared_df, 
 	taxa_level = 'genus')
 
+# to do
+#	plot only mice used for ccm (ones with all days)
+#	edit network to show strength
+
 
 lapply(treatment_list, function(current_treatment){
 	# get file name
