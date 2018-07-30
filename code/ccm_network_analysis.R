@@ -1,6 +1,8 @@
 library(tidyverse)
-library(statnet)
-library(geomnet)
+#library(statnet)
+#library(geomnet)
+library(tidygraph)
+library(ggraph)
 library(patchwork)
 
 save_dir <- 'scratch/ccm_networks_by_genus/'
@@ -27,6 +29,7 @@ shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file,
 
 lapply(treatment_list, function(current_treatment){
 	# get file name
+	# current_treatment <- 'clinda_10_FALSE'
 	file <- file.path(current_treatment, 
 		dir(paste0(data_path, current_treatment), pattern = "ccm_by*"))
 
@@ -34,29 +37,69 @@ lapply(treatment_list, function(current_treatment){
 	
 	interaction_data <- input_data %>% 
 		group_by(driver_otu, driven_otu) %>% 
-		summarise(p_value = median(ccm_p_value_by_driver),
-			strength = median(driver_predicts_driven)) %>% 
+		summarise(p_value = mean(ccm_p_value),
+			strength = mean(driver_predicts_driven)) %>% 
 		ungroup() %>% 
-		mutate(adj_strength = ifelse(p_value > 0.05, 0, strength),
-			adj_strength = ifelse(driver_otu == driven_otu, 0, adj_strength),
-			adj_strength = abs(adj_strength)) %>% 
+		mutate(weight = case_when(p_value > 0.05 ~ 0,
+			driver_otu == driven_otu ~ 0,
+			TRUE ~ abs(strength))) %>% 
 	#	left_join(select(taxonomic_labels, otu, tax_otu_label)) %>% 
 	#	left_join(select(taxonomic_labels, otu, tax_otu_label), by = c('affected_otu'='otu')) %>% 
 		select(driver_taxa = driver_otu, #tax_otu_label.x, 
 			driven_taxa = driven_otu, #tax_otu_label.y, 
-			p_value, strength, adj_strength)
+			p_value, strength, weight)
 
 	interaction_matrix_plot <- interaction_data %>% 
-		ggplot(aes(driver_taxa, driven_taxa)) + geom_tile(aes(fill = adj_strength)) + 
+		ggplot(aes(driver_taxa, driven_taxa)) + geom_tile(aes(fill = weight)) + 
 			scale_fill_gradient(low = 'white', high = 'blue') + 
 			theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 10)) + 
 			labs(title = paste0('Interactions from ', 
 				current_treatment),
 				x = 'Driver OTU', y = 'Driven OTU')
 
-	if(sum(interaction_data$adj_strength) > 0){
+	if(sum(interaction_data$weight) > 0){
+		nodes <- interaction_data %>% 
+			distinct(driver_taxa) %>% 
+			rename(label = driver_taxa) %>% 
+			full_join(interaction_data %>% 
+				distinct(driven_taxa) %>% 
+				rename(label = driven_taxa),
+				by = 'label') %>% 
+			rowid_to_column('id')
+		edges <- interaction_data %>% 
+			left_join(nodes, by = c('driver_taxa' = 'label')) %>% 
+			rename(from = id) %>% 
+			left_join(nodes, by = c('driven_taxa' = 'label')) %>% 
+			rename(to = id) %>% 
+			filter(weight > 0) %>% 
+			select(from, to, weight)
+# igraph		
+		routes_igraph <- graph_from_data_frame(d = edges, vertices = nodes, directed = TRUE)
+		plot(routes_igraph, layout = layout_with_graphopt, 
+			edge.width = E(routes_igraph)$weight*5, edge.curved = T,
+			edge.arrow.size = E(routes_igraph)$weight*5, 
+			edge.alpha = .2)
+
+#ggraph
+		routes_tidy <- tbl_graph(nodes = nodes, edges = edges, directed = TRUE)
+
+		ggraph(routes_tidy) + geom_edge_link() + geom_node_point() + theme_graph()
+		ggraph(routes_tidy, layout = "linear") + 
+			geom_node_point() +
+			geom_edge_link(aes(width = weight), alpha = 0.3) + 
+			scale_edge_width(range = c(0, 2)) +
+			geom_node_text(aes(label = label), repel = TRUE) +
+			theme_graph()
+
+# visNetwork
+		visNetwork(nodes, edges)
+		edges <- mutate(edges, width = weight*10)
+		visNetwork(nodes, edges) %>% 
+			visIgraphLayout(layout = "layout_with_fr") %>% 
+			visEdges(arrows = "middle")
+
 		num_nodes <- length(unique(input_data$otu))
-		network_matrix <- matrix(interaction_data$adj_strength,
+		network_matrix <- matrix(interaction_data$weight,
 			nrow = num_nodes, ncol = num_nodes)
 		diag(network_matrix) <- 0
 
@@ -75,13 +118,13 @@ lapply(treatment_list, function(current_treatment){
 	    #         )
 
 	    interacting_otus <- interaction_data %>% 
-	    	filter(adj_strength > 0) %>% 
+	    	filter(weight > 0) %>% 
 	    	gather(role, taxa, driver_taxa, driven_taxa) %>% 
 	    	pull(taxa) %>% 
 	    	unique
 		gg_network_data <- data.frame(from_id = interaction_data$driver_taxa,
 			to_id = interaction_data$driven_taxa) %>% 
-			mutate(to_id = ifelse(interaction_data$adj_strength == 0, NA, interaction_data$driven_taxa)) %>% 
+			mutate(to_id = ifelse(interaction_data$weight == 0, NA, interaction_data$driven_taxa)) %>% 
 			filter(from_id %in% interacting_otus) %>% 
 			mutate(from_id = gsub(' \\(', '\n(', from_id),
 				to_id = gsub(' \\(', '\n(', to_id),)
