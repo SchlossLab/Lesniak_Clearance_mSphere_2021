@@ -60,20 +60,24 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset)),
 	print(paste0(save_dir, treatment_subset, ' directory ready')))
 
 # use to test function
-#input_df <- abx_df
 #input_df <- abx_df_1diff
 #otu <- otu_combinations[[34]]
 
 setup_data <- function(treatment_subset){
+	otu_by_trt <- c()
+	for(i in unique(meta_file$treatment)){
 	abx_df <- meta_file %>% 
-		filter(treatment == treatment_subset) %>%
+		filter(treatment == i) %>%
 		mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
-		inner_join(shared_by_genus, by = c('group' = "Group")) %>% 
-		select(-group)%>% 
+		inner_join(shared_file, by = c('group' = "Group")) %>% 
+		select(-group, -numOtus) %>% 
 		rename(C_difficile = CFU)
 			
 	# remove otus that are present in less than 10 samples
-	abx_df <- select(abx_df, day, C_difficile, which(apply(abx_df > 1, 2, sum) > 10 )) 
+	abx_df <- select(abx_df, C_difficile, which(apply(abx_df > 1, 2, sum) > 10 )) 
+	otu_by_trt^2 <- c(otu_by_trt, ncol(abx_df))
+	}
+	sum(otu_by_trt^2) = 98401
 	taxa_list <- colnames(select(abx_df, -day, -cage, -mouse, -treatment, -unique_id))
 	# replace all 0s with random value between 0 and 1
 	abx_df <- abx_df %>% 
