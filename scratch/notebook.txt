@@ -46,3 +46,43 @@ Met with Pat 1/17/18
 	AKP - more ways to be healthy?
 	compare differences in metro recovery 
 		how do susceptibility break points compare?
+
+
+CCM 
+	MCCM 
+		Nonlinear forecasting for the classification of natural time series - George Sugihara 1994
+			http://deepeco.ucsd.edu/simplex/Sugihara-LNLP.pdf
+		Spatial "convergent cross mapping" to detect causal relationships from short time-series. 
+			Adam Thomas Clark, Hao Ye, Forest Isbell, Ethan R. Deyle, Jane Cowles, G. David Tilman, George Sugihara
+			https://esajournals.onlinelibrary.wiley.com/doi/full/10.1890/14-1479.1
+			Appendix https://figshare.com/articles/Appendix_A_Supplemental_examples_of_multispatial_CCM_analyses_for_Spatial_convergent_cross_mapping_to_detect_causal_relationships_from_short_time-series_/3561960
+		Article questioning CCM (MCCM) 
+			Questionable dynamical evidence for causality between galactic cosmic rays and interannual variation in global temperature.
+				Ming Luo, Holger Kantz, Ngar-Cheung Lau, Wenwen Huang, and Yu Zhou. PNAS August 25, 2015.
+				http://www.pnas.org/content/112/34/E4638
+				"Choosing libraries suitably is crucial. Different methods may lead to different results. However, there is no evidence in refs. 1, 2, and 4 that the authors are aware of this problem."
+		Reply to questioning methods
+			Reply to Luo et al.: Robustness of causal effects of galactic cosmic rays on interannual variation in global temperature
+				Hao Ye, George Sugihara, Ethan R. Deyle, Robert M. May, Kyle Swanson, and Anastasios A. Tsonis. PNAS August 25, 2015. 
+				http://www.pnas.org/content/112/34/E4640
+				"Luo et al. (3) questioned this finding using the Clark implementation of CCM (version 1.0 of the multispatial CCM package).* This version of the CCM code, which has since been debugged by Clark, unfortunately contains errors that are not in the original rEDM software package that Tsonis et al. used.† Thus, though well-intentioned, the Luo et al. (3) analysis is incorrect."
+		Github repo of the source from the first author - https://github.com/adamtclark/multispatialCCM/commits/master
+			It appears edits were made around 6/21/2015 to line that truncates the dataset, but then in 7/1/2015, revert changes due to segfault
+		CCM lecture
+			https://www.youtube.com/watch?v=lKj4hr_2-Vg
+		CCM R package - rEDM: An R package for Empirical Dynamic Modeling and Convergent Cross Mapping
+			tutorial - https://cran.r-project.org/web/packages/rEDM/vignettes/rEDM-tutorial.html
+		CCM implementations
+			bottom-up links in lake - https://esajournals.onlinelibrary.wiley.com/doi/pdf/10.1002/ecy.2414
+			coral disease - https://www.nature.com/articles/s41598-017-05763-6
+			historical coral reef - https://www.nature.com/articles/ncomms14160
+			limits - http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0169050
+			self-harm - https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5600509/
+				https://sites.google.com/site/dynamicsystemsatutah/home/cross-convergent-mapping
+			
+LIMITS
+	Signatures of ecological processes in microbial community time series. Karoline Faust, et al. Microbiome 2018
+		https://microbiomejournal.biomedcentral.com/track/pdf/10.1186/s40168-018-0496-2
+		seqtime package - https://hallucigenia-sparsa.github.io/seqtime/articles/network_inference.html
+		LIMITS - http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0102451
+			"Any algorithm for inferring ecological interactions must overcome three major obstacles: 1) a correlation between the abundances of two species does not imply that those species are interacting, 2) the sum constraint on the relative abundances obtained from metagenomic studies makes it difficult to infer the parameters in timeseries models, and 3) errors due to experimental uncertainty, or mis-assignment of sequencing reads into operational taxonomic units, bias inferences of species interactions due to a statistical problem called “errors-in-variables”. Learning Interactions from MIcrobial Time Series (LIMITS), that overcomes these obstacles. LIMITS uses sparse linear regression with boostrap aggregation to infer a discrete-time Lotka-Volterra model for microbial dynamics"
