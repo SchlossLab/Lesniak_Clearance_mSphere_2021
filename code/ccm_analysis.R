@@ -27,7 +27,7 @@ library(viridis)
 #	amp_0.5_true - day 0 and 4 missing 1
 input_values <- commandArgs(TRUE)
 run_set <- as.numeric(input_values[1])
-save_dir <- paste0('scratch/ccm/')
+save_dir <- paste0('scratch/ccm_otu/')
 print(paste0('Running set ', run_set))
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
@@ -37,17 +37,17 @@ meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = 
 	filter(cdiff == T, day >= 0, treatment != 'none_NA_FALSE')
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F)
-source('code/sum_otu_by_taxa.R')
-taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
-shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file, 
-	otu_df = shared_file, 
-	taxa_level = 'genus')
+#source('code/sum_otu_by_taxa.R')
+#taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
+#shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file, 
+#	otu_df = shared_file, 
+#	taxa_level = 'genus')
 
 #seed_treatment <- expand.grid(seed = 1:10, treatment = unique(meta_file$treatment))[run_set, ]
 seed <- 062818#seed_treatment$seed
 treatment_subset <- unique(meta_file$treatment)[run_set]#as.character(seed_treatment$treatment)
 # most complete sample sets
-#	treatment_subset <- 'cef_0.1_FALSE'
+#	treatment_subset <- 'cef_0.5_FALSE'
 #	treatment_subset <- 'clinda_10_FALSE'
 
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))#, ' using seed ', seed))
@@ -237,7 +237,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 	# plot temporal dynamics of otus
 	dynamics_plot <- meta_file %>% 
 		filter(treatment == treatment_subset) %>%
-		inner_join(shared_by_genus, by = c('group' = "Group")) %>%
+		inner_join(shared_file, by = c('group' = "Group")) %>%
 		rename(C_difficile = CFU) %>% 
 		select(cage, mouse, day, one_of(current_otu1, current_otu2)) %>% 
 		gather(bacteria, counts, one_of(current_otu1, current_otu2)) %>% 
