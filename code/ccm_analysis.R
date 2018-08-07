@@ -99,17 +99,14 @@ setup_data <- function(treatment_subset){
 	return(list(abx_df_1diff, taxa_list))
 }
 
-setup_df_for_mccm <- function(input_df, mouse_list, n_mice){
+setup_df_for_mccm <- function(input_df){
 	# reorder mice
-	sample_mice <- sample(mouse_list, n_mice, replace = F) 
+	sample_mice <- sample(unique(input_df$unique_id), replace = F) 
+	n_mice <- length(sample_mice)
 	output_df <- data.frame(unique_id = sample_mice, sample = 1:n_mice, stringsAsFactors = F) %>% 
 		inner_join(input_df, by = 'unique_id') %>% 
-		# need to remove abundance of 0 since ccm uses 0 to split samples
-		gather(taxa, abundance, one_of(taxa_list)) %>% 
-		#mutate(abundance = ifelse(abundance == 0, 0.001, abundance)) %>% 
-		spread(taxa, abundance) %>% 
-		arrange(sample, day) %>%  
-		select(day, one_of(taxa_list))
+		arrange(bacteria, sample, day) %>%  
+		spread(bacteria, abundance)
 	# set day 0 to NA to separate data by mouse for ccm (for 1st differenced, day 0 == NA)
 	output_df[which(output_df$day == 0), ] <- NA
 	return(list(abundance_df = output_df, mice_order = sample_mice))
@@ -118,14 +115,22 @@ setup_df_for_mccm <- function(input_df, mouse_list, n_mice){
 run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 	current_otu1 <- taxa_list[ otu[[1]][1] ]
 	current_otu2 <- taxa_list[ otu[[1]][2] ]
-	mouse_list <- names(which(table(input_df$unique_id) == 11)) # list of mice with all days
-	n_mice <- length(mouse_list) # number of mice in treatment group
+
+	input_df <- input_df %>% 
+		select(unique_id, day, current_otu1, current_otu2) %>% 
+		arrange(unique_id, day) %>% 
+		gather(bacteria, raw_abundance, current_otu1, current_otu2) %>% 
+		group_by(unique_id, bacteria) %>% 
+		nest() %>% 
+		mutate(abundance = map(data, ~na.interp(.$raw_abundance))) %>% 
+		unnest(data, abundance) %>% 
+		select(unique_id, day, bacteria, abundance)
 
 	set.seed(seed)
 	print(paste0('Beginning ', current_otu1, ' and ', current_otu2, ' in from ', treatment_subset))
 
 	ccm_run_results <- lapply(1:500, function(i){
-		ccm_df <- setup_df_for_mccm(input_df, mouse_list, n_mice)
+		ccm_df <- setup_df_for_mccm(input_df)
 		Accm <- pull(ccm_df$abundance_df, current_otu1)
 		Bccm <- pull(ccm_df$abundance_df, current_otu2)
 		mice_order <- paste(ccm_df$mice_order, collapse = '--')
