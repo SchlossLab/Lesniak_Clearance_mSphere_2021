@@ -226,10 +226,14 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 	})
 	print('CCM completed, generating plots now')
 
-	embedding_dim_df <- do.call('rbind', lapply(ccm_run_results, '[[', 'embed'))
-	pred_plot_df <- do.call('rbind', lapply(ccm_run_results, '[[', 'pred'))
-	ccm_plot_df <- do.call('rbind', lapply(ccm_run_results, '[[', 'ccm'))
-	ccm_data <- do.call('rbind', lapply(ccm_run_results, '[[', 'data'))
+	embedding_dim_df <- do.call('rbind', lapply(ccm_run_results, '[[', 'embed')) %>% 
+		mutate_if(is.factor, as.character)
+	pred_plot_df <- do.call('rbind', lapply(ccm_run_results, '[[', 'pred')) %>% 
+		mutate_if(is.factor, as.character)
+	ccm_plot_df <- do.call('rbind', lapply(ccm_run_results, '[[', 'ccm')) %>% 
+		mutate_if(is.factor, as.character)
+	ccm_data <- do.call('rbind', lapply(ccm_run_results, '[[', 'data')) %>% 
+		mutate_if(is.factor, as.character)
 
 	# plot each time point agasint the previous day
 	lagged_dynamics_plot <- input_df %>% 
@@ -310,7 +314,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 			T ~ 'NA')) %>% 
 		group_by(driver_otu) %>% 
 		summarise(ccm_p_value = wilcox.test(rho~time_point, alternative = 'greater')$p.value) %>%
-		full_join(ccm_data)
+		full_join(ccm_data, by = c('driver_otu'))
 
 	title <- ggdraw() + 
 	  draw_label(paste0(treatment_subset, ' with ', current_otu1, ' and ', current_otu2,
