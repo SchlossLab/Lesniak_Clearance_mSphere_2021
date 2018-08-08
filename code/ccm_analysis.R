@@ -233,13 +233,12 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 
 	# plot each time point agasint the previous day
 	lagged_dynamics_plot <- input_df %>% 
-			select(day, one_of(current_otu1, current_otu2)) %>% 
-			gather(otu, t0, -day) %>% 
-			mutate(t1 = lag(t0)) %>% 
-			filter(!is.na(t1), !is.na(t0)) %>% 
-			ggplot(aes(x = t0, y = t1, color = day)) + 
-				geom_point() + facet_wrap(~otu, scales = 'free') +  
-				theme_bw(base_size = 8)
+			mutate(t1 = lag(abundance)) %>% 
+			filter(!is.na(t1), !is.na(abundance)) %>% 
+			ggplot(aes(x = abundance, y = t1, color = day)) + 
+				geom_point() + facet_wrap(~bacteria, scales = 'free') +  
+				theme_bw(base_size = 8) + 
+				labs(x= expression('t'[0]), y = expression('t'[1]))
 	# plot temporal dynamics of otus
 	dynamics_plot <- meta_file %>% 
 		filter(treatment == treatment_subset) %>%
