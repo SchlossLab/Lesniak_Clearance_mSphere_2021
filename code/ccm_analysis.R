@@ -113,7 +113,7 @@ setup_df_for_mccm <- function(input_df){
 	return(list(abundance_df = output_df, mice_order = sample_mice))
 }
 
-run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
+run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 	current_otu1 <- taxa_list[ otu[[1]][1] ]
 	current_otu2 <- taxa_list[ otu[[1]][2] ]
 
@@ -320,7 +320,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 		fontface = 'bold')
 	if(min(ccm_data$ccm_p_value) < 0.05/10^5){ # ~100,000 comparisons across all treatments
 		ggsave(filename = paste0(save_dir, treatment_subset, '/sig_ccm_', current_otu1, 
-				'_', current_otu2, '_', data_diff, '.jpg'),
+				'_', current_otu2, '_first_differenced.jpg'),
 			plot = plot_grid(title, plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
 				CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'),  ncol = 1, rel_heights = c(0.1, 1)),
 			width = 7, height = 10, device = 'jpeg')
@@ -352,7 +352,7 @@ otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, l
 print('Beginning CCM on 1st differenced data')
 
 output <- map_df(otu_combinations, ~ run_ccm(., input_df = data.frame(abx_df_1diff), 
-	treatment_subset = treatment_subset, data_diff = 'first_differenced', taxa_list = taxa_list))
+	treatment_subset = treatment_subset, taxa_list = taxa_list))
 write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_genus_', treatment_subset, '_first_differenced_', seed, 'seed.txt'), 
 	quote = F, row.names = F)
 
