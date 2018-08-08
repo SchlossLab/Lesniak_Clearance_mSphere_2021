@@ -3,6 +3,7 @@ library(tidyverse)
 library(cowplot)
 library(gtools)
 library(viridis)
+library(forecast)
 
 # to do
 # reduce interactions here through looking for a greater effect size or in network model by rho?
