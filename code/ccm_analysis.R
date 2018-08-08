@@ -314,8 +314,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 
 	title <- ggdraw() + 
 	  draw_label(paste0(treatment_subset, ' with ', current_otu1, ' and ', current_otu2,
-	  	'\n(Data is ', data_diff,
-	  	')\n(treatment = Antibiotic_Dose_Allow recovery before C difficile Challenge)'),
+	  	'\n(Data is first differenced)\n(treatment = Antibiotic_Dose_Allow recovery before C difficile Challenge)'),
 		fontface = 'bold')
 	if(min(ccm_data$ccm_p_value) < 0.05/10^5){ # ~100,000 comparisons across all treatments
 		ggsave(filename = paste0(save_dir, treatment_subset, '/sig_ccm_', current_otu1, 
@@ -325,7 +324,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 			width = 7, height = 10, device = 'jpeg')
 		} else {
 		ggsave(filename = paste0(save_dir, treatment_subset, '/ccm_', current_otu1, 
-				'_', current_otu2, '_', data_diff, '.jpg'),
+				'_', current_otu2, '_first_differenced.jpg'),
 			plot = plot_grid(title, plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
 				CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'),  ncol = 1, rel_heights = c(0.1, 1)),
 			width = 7, height = 10, device = 'jpeg')
