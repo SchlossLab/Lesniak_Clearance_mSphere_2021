@@ -318,7 +318,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 	  	'\n(Data is ', data_diff,
 	  	')\n(treatment = Antibiotic_Dose_Allow recovery before C difficile Challenge)'),
 		fontface = 'bold')
-	if(min(ccm_data$ccm_p_value_by_driver) < 0.05){
+	if(min(ccm_data$ccm_p_value) < 0.05/10^5){ # ~100,000 comparisons across all treatments
 		ggsave(filename = paste0(save_dir, treatment_subset, '/sig_ccm_', current_otu1, 
 				'_', current_otu2, '_', data_diff, '.jpg'),
 			plot = plot_grid(title, plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
