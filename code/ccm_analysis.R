@@ -62,7 +62,7 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset)),
 
 # use to test function
 #input_df <- abx_df_1diff
-#otu <- otu_combinations[[34]]
+#otu <- otu_combinations[[2]]
 
 setup_data <- function(treatment_subset){
 	abx_df <- meta_file %>% 
@@ -301,18 +301,14 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 				theme(legend.position='none') + 
 				guides(colour = guide_legend(override.aes = list(alpha = 1)))
 	
-	initial_end <- data.frame(
-		initial = head(sort(unique(ccm_plot_df$lobs)), 
-			round(length(unique(ccm_plot_df$lobs))*0.10)),
-		end = tail(sort(unique(ccm_plot_df$lobs)), 
-			round(length(unique(ccm_plot_df$lobs))*0.10)))
+	lobs_test_range <- round(length(unique(ccm_plot_df$lobs))*0.1)
 
 	ccm_data <- ccm_plot_df %>% 
-		filter(lobs %in% unlist(initial_end)) %>% 
-		mutate(time_point = case_when(lobs %in% initial_end$initial ~ 'initial',
-			lobs %in% initial_end$end ~ 'end',
-			T ~ 'NA')) %>% 
 		group_by(driver_otu) %>% 
+		mutate(time_point = case_when(lobs %in% head(sort(unique(lobs)), lobs_test_range) ~ 'initial',
+			lobs %in% tail(sort(unique(lobs)), lobs_test_range) ~ 'end',
+			T ~ 'middle')) %>% 
+		filter(time_point != 'middle') %>% 	
 		summarise(ccm_p_value = wilcox.test(rho~time_point, alternative = 'greater')$p.value) %>%
 		full_join(ccm_data, by = c('driver_otu'))
 
