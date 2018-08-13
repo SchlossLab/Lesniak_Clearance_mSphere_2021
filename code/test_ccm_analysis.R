@@ -6,15 +6,18 @@ library(viridis)
 library(Hmisc)
 
 save_dir <- paste0('scratch/ccm_test/')
-
-test_set <- 'data/process/mccm_test_data_venturelli_et_al_2018.txt'
+test_set <- 'data/raw/RPS_model_Community_Dynamics.txt'
+#test_set <- 'data/process/mccm_test_data_venturelli_et_al_2018.txt'
 test_set <-read.table(test_set, header = TRUE, sep = "\t", stringsAsFactors = FALSE) %>% 
-	rename(unique_id = experiment,
-		day = time)
+	rename(unique_id = Run,
+		day = Time)
 treatment_subset <- 'test'
 seed <- 062818#seed_treatment$seed
 
 ifelse(!dir.exists(save_dir), dir.create(save_dir), print(paste0(save_dir, ' directory ready')))
+ifelse(!dir.exists(paste0(save_dir, treatment_subset)), 
+	dir.create(paste0(save_dir, treatment_subset)), 
+	print(paste0(save_dir, treatment_subset, ' directory ready')))
 
 setup_df_for_mccm <- function(input_df, mouse_list, n_mice){
 	# reorder mice
@@ -33,11 +36,15 @@ setup_df_for_mccm <- function(input_df, mouse_list, n_mice){
 }
 
 # create list of species
-taxa_list <- colnames(test_set)[-c(1:2)] 
-#add divider between experiments
-test_set <- bind_rows(test_set, 
-	data.frame(unique_id = unique(test_set$unique_id), day = -1, 
-		stringsAsFactors = F))
+taxa_list <- test_set  %>% 
+	select(-unique_id, -day) %>% 
+	colnames
+# shorten time series to match our series size
+# add divider between experiments
+test_set <- test_set %>% 
+	filter(day %in% seq(10, 145, 10)) %>% 
+	bind_rows(data.frame(unique_id = unique(test_set$unique_id), day = 0, 
+			stringsAsFactors = F))
 # create first differenced df	
 input_df <- test_set %>% 
 	arrange(unique_id, day) %>% 
@@ -45,21 +52,20 @@ input_df <- test_set %>%
 		mutate_at(vars(taxa_list) , funs(. - lag(.))) %>% 
 		ungroup
 
-run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
+run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 	current_otu1 <- taxa_list[ otu[[1]][1] ]
 	current_otu2 <- taxa_list[ otu[[1]][2] ]
-	# test expected interaction
-	current_otu1 <- 'BH'
-	current_otu2 <- 'BH'
-	# test identified strong interaction
-	current_otu1 <- 'EL'
-	current_otu2 <- 'BT'
-	# test identified weak interaction
-	current_otu1 <- 'ER'
-	current_otu2 <- 'EL'
+#	# test expected interaction
+#	current_otu1 <- 'BH'
+#	current_otu2 <- 'BH'
+#	# test identified strong interaction
+#	current_otu1 <- 'EL'
+#	current_otu2 <- 'BT'
+#	# test identified weak interaction
+#	current_otu1 <- 'ER'
+#	current_otu2 <- 'EL'
 
-
-	exp_list <- names(which(table(input_df$unique_id) == 8)) # list of mice with all days
+	exp_list <- unique(input_df$unique_id) # list all mice
 	n_mice <- length(exp_list) # number of mice in treatment group
 
 	set.seed(seed)
@@ -236,35 +242,43 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 		end = tail(sort(unique(ccm_plot_df$lobs)), 
 			round(length(unique(ccm_plot_df$lobs))*0.10)))
 
-	#ccm_data <- 
+#	#ccm_data <- 
+##	ccm_plot_df %>% 
+##		filter(lobs %in% unlist(initial_end)) %>% 
+##		mutate(time_point = case_when(lobs %in% initial_end$initial ~ '5',
+##			lobs %in% initial_end$end ~ '54',
+##			T ~ 'NA')) %>% 
+##		group_by(driver_otu, run, lobs) %>% 
+##		summarise(rho = mean(rho)) %>% 
+#		#group_by(driver_otu) %>% 
 #	ccm_plot_df %>% 
-#		filter(lobs %in% unlist(initial_end)) %>% 
-#		mutate(time_point = case_when(lobs %in% initial_end$initial ~ '5',
-#			lobs %in% initial_end$end ~ '54',
-#			T ~ 'NA')) %>% 
-#		group_by(driver_otu, run, lobs) %>% 
-#		summarise(rho = mean(rho)) %>% 
-		#group_by(driver_otu) %>% 
-	ccm_plot_df %>% 
-		ggplot(aes(x = lobs, y = rho)) + 
-			stat_summary(geom = 'ribbon', alpha = 0.2, fill = 'red', 
-				fun.data = 'median_hilow', fun.args = list(conf.int = .5)) + 
-			stat_summary(fun.y = 'median', geom = 'line') + 
-			facet_wrap(.~driver_otu)
-			
-#	test <- ccm_plot_df %>% 
-#		filter(rho < 0.1) %>% 
-#		group_by(driver_otu, run, lobs) %>% 
-#		summarise(rho = mean(rho)) %>% 
-#		filter(driver_otu == 'C_difficile')
-#	str(lm(rho ~ lobs, data = test)$coefficients) # affected by outliers
-#mean(test$rho)
-#	cor.test(y = test$rho, x = test$lobs, method = 'spearman', alternative = 'greater')
+#		ggplot(aes(x = lobs, y = rho)) + 
+#			stat_summary(geom = 'ribbon', alpha = 0.2, fill = 'red', 
+#				fun.data = 'median_hilow', fun.args = list(conf.int = .5)) + 
+#			stat_summary(fun.y = 'median', geom = 'line') + 
+#			facet_wrap(.~driver_otu)
+#			
+##	test <- ccm_plot_df %>% 
+##		filter(rho < 0.1) %>% 
+##		group_by(driver_otu, run, lobs) %>% 
+##		summarise(rho = mean(rho)) %>% 
+##		filter(driver_otu == 'C_difficile')
+##	str(lm(rho ~ lobs, data = test)$coefficients) # affected by outliers
+##mean(test$rho)
+##	cor.test(y = test$rho, x = test$lobs, method = 'spearman', alternative = 'greater')
+#		summarise(ccm_p_value = wilcox.test(rho~time_point, alternative = 'greater')$p.value) %>%
+#		full_join(ccm_data)
 
+	lobs_test_range <- round(length(unique(ccm_plot_df$lobs))*0.1)
 
-
+	ccm_data <- ccm_plot_df %>% 
+		group_by(driver_otu) %>% 
+		mutate(time_point = case_when(lobs %in% head(sort(unique(lobs)), lobs_test_range) ~ 'initial',
+			lobs %in% tail(sort(unique(lobs)), lobs_test_range) ~ 'end',
+			T ~ 'middle')) %>% 
+		filter(time_point != 'middle') %>% 	
 		summarise(ccm_p_value = wilcox.test(rho~time_point, alternative = 'greater')$p.value) %>%
-		full_join(ccm_data)
+		full_join(ccm_data, by = c('driver_otu'))
 
 	title <- ggdraw() + 
 	  draw_label(paste0(treatment_subset, ' with ', current_otu1, ' and ', current_otu2,
@@ -278,7 +292,7 @@ run_ccm <- function(otu, input_df, treatment_subset, data_diff, taxa_list){
 			width = 7, height = 10, device = 'jpeg')
 		} else {
 		ggsave(filename = paste0(save_dir, treatment_subset, '/ccm_', current_otu1, 
-				'_', current_otu2, '_', data_diff, '.jpg'),
+				'_', current_otu2, '_first_differenced.jpg'),
 			plot = plot_grid(title, plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
 				CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'),  ncol = 1, rel_heights = c(0.1, 1)),
 			width = 7, height = 10, device = 'jpeg')
@@ -293,8 +307,8 @@ otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, l
 
 print('Beginning CCM on 1st differenced data')
 
-output <- map_df(otu_combinations, ~ run_ccm(., input_df = data.frame(abx_df_1diff), 
-	treatment_subset = treatment_subset, data_diff = 'first_differenced', taxa_list = taxa_list))
+output <- map_df(otu_combinations, ~ run_ccm(., input_df = data.frame(input_df), 
+	treatment_subset = treatment_subset, taxa_list = taxa_list))
 write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_genus_', treatment_subset, '_first_differenced_', seed, 'seed.txt'), 
 	quote = F, row.names = F)
 
