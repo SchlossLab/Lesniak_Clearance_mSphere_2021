@@ -5,27 +5,6 @@ library(gtools)
 library(viridis)
 library(forecast)
 
-# to do
-# reduce interactions here through looking for a greater effect size or in network model by rho?
-# include more mice missing all 10 days by either reducing days used or filling in missing days with splines?
-
-#1000 reorders @ 10 iters 20min
-#1000 reorders @ 50 iters 104-140min
-#1000 reorders @ 100 iters 280min
-
-#		test workflow with short simulated RPS data
-# what to do with mice with incomplete samples (missing days)?
-#	cipro_10_FALSE - day 5 missing 1;
-#	vanco_0.625_FALSE - day 3 and 4 missing 1;
-#	vanco_0.3_FALSE - day 2 missing 1, day 3 missing 3;
-#	vanco_0.1_FALSE - day 3 and 9 missing 1, day 2 missing 2;
-#	strep_0.5_false - day 5 missing 4;
-#	metro_1_false - day 9 and 10 missing 1, day 2 missing 3;
-#	clinda_10_false - day 4 missing 1;
-#	amp_0.5_false - day 4 missing 1, day 0 missing 2, day 9 missing 4;
-#	cef_0.3_false - day 4 and 7 missing 1;
-#	strep_5_false - day 2 missing 1;
-#	amp_0.5_true - day 0 and 4 missing 1
 input_values <- commandArgs(TRUE)
 run_set <- as.numeric(input_values[1])
 save_dir <- paste0('scratch/ccm_otu/')
@@ -44,16 +23,14 @@ shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors 
 #	otu_df = shared_file, 
 #	taxa_level = 'genus')
 
-#seed_treatment <- expand.grid(seed = 1:10, treatment = unique(meta_file$treatment))[run_set, ]
 seed <- 062818#seed_treatment$seed
-treatment_subset <- unique(meta_file$treatment)[run_set]#as.character(seed_treatment$treatment)
+treatment_subset <- unique(meta_file$treatment)[run_set]
+# use to test function
 # most complete sample sets
 #	treatment_subset <- 'cef_0.5_FALSE'
 #	treatment_subset <- 'clinda_10_FALSE'
 
-print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))#, ' using seed ', seed))
-
-#print(paste0('Beginning seed ', seed))
+print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
 
 ifelse(!dir.exists(save_dir), dir.create(save_dir), print(paste0(save_dir, ' directory ready')))
 ifelse(!dir.exists(paste0(save_dir, treatment_subset)), 
@@ -334,11 +311,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 	return(ccm_data)
 }
 
-
 print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
-	# treatment_subset <- 'amp_0.5_TRUE' # test for missing day 0 (missing 1)
-	# treatment_subset <- 'amp_0.5_FALSE' # test for missing day 0 (missing 2)
-	# treatment_subset <- 'cef_0.1_FALSE' # test for missing day 0 (none missing)
 
 df_subset_treatment <- setup_data(treatment_subset)
 taxa_list <- df_subset_treatment[[2]]
