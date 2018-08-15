@@ -37,34 +37,47 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset)),
 	dir.create(paste0(save_dir, treatment_subset)), 
 	print(paste0(save_dir, treatment_subset, ' directory ready')))
 
+abx_df <- meta_file %>% 
+	filter(treatment == treatment_subset) %>%
+	mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
+	inner_join(shared_file, by = c('group' = "Group")) %>% 
+	select(-group, -numOtus) %>% 
+	rename(C_difficile = CFU)
+		
+# remove otus that are present in less than 10 samples
+abx_df <- select(abx_df, day, C_difficile, which(apply(abx_df > 1, 2, sum) > 10 )) 
+taxa_list <- colnames(select(abx_df, -day, -cage, -mouse, -treatment, -unique_id))
+
+normalize <- function(x, ...) {
+    (x - mean(x, ...))/sd(x, ...)
+}
+
+abx_df <- abx_df %>% 
+	# replace all 0s with random value between 0 and 1
+	gather(taxa, abundance, one_of(taxa_list)) %>% 
+	mutate(abundance = ifelse(abundance == 0, 
+		sample(100, sum(abundance == 0), replace = T)/100, abundance)) %>% 
+	spread(taxa, abundance) %>% 
+	# add missing days
+	full_join(data.frame(
+		unique_id = rep(unique(abx_df$unique_id), each = 11),
+		day = rep(seq(0,10), length(unique(abx_df$unique_id))),
+		stringsAsFactors = F), by = c('unique_id', 'day')) %>% 
+	# impute values for missing days and normalize by mouse
+	arrange(unique_id, day) %>% 
+	gather(bacteria, raw_abundance, C_difficile, contains('Otu00')) %>% 
+	group_by(unique_id, bacteria) %>% 
+	nest() %>% 
+	mutate(abundance = map(data, ~normalize(na.interp(.$raw_abundance)))) %>% 
+	unnest(data, abundance) %>% 
+	select(unique_id, day, bacteria, abundance) 
+
+# create a list of all combinations of taxa
+otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, list)
+
 # use to test function
 #input_df <- abx_df
 #otu <- otu_combinations[[2]]
-
-setup_data <- function(treatment_subset){
-	abx_df <- meta_file %>% 
-		filter(treatment == treatment_subset) %>%
-		mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
-		inner_join(shared_file, by = c('group' = "Group")) %>% 
-		select(-group, -numOtus) %>% 
-		rename(C_difficile = CFU)
-			
-	# remove otus that are present in less than 10 samples
-	abx_df <- select(abx_df, day, C_difficile, which(apply(abx_df > 1, 2, sum) > 10 )) 
-	taxa_list <- colnames(select(abx_df, -day, -cage, -mouse, -treatment, -unique_id))
-	# replace all 0s with random value between 0 and 1
-	abx_df <- abx_df %>% 
-		gather(taxa, abundance, one_of(taxa_list)) %>% 
-		mutate(abundance = ifelse(abundance == 0, 
-			sample(100, sum(abundance == 0), replace = T)/100, abundance)) %>% 
-		spread(taxa, abundance) %>% 
-	# add missing days
-		full_join(data.frame(
-			unique_id = rep(unique(abx_df$unique_id), each = 11),
-			day = rep(seq(0,10), length(unique(abx_df$unique_id))),
-			stringsAsFactors = F), by = c('unique_id', 'day'))
-	return(list(abx_df, taxa_list))
-}
 
 setup_df_for_mccm <- function(input_df){
 	# reorder mice
@@ -83,16 +96,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 	current_otu1 <- taxa_list[ otu[[1]][1] ]
 	current_otu2 <- taxa_list[ otu[[1]][2] ]
 
-	# impute values for missing days
- 	input_df <- input_df %>% 
- 		select(unique_id, day, current_otu1, current_otu2) %>% 
-		arrange(unique_id, day) %>% 
-		gather(bacteria, raw_abundance, current_otu1, current_otu2) %>% 
-		group_by(unique_id, bacteria) %>% 
-		nest() %>% 
-		mutate(abundance = map(data, ~na.interp(.$raw_abundance))) %>% 
-		unnest(data, abundance) %>% 
-		select(unique_id, day, bacteria, abundance) %>% 
+ 	input_df <- input_df %>%  
 	# create a 1st differenced dataframe
 		arrange(unique_id, bacteria, day) %>% 
 		group_by(unique_id, bacteria) %>% 
@@ -107,6 +111,21 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 		Accm <- pull(ccm_df$abundance_df, current_otu1)
 		Bccm <- pull(ccm_df$abundance_df, current_otu2)
 		mice_order <- paste(ccm_df$mice_order, collapse = '--')
+Accm[is.na(Accm)] <- 0
+test_nonlinearity(Accm, e=3)
+
+data(e120_invnit16)
+str(e120_invnit16)
+e120_invnit16 %>% 
+	ggplot(aes(x = Year, y = noh020tot, group = as.factor(Plot), color = as.factor(Plot))) + 
+		geom_line()
+
+simplex_output <- simplex(Accm, E = 2, tp = 1:10)
+plot(simplex_output$tp, simplex_output$rho, type = "l", xlab = "Time to Prediction (tp)", 
+	ylab = "Forecast Skill (rho)")
+smap_output <- s_map(Accm, E = 2)
+plot(smap_output$theta, smap_output$rho, type = "l", xlab = "Nonlinearity (theta)", 
+	ylab = "Forecast Skill (rho)")
 
 		#Maximum E to test - one less than number of observations per sample
 		# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
@@ -308,12 +327,6 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 
 print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
 
-df_subset_treatment <- setup_data(treatment_subset)
-taxa_list <- df_subset_treatment[[2]]
-abx_df <- df_subset_treatment[[1]]
-
-# create a list of all combinations of taxa
-otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, list)
 
 print('Beginning CCM on 1st differenced data')
 
