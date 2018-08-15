@@ -23,7 +23,7 @@ shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors 
 #	otu_df = shared_file, 
 #	taxa_level = 'genus')
 
-seed <- 062818#seed_treatment$seed
+seed <- 062818
 treatment_subset <- unique(meta_file$treatment)[run_set]
 # use to test function
 # most complete sample sets
@@ -38,7 +38,7 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset)),
 	print(paste0(save_dir, treatment_subset, ' directory ready')))
 
 # use to test function
-#input_df <- abx_df_1diff
+#input_df <- abx_df
 #otu <- otu_combinations[[2]]
 
 setup_data <- function(treatment_subset){
@@ -57,24 +57,13 @@ setup_data <- function(treatment_subset){
 		gather(taxa, abundance, one_of(taxa_list)) %>% 
 		mutate(abundance = ifelse(abundance == 0, 
 			sample(100, sum(abundance == 0), replace = T)/100, abundance)) %>% 
-		spread(taxa, abundance)
-
-	# find which mice are missing data for day 0
-	missing_day_0 <- summarise(group_by(abx_df, unique_id), first_day = min(day)) %>% 
-		filter(first_day != 0) %>% 
-		pull(unique_id)
-
-	if(length(missing_day_0) > 0){
-		abx_df <- bind_rows(abx_df, data.frame(unique_id = missing_day_0, day = 0, stringsAsFactors = F))
-	}	
-
-	# create a 1st differenced dataframe
-	abx_df_1diff <- abx_df %>% 
-		arrange(unique_id, day) %>% 
-		group_by(unique_id) %>% 
-		mutate_at(vars(taxa_list) , funs(. - lag(.))) %>% 
-		ungroup
-	return(list(abx_df_1diff, taxa_list))
+		spread(taxa, abundance) %>% 
+	# add missing days
+		full_join(data.frame(
+			unique_id = rep(unique(abx_df$unique_id), each = 11),
+			day = rep(seq(0,10), length(unique(abx_df$unique_id))),
+			stringsAsFactors = F), by = c('unique_id', 'day'))
+	return(list(abx_df, taxa_list))
 }
 
 setup_df_for_mccm <- function(input_df){
@@ -94,15 +83,21 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 	current_otu1 <- taxa_list[ otu[[1]][1] ]
 	current_otu2 <- taxa_list[ otu[[1]][2] ]
 
-	input_df <- input_df %>% 
-		select(unique_id, day, current_otu1, current_otu2) %>% 
+	# impute values for missing days
+ 	input_df <- input_df %>% 
+ 		select(unique_id, day, current_otu1, current_otu2) %>% 
 		arrange(unique_id, day) %>% 
 		gather(bacteria, raw_abundance, current_otu1, current_otu2) %>% 
 		group_by(unique_id, bacteria) %>% 
 		nest() %>% 
 		mutate(abundance = map(data, ~na.interp(.$raw_abundance))) %>% 
 		unnest(data, abundance) %>% 
-		select(unique_id, day, bacteria, abundance)
+		select(unique_id, day, bacteria, abundance) %>% 
+	# create a 1st differenced dataframe
+		arrange(unique_id, bacteria, day) %>% 
+		group_by(unique_id, bacteria) %>% 
+		mutate_at(vars(abundance) , funs(. - lag(.))) %>% 
+		ungroup
 
 	set.seed(seed)
 	print(paste0('Beginning ', current_otu1, ' and ', current_otu2, ' in from ', treatment_subset))
@@ -137,7 +132,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 				gather(bacteria, rho, -E) %>% 
 				left_join(data.frame(bacteria = c(current_otu1, current_otu2), 
 					Selected_E = c(E_A, E_B),
-					run = i ), by = 'bacteria')
+					run = i, stringsAsFactors = F ), by = 'bacteria')
 
 		#Check data for nonlinear signal that is not dominated by noise
 		#Checks whether predictive ability of processes declines with
@@ -315,14 +310,14 @@ print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosa
 
 df_subset_treatment <- setup_data(treatment_subset)
 taxa_list <- df_subset_treatment[[2]]
-abx_df_1diff <- df_subset_treatment[[1]]
+abx_df <- df_subset_treatment[[1]]
 
 # create a list of all combinations of taxa
 otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, list)
 
 print('Beginning CCM on 1st differenced data')
 
-output <- map_df(otu_combinations, ~ run_ccm(., input_df = data.frame(abx_df_1diff), 
+output <- map_df(otu_combinations, ~ run_ccm(., input_df = data.frame(abx_df), 
 	treatment_subset = treatment_subset, taxa_list = taxa_list))
 write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_genus_', treatment_subset, '_first_differenced_', seed, 'seed.txt'), 
 	quote = F, row.names = F)
