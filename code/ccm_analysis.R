@@ -1,4 +1,4 @@
-library(multispatialCCM)
+library(rEDM)
 library(tidyverse)
 library(cowplot)
 library(gtools)
@@ -47,6 +47,7 @@ abx_df <- meta_file %>%
 # remove otus that are present in less than 10 samples
 abx_df <- select(abx_df, day, C_difficile, which(apply(abx_df > 1, 2, sum) > 10 )) 
 taxa_list <- colnames(select(abx_df, -day, -cage, -mouse, -treatment, -unique_id))
+mouse_list <- unique(abx_df$unique_id)
 
 normalize <- function(x, ...) {
     (x - mean(x, ...))/sd(x, ...)
@@ -74,6 +75,86 @@ abx_df <- abx_df %>%
 
 # create a list of all combinations of taxa
 otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, list)
+
+set.seed(2312)
+# Choose random segments for prediction
+	
+# test each otu for embedding and nonlinearity
+for(taxa_var in taxa_list){
+	simplex_cat <- c()
+	for(i in 1:100){
+		composite_ts <- filter(abx_df, bacteria == taxa_var)
+		data_by_plot <- split(composite_ts, composite_ts$unique_id)
+		segments_end <- cumsum(sapply(data_by_plot, NROW))
+		segments_begin <- c(1, segments_end[-length(segments_end)] + 1)
+		segments <- cbind(segments_begin, segments_end) 
+		rndpred <- sample(1:NROW(segments), 1)
+		lib_segments <- segments[-rndpred, ]
+		rndlib <- sample(1:NROW(lib_segments), replace = T)
+		composite_lib <- lib_segments[rndlib, ]
+		composite_pred <- segments[rndpred, ]
+		simplex_out <- simplex(data.frame(select(composite_ts, day, abundance)), 
+			E = 2:8, lib = composite_lib, pred = composite_pred)
+		simplex_cat <- rbind(simplex_cat, cbind(simplex_out, run = i))
+	}
+	names(simplex_out) <- taxa_var
+
+	embedded_plot <- simplex_cat %>% 
+		ggplot(aes(x = E, y = rho)) +
+		geom_line(aes(group = run), alpha = 0.1) + 
+		geom_point()
+
+	best_E <- simplex_cat %>% 
+		group_by(E) %>% 
+		summarise(median_rho = median(rho)) %>% 
+		mutate(adj_rho = median_rho / E) %>% 
+		filter(adj_rho == max(adj_rho)) %>% 
+		pull(E)
+
+	s_map_cat <- c()
+	for(i in 1:100){
+		composite_ts <- filter(abx_df, bacteria == taxa_var)
+		data_by_plot <- split(composite_ts, composite_ts$unique_id)
+		segments_end <- cumsum(sapply(data_by_plot, NROW))
+		segments_begin <- c(1, segments_end[-length(segments_end)] + 1)
+		segments <- cbind(segments_begin, segments_end) 
+		rndpred <- sample(1:NROW(segments), 1)
+		lib_segments <- segments[-rndpred, ]
+		rndlib <- sample(1:NROW(lib_segments), replace = T)
+		composite_lib <- lib_segments[rndlib, ]
+		composite_pred <- segments[rndpred, ]
+		smap_out <- s_map(data.frame(select(composite_ts, day, abundance)), 
+			E = best_E, lib = composite_lib, pred = composite_pred)
+		s_map_cat <- rbind(s_map_cat, cbind(smap_out, run = i))
+	}
+	names(smap_out) <- names(simplex_out)
+
+	smap_plot <- s_map_cat %>% 
+		ggplot(aes(x = theta, y = rho)) +
+		geom_line(aes(group = run), alpha = 0.05) + 
+		geom_point()
+
+	smap_plot <- s_map_cat %>% 
+		select(run, rho, theta) %>% 
+		arrange(run, theta) %>% 
+		group_by(run) %>% 
+		mutate(linear_rho = head(rho, 1),
+			delta_rho = rho - linear_rho) %>% 
+		ggplot(aes(x = theta, y = delta_rho)) +
+			stat_summary(fun.y = mean, geom = 'line') + 
+			stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
+				alpha = 0.2, fun.args =(conf.int = 0.5)) + 
+			labs(x = 'theta', y = 'delta rho', title = paste(taxa_var))
+
+par(mfrow = c(2, 2))
+for (var in names(smap_out)) {
+    plot(smap_out[[var]]$theta, smap_out[[var]]$rho, type = "l", xlab = "Nonlinearity (theta)", 
+        ylab = "Forecast Skill (rho)", main = var)
+}
+
+}
+
+
 
 # use to test function
 #input_df <- abx_df
@@ -111,21 +192,6 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 		Accm <- pull(ccm_df$abundance_df, current_otu1)
 		Bccm <- pull(ccm_df$abundance_df, current_otu2)
 		mice_order <- paste(ccm_df$mice_order, collapse = '--')
-Accm[is.na(Accm)] <- 0
-test_nonlinearity(Accm, e=3)
-
-data(e120_invnit16)
-str(e120_invnit16)
-e120_invnit16 %>% 
-	ggplot(aes(x = Year, y = noh020tot, group = as.factor(Plot), color = as.factor(Plot))) + 
-		geom_line()
-
-simplex_output <- simplex(Accm, E = 2, tp = 1:10)
-plot(simplex_output$tp, simplex_output$rho, type = "l", xlab = "Time to Prediction (tp)", 
-	ylab = "Forecast Skill (rho)")
-smap_output <- s_map(Accm, E = 2)
-plot(smap_output$theta, smap_output$rho, type = "l", xlab = "Nonlinearity (theta)", 
-	ylab = "Forecast Skill (rho)")
 
 		#Maximum E to test - one less than number of observations per sample
 		# ideal to be at minimum E or lower dim, prevent overfitting by selecting lower dim with moderate pred power
