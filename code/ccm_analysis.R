@@ -114,6 +114,11 @@ for(taxa_var in taxa_list){
 	s_map_cat <- c()
 	for(i in 1:100){
 		composite_ts <- filter(abx_df, bacteria == taxa_var)
+		surrogate_ts <- composite_ts %>% 
+			group_by(unique_id) %>% 
+			mutate(day = sample(day)) %>% 
+			arrange(unique_id, day) %>% 
+			ungroup
 		data_by_plot <- split(composite_ts, composite_ts$unique_id)
 		segments_end <- cumsum(sapply(data_by_plot, NROW))
 		segments_begin <- c(1, segments_end[-length(segments_end)] + 1)
@@ -125,7 +130,11 @@ for(taxa_var in taxa_list){
 		composite_pred <- segments[rndpred, ]
 		smap_out <- s_map(data.frame(select(composite_ts, day, abundance)), 
 			E = best_E, lib = composite_lib, pred = composite_pred)
-		s_map_cat <- rbind(s_map_cat, cbind(smap_out, run = i))
+		surrogate_smap <- s_map(data.frame(select(surrogate_ts, day, abundance)), 
+			E = best_E, lib = composite_lib, pred = composite_pred)
+		s_map_cat <- rbind(s_map_cat, 
+			rbind(cbind(smap_out, data = 'real', run = i),
+				cbind(surrogate_smap, data = 'surrogate', run = i)))
 	}
 	names(smap_out) <- names(simplex_out)
 
@@ -135,16 +144,17 @@ for(taxa_var in taxa_list){
 		geom_point()
 
 	smap_plot <- s_map_cat %>% 
-		select(run, rho, theta) %>% 
-		arrange(run, theta) %>% 
-		group_by(run) %>% 
+		select(run, rho, theta, data) %>% 
+		arrange(data, run, theta) %>% 
+		group_by(data, run) %>% 
 		mutate(linear_rho = head(rho, 1),
 			delta_rho = rho - linear_rho) %>% 
 		ggplot(aes(x = theta, y = delta_rho)) +
-			stat_summary(fun.y = mean, geom = 'line') + 
+			stat_summary(aes(color = data), fun.y = mean, geom = 'line') + 
 			stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
-				alpha = 0.2, fun.args =(conf.int = 0.5)) + 
-			labs(x = 'theta', y = 'delta rho', title = paste(taxa_var))
+				alpha = 0.2, fun.args =(conf.int = 0.5), aes(fill = data)) + 
+			labs(x = 'theta', y = 'delta rho', title = paste(taxa_var), 
+				subtitle = 'Median with IQR shown, surrogate data is randomly permuted time indices')
 
 par(mfrow = c(2, 2))
 for (var in names(smap_out)) {
