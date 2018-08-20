@@ -107,7 +107,7 @@ for(taxa_var in unique(abx_ccm_df$variable)){
 		composite_lib <- lib_segments[rndlib, ]
 		composite_pred <- segments[rndpred, ]
 		simplex_out <- simplex(data.frame(select(composite_ts, day, abundance)), 
-			E = 2:8, lib = composite_lib, pred = composite_pred)
+			E = 2:6, lib = composite_lib, pred = composite_pred)
 		simplex_cat <- rbind(simplex_cat, cbind(simplex_out, run = i))
 	}
 	names(simplex_out) <- taxa_var
