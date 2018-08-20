@@ -33,9 +33,11 @@ treatment_subset <- unique(meta_file$treatment)[run_set]
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
 
 ifelse(!dir.exists(save_dir), dir.create(save_dir), print(paste0(save_dir, ' directory ready')))
-ifelse(!dir.exists(paste0(save_dir, treatment_subset)), 
-	dir.create(paste0(save_dir, treatment_subset)), 
-	print(paste0(save_dir, treatment_subset, ' directory ready')))
+ifelse(!dir.exists(paste0(save_dir, treatment_subset, '/nonlinearity')), 
+	dir.create(paste0(save_dir, treatment_subset, '/nonlinearity')), 
+	print(paste0(save_dir, treatment_subset, '/nonlinearity directory ready')))
+
+
 
 abx_df <- meta_file %>% 
 	filter(treatment == treatment_subset) %>%
@@ -78,12 +80,23 @@ otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, l
 
 set.seed(2312)
 # Choose random segments for prediction
-	
+
+abx_ccm_df <- abx_df %>% 
+	arrange(unique_id, bacteria, day) %>% 
+	group_by(unique_id, bacteria) %>% 
+	mutate(first_diff = abundance - lag(abundance),
+		second_diff = abundance - lag(abundance, 2)) %>% 
+	ungroup %>% 
+	rename(raw = abundance) %>% 
+	gather(differenced, abundance, raw, first_diff, second_diff) %>% 
+	mutate(variable = paste0(bacteria, '_', differenced))
+
+taxa_nonlinearity_df <- c()
 # test each otu for embedding and nonlinearity
-for(taxa_var in taxa_list){
+for(taxa_var in unique(abx_ccm_df$variable)){
 	simplex_cat <- c()
 	for(i in 1:100){
-		composite_ts <- filter(abx_df, bacteria == taxa_var)
+		composite_ts <- filter(abx_ccm_df, variable == taxa_var)
 		data_by_plot <- split(composite_ts, composite_ts$unique_id)
 		segments_end <- cumsum(sapply(data_by_plot, NROW))
 		segments_begin <- c(1, segments_end[-length(segments_end)] + 1)
@@ -99,11 +112,6 @@ for(taxa_var in taxa_list){
 	}
 	names(simplex_out) <- taxa_var
 
-	embedded_plot <- simplex_cat %>% 
-		ggplot(aes(x = E, y = rho)) +
-		geom_line(aes(group = run), alpha = 0.1) + 
-		geom_point()
-
 	best_E <- simplex_cat %>% 
 		group_by(E) %>% 
 		summarise(median_rho = median(rho)) %>% 
@@ -111,9 +119,17 @@ for(taxa_var in taxa_list){
 		filter(adj_rho == max(adj_rho)) %>% 
 		pull(E)
 
+	embedded_plot <- simplex_cat %>% 
+		ggplot(aes(x = E, y = rho)) +
+		geom_line(aes(group = run), alpha = 0.1) + 
+		geom_point() + 
+		geom_vline(xintercept = best_E, color = 'red') +
+		labs(title = 'Simplex plot', subtitle = 'Selected embedding highlighted with red line') + 
+		theme_bw(base_size = 8)
+
 	s_map_cat <- c()
 	for(i in 1:100){
-		composite_ts <- filter(abx_df, bacteria == taxa_var)
+		composite_ts <- filter(abx_ccm_df, variable == taxa_var)
 		surrogate_ts <- composite_ts %>% 
 			group_by(unique_id) %>% 
 			mutate(day = sample(day)) %>% 
@@ -138,32 +154,41 @@ for(taxa_var in taxa_list){
 	}
 	names(smap_out) <- names(simplex_out)
 
-	smap_plot <- s_map_cat %>% 
-		ggplot(aes(x = theta, y = rho)) +
-		geom_line(aes(group = run), alpha = 0.05) + 
-		geom_point()
-
-	smap_plot <- s_map_cat %>% 
+	s_map_cat <- s_map_cat %>% 
 		select(run, rho, theta, data) %>% 
 		arrange(data, run, theta) %>% 
 		group_by(data, run) %>% 
 		mutate(linear_rho = head(rho, 1),
-			delta_rho = rho - linear_rho) %>% 
+			delta_rho = rho - linear_rho)
+	smap_plot <- s_map_cat %>% 
 		ggplot(aes(x = theta, y = delta_rho)) +
 			stat_summary(aes(color = data), fun.y = mean, geom = 'line') + 
 			stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
 				alpha = 0.2, fun.args =(conf.int = 0.5), aes(fill = data)) + 
-			labs(x = 'theta', y = 'delta rho', title = paste(taxa_var), 
-				subtitle = 'Median with IQR shown, surrogate data is randomly permuted time indices')
+			scale_color_manual(values = c('#CC0000', '#555555'), limits = c('real', 'surrogate')) +
+			scale_fill_manual(values = c('#CC0000', '#555555'), limits = c('real', 'surrogate')) + 
+			labs(x = 'theta', y = 'delta rho', title = 'S-map Analysis - Test feature nonlinearity', 
+				subtitle = 'Surrogate data is randomly permuted time indices\nMedian with IQR shown') + 
+			theme_bw(base_size = 8)
+	delta_rho <- s_map_cat %>% 
+		group_by(data) %>% 
+		filter(theta == max(theta)) %>% 
+		summarise(median_delta_rho = median(delta_rho))
 
-par(mfrow = c(2, 2))
-for (var in names(smap_out)) {
-    plot(smap_out[[var]]$theta, smap_out[[var]]$rho, type = "l", xlab = "Nonlinearity (theta)", 
-        ylab = "Forecast Skill (rho)", main = var)
+	title <- ggdraw() + 
+	  draw_label(paste0(treatment_subset, ' with ', taxa_var,
+	  	'\n(differenced = none(raw), 1st or 2nd order)\n(treatment = Antibiotic_Dose_RecoveryBeforeChallenge)'),
+		fontface = 'bold')
+	ggsave(filename = paste0(save_dir, treatment_subset, '/nonlinearity/', taxa_var, 
+		'_simplex_smap.jpg'), 
+		plot = plot_grid(title, plot_grid(embedded_plot, smap_plot, 
+					align = 'v', ncol = 1),  ncol = 1, rel_heights = c(0.1, 1)),
+			width = 7, height = 10, device = 'jpeg')
+	taxa_nonlinearity_df <- rbind(taxa_nonlinearity_df, 
+		data.frame(taxa = taxa_var, embedding = best_E, delta_rho))
+
+	print(paste('Completed ', taxa_var))
 }
-
-}
-
 
 
 # use to test function
