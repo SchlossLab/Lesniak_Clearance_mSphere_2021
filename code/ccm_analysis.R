@@ -116,7 +116,7 @@ for(taxa_var in unique(abx_ccm_df$variable)){
 		group_by(E) %>% 
 		summarise(median_rho = median(rho)) %>% 
 		mutate(adj_rho = median_rho / E) %>% 
-		filter(adj_rho == max(adj_rho)) %>% 
+		filter(adj_rho == max(adj_rho, na.rm = T)) %>% 
 		pull(E)
 
 	embedded_plot <- simplex_cat %>% 
