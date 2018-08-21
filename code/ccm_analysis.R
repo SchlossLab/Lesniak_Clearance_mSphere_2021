@@ -47,22 +47,9 @@ abx_df <- meta_file %>%
 	rename(C_difficile = CFU)
 		
 # remove otus that are present in less than 10 samples
-
-nzv_otus <- 
-caret::nearZeroVar(select(abx_df, C_difficile, contains('Otu00')), freqCut = 5, uniqueCut = 25, saveMetrics = T) %>% 
-		mutate(otu = rownames(.)) %>% 
-#		filter(otu == 'Otu000032')
-		filter(zeroVar == F, nzv == F) %>% 
-		pull(otu)
-	ncol(select(abx_df, C_difficile, contains('Otu00')))
-	ncol(select(abx_df, day, C_difficile, which(apply(abx_df > 1, 2, sum) > 10 )) )
-abx_df <- select(abx_df, day, C_difficile, which(apply(abx_df > 1, 2, sum) > 10 )) 
-taxa_list <- colnames(select(abx_df, -day, -cage, -mouse, -treatment, -unique_id))
-mouse_list <- unique(abx_df$unique_id)
-
-names(table(c(taxa_list, nzv_otus)))[table(c(taxa_list, nzv_otus)) < 2]
-pull(abx_df, Otu000485)
-
+abx_df <- select(abx_df, day, C_difficile, which(apply(abx_df > 1, 2, sum) > 10 ))  
+taxa_list <- colnames(select(abx_df, -day, -cage, -mouse, -treatment, -unique_id)) 
+mouse_list <- unique(abx_df$unique_id) 
 
 normalize <- function(x, ...) {
     (x - mean(x, ...))/sd(x, ...)
