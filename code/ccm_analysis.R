@@ -3,20 +3,14 @@ library(tidyverse)
 library(cowplot)
 library(gtools)
 library(viridis)
-library(forecast)
 
 input_values <- commandArgs(TRUE)
 run_set <- as.numeric(input_values[1])
 save_dir <- paste0('scratch/ccm_otu/')
 print(paste0('Running set ', run_set))
 
-meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
-meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
-	select(group, cage, mouse, day, CFU, cdiff, abx, dose, delayed) %>% 
-	unite(treatment, abx, dose, delayed) %>% 
-	filter(cdiff == T, day >= 0, treatment != 'none_NA_FALSE')
-shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
-shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F)
+ccm_otu_df <- 'data/process/ccm_otu_data.txt'
+ccm_otu_df   <- read.table(ccm_otu_df, sep = '\t', header = T, stringsAsFactors = F) 
 #source('code/sum_otu_by_taxa.R')
 #taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
 #shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file, 
@@ -37,59 +31,19 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset, '/nonlinearity')),
 	dir.create(paste0(save_dir, treatment_subset, '/nonlinearity')), 
 	print(paste0(save_dir, treatment_subset, '/nonlinearity directory ready')))
 
+abx_df <- ccm_otu_df %>% 
+	filter(treatment == treatment_subset)
 
-
-abx_df <- meta_file %>% 
-	filter(treatment == treatment_subset) %>%
-	mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
-	inner_join(shared_file, by = c('group' = "Group")) %>% 
-	select(-group, -numOtus) %>% 
-	rename(C_difficile = CFU)
-		
 # remove otus that are present in less than 10 samples
 abx_df <- select(abx_df, day, C_difficile, which(apply(abx_df > 1, 2, sum) > 10 ))  
 taxa_list <- colnames(select(abx_df, -day, -cage, -mouse, -treatment, -unique_id)) 
 mouse_list <- unique(abx_df$unique_id) 
-
-normalize <- function(x, ...) {
-    (x - mean(x, ...))/sd(x, ...)
-}
-
-abx_df <- abx_df %>% 
-	# replace all 0s with random value between 0 and 1
-	gather(taxa, abundance, one_of(taxa_list)) %>% 
-	mutate(abundance = ifelse(abundance == 0, 
-		sample(100, sum(abundance == 0), replace = T)/100, abundance)) %>% 
-	spread(taxa, abundance) %>% 
-	# add missing days
-	full_join(data.frame(
-		unique_id = rep(unique(abx_df$unique_id), each = 11),
-		day = rep(seq(0,10), length(unique(abx_df$unique_id))),
-		stringsAsFactors = F), by = c('unique_id', 'day')) %>% 
-	# impute values for missing days and normalize by mouse
-	arrange(unique_id, day) %>% 
-	gather(bacteria, raw_abundance, C_difficile, contains('Otu00')) %>% 
-	group_by(unique_id, bacteria) %>% 
-	nest() %>% 
-	mutate(abundance = map(data, ~normalize(na.interp(.$raw_abundance)))) %>% 
-	unnest(data, abundance) %>% 
-	select(unique_id, day, bacteria, abundance) 
 
 # create a list of all combinations of taxa
 otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, list)
 
 set.seed(2312)
 # Choose random segments for prediction
-
-abx_ccm_df <- abx_df %>% 
-	arrange(unique_id, bacteria, day) %>% 
-	group_by(unique_id, bacteria) %>% 
-	mutate(first_diff = abundance - lag(abundance),
-		second_diff = abundance - lag(abundance, 2)) %>% 
-	ungroup %>% 
-	rename(raw = abundance) %>% 
-	gather(differenced, abundance, raw, first_diff, second_diff) %>% 
-	mutate(variable = paste0(bacteria, '_', differenced))
 
 taxa_nonlinearity_df <- c()
 # test each otu for embedding and nonlinearity
