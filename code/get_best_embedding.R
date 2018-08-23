@@ -26,9 +26,6 @@ treatment_subset <- unique(abx_df$treatment)[run_set]
 #	treatment_subset <- 'clinda_10_FALSE'
 abx_df <- abx_df %>% 
 	filter(treatment == treatment_subset) 
-abx_df %>% 
-	filter(is.na(abundance)) %>% 
-	count(otu_feature)
 
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
 

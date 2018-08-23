@@ -53,6 +53,10 @@ ccm_df <- ccm_df %>%
 #		sample(100, sum(abundance == 0), replace = T, na.rm = T)/100, abundance)) %>% 
 	select(treatment, unique_id, day, taxa, abundance) 
 
+# replace NAs with 0
+ccm_df <- ccm_df %>% 
+	mutate(abundance = ifelse(is.na(abundance), 0, abundance))
+
 ccm_df <- ccm_df %>% 
 	arrange(unique_id, taxa, day) %>% 
 	group_by(unique_id, taxa) %>% 
