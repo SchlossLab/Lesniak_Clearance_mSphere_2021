@@ -36,7 +36,7 @@ taxa_by_treatment <- ccm_df %>%
 
 # normalize each taxa for each subject
 normalize <- function(x, ...) {
-    (x - mean(x, ...))/sd(x, ...)
+	(x - mean(x, ...))/sd(x, ...)
 }
 ccm_df <- ccm_df %>% 
 	# add missing days and only use specific otus per treatment group
@@ -61,7 +61,7 @@ ccm_df <- ccm_df %>%
 	ungroup %>% 
 	rename(raw = abundance) %>% 
 	gather(differenced, abundance, raw, first, second) %>% 
-	mutate(variable = paste0(taxa, '_', differenced))
+	mutate(otu_feature = paste0(taxa, '_', differenced))
 
 write.table(ccm_df, paste0(save_dir, 'ccm_otu_data.txt'), 
 	quote = F, row.names = F,)
