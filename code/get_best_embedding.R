@@ -30,6 +30,9 @@ abx_df <- abx_df %>%
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
 
 ifelse(!dir.exists(save_dir), dir.create(save_dir), print(paste0(save_dir, ' directory ready')))
+ifelse(!dir.exists(paste0(save_dir, treatment_subset)), 
+	dir.create(paste0(save_dir, treatment_subset)), 
+	print(paste0(save_dir, treatment_subset, ' directory ready')))
 ifelse(!dir.exists(paste0(save_dir, treatment_subset, '/nonlinearity')), 
 	dir.create(paste0(save_dir, treatment_subset, '/nonlinearity')), 
 	print(paste0(save_dir, treatment_subset, '/nonlinearity directory ready')))
@@ -48,7 +51,7 @@ taxa_nonlinearity_df <- c()
 # test each otu for embedding and nonlinearity
 for(taxa_var in taxa_list){
 	simplex_cat <- c()
-	for(i in 1:100){ # when increasing seem to get repeats with treatment with 5 mice
+	for(i in 1:500){ # when increasing seem to get repeats with treatment with 5 mice
 		composite_ts <- filter(abx_df, otu_feature == taxa_var)
 		data_by_plot <- split(composite_ts, composite_ts$unique_id)
 		segments_end <- cumsum(sapply(data_by_plot, NROW))
@@ -76,83 +79,14 @@ for(taxa_var in taxa_list){
 	#embedded_plot <- 
 	simplex_cat %>% 
 		ggplot(aes(x = E, y = rho)) +
+		geom_smooth()
 		geom_line(aes(group = run), alpha = 0.1) + 
 		geom_point(alpha = 0.1) + 
 		geom_vline(xintercept = best_E, color = 'red') +
 		labs(title = 'Simplex plot', subtitle = 'Selected embedding highlighted with red line') + 
 		theme_bw(base_size = 8)
-
-	s_map_cat <- c()
-	for(i in 1:1000){
-		composite_ts <- filter(abx_df, otu_feature == taxa_var)
-		surrogate_ts <- composite_ts %>% 
-			group_by(unique_id) %>% 
-			mutate(day = sample(day)) %>% 
-			arrange(unique_id, day) %>% 
-			ungroup
-		data_by_plot <- split(composite_ts, composite_ts$unique_id)
-		segments_end <- cumsum(sapply(data_by_plot, NROW))
-		segments_begin <- c(1, segments_end[-length(segments_end)] + 1)
-		segments <- cbind(segments_begin, segments_end) 
-		rndpred <- sample(1:NROW(segments), 1)
-		lib_segments <- segments[-rndpred, ]
-		rndlib <- sample(1:NROW(lib_segments), replace = T)
-		composite_lib <- lib_segments[rndlib, ]
-		composite_pred <- segments[rndpred, ]
-		smap_out <- s_map(data.frame(select(composite_ts, day, abundance)), 
-			E = best_E, lib = composite_lib, pred = composite_pred)
-		surrogate_smap <- s_map(data.frame(select(surrogate_ts, day, abundance)), 
-			E = best_E, lib = composite_lib, pred = composite_pred)
-		s_map_cat <- rbind(s_map_cat, 
-			rbind(cbind(smap_out, data = 'real', run = i),
-				cbind(surrogate_smap, data = 'surrogate', run = i)))
-	}
-	names(smap_out) <- names(simplex_out)
-
-	s_map_cat <- s_map_cat %>% 
-		select(run, rho, theta, data) %>% 
-		arrange(data, run, theta) %>% 
-		group_by(data, run) %>% 
-		mutate(linear_rho = head(rho, 1),
-			delta_rho = rho - linear_rho)
-	smap_plot <- s_map_cat %>% 
-		ggplot(aes(x = theta, y = delta_rho)) +
-			stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
-				alpha = 0.2, fun.args =(conf.int = 0.5), aes(fill = data)) + 
-			stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
-				alpha = 0.2, fun.args =(conf.int = 0.9), aes(fill = data)) + 
-			stat_summary(aes(color = data), fun.y = median, geom = 'line') + 
-			scale_color_manual(values = c('#CC0000', '#555555'), limits = c('real', 'surrogate')) +
-			scale_fill_manual(values = c('#CC0000', '#555555'), limits = c('real', 'surrogate')) + 
-			labs(x = 'theta', y = 'delta rho', title = 'S-map Analysis - Test feature nonlinearity', 
-				subtitle = 'Surrogate data is randomly permuted time indices\nMedian with IQR and 5/95th percentile shaded') + 
-			theme_bw(base_size = 8)
-	delta_rho <- s_map_cat %>% 
-		group_by(data) %>% 
-		filter(theta == max(theta)) %>% 
-		summarise(median_delta_rho = median(delta_rho))
-
-	title <- ggdraw() + 
-	  draw_label(paste0(treatment_subset, ' with ', taxa_var,
-	  	'\n(differenced = none(raw), 1st or 2nd order)\n(treatment = Antibiotic_Dose_RecoveryBeforeChallenge)'),
-		fontface = 'bold')
-	ggsave(filename = paste0(save_dir, treatment_subset, '/nonlinearity/', taxa_var, 
-		'_simplex_smap.jpg'), 
-		plot = plot_grid(title, plot_grid(embedded_plot, smap_plot, 
-					align = 'v', ncol = 1),  ncol = 1, rel_heights = c(0.1, 1)),
-			width = 7, height = 10, device = 'jpeg')
 	taxa_nonlinearity_df <- rbind(taxa_nonlinearity_df, 
 		data.frame(taxa = taxa_var, embedding = best_E, delta_rho))
 
 	print(paste('Completed ', taxa_var))
 }
-
-nonlinear_taxa <- taxa_nonlinearity_df %>% 
-	filter(median_delta_rho > 0, data == 'real') %>% 
-	mutate(taxa_diff = taxa) %>% 
-	separate(taxa, c('otu', 'differenced')) %>% 
-	mutate(diff = case_when(differenced == 'raw' ~ 0,
-		differenced == 'first' ~ 1,
-		differenced == 'second' ~ 2)) %>% 
-	group_by(otu) %>% 
-	filter(diff == min(diff))
