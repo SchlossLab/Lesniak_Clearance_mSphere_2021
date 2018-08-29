@@ -1,4 +1,5 @@
 library(tidyverse)
+library(DESeq2)
 library(forecast)
 
 save_dir <- paste0('data/process/')
@@ -15,10 +16,8 @@ ccm_df <- meta_file %>%
 	mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
 	inner_join(shared_file, by = c('group' = "Group")) %>% 
 	select(-group, -numOtus) %>% 
-	rename(C_difficile = CFU) %>% 
+	dplyr::rename(C_difficile = CFU) %>% 
 	gather(taxa, raw_abundance, C_difficile, contains('Otu00'))
-
-		
 
 taxa_by_treatment <- ccm_df %>% 
 	group_by(treatment, taxa) %>% 
@@ -38,12 +37,43 @@ taxa_by_treatment <- ccm_df %>%
 normalize <- function(x, ...) {
 	(x - mean(x, ...))/sd(x, ...)
 }
-ccm_df <- ccm_df %>% 
+
+geo_mean_protected <- function(x) {
+  if (all(x == 0)) {
+    return (0)
+  }
+  exp(mean(log(x[x != 0])))
+}
+
+countData <- matrix(1:100,ncol=4)
+condition <- factor(rep("A",11))
+
+#ccm_df <- 
+vst <- ccm_df %>% 
 	# add missing days and only use specific otus per treatment group
 	right_join(taxa_by_treatment, by = c('unique_id', 'day', 'treatment', 'taxa')) %>% 
 	# impute values for missing days and normalize by mouse
 	arrange(unique_id, taxa, day) %>% 
 	group_by(unique_id, taxa) %>% 
+	filter(unique_id %in% c('102_2', '102_1'), taxa %in% c('Otu000018','Otu000095', 'Otu000012')) %>% 
+	spread(taxa, raw_abundance) %>% 
+	ungroup %>% 
+	select(day, unique_id, contains('Otu')) %>% 
+	t
+coldata <- data.frame(row.names = paste0(vst[1,], vst[2,]), condition = vst[2,])
+test_vst <- matrix(as.numeric(unlist(vst[3:5, ])),nrow=nrow(vst[3:5, ]))
+rownames(test_vst) <- rownames(vst[3:5, ])
+colnames(test_vst) <- paste0(vst[1,], vst[2,])
+all(rownames(coldata) == colnames(test_vst))
+dds <- DESeqDataSetFromMatrix(countData = test_vst,
+                              colData = coldata,
+                              design = ~ condition)
+geoMeans <- apply(counts(dds), 1, geo_mean_protected)
+ps_dds <- estimateSizeFactors(dds, geoMeans = geoMeans)
+ps_dds <- estimateDispersions(dds)
+abund <- getVarianceStabilizedData(dds)
+
+	
 	nest() %>% 
 	mutate(abundance = map(data, ~normalize(na.interp(.$raw_abundance)))) %>% 
 	unnest(data, abundance) %>% 
