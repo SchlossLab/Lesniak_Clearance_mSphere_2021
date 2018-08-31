@@ -33,9 +33,9 @@ ifelse(!dir.exists(save_dir), dir.create(save_dir), print(paste0(save_dir, ' dir
 ifelse(!dir.exists(paste0(save_dir, treatment_subset)), 
 	dir.create(paste0(save_dir, treatment_subset)), 
 	print(paste0(save_dir, treatment_subset, ' directory ready')))
-ifelse(!dir.exists(paste0(save_dir, treatment_subset, '/nonlinearity')), 
-	dir.create(paste0(save_dir, treatment_subset, '/nonlinearity')), 
-	print(paste0(save_dir, treatment_subset, '/nonlinearity directory ready')))
+ifelse(!dir.exists(paste0(save_dir, treatment_subset, '/embedding')), 
+	dir.create(paste0(save_dir, treatment_subset, '/embedding')), 
+	print(paste0(save_dir, treatment_subset, '/embedding directory ready')))
 
 # remove otus that are present in less than 10 samples
 taxa_list <- unique(abx_df$otu_feature)
@@ -76,17 +76,27 @@ for(taxa_var in taxa_list){
 		filter(median_rho == max(median_rho, na.rm = T)) %>% 
 		pull(E)
 
-	#embedded_plot <- 
-	simplex_cat %>% 
+	embedded_plot <- simplex_cat %>% 
 		ggplot(aes(x = E, y = rho)) +
-		geom_smooth()
+		#geom_smooth()
 		geom_line(aes(group = run), alpha = 0.1) + 
 		geom_point(alpha = 0.1) + 
 		geom_vline(xintercept = best_E, color = 'red') +
 		labs(title = 'Simplex plot', subtitle = 'Selected embedding highlighted with red line') + 
 		theme_bw(base_size = 8)
+
+	ggsave(filename = paste0(save_dir, treatment_subset, '/embedding/', taxa_var,  
+		'_simplex_embedding_plot.jpg'),  
+		plot = embedded_plot, 
+		width = 7, height = 10, device = 'jpeg') 
+
 	taxa_nonlinearity_df <- rbind(taxa_nonlinearity_df, 
-		data.frame(taxa = taxa_var, embedding = best_E, delta_rho))
+		data.frame(taxa = taxa_var, embedding = best_E))
+
 
 	print(paste('Completed ', taxa_var))
 }
+
+write.table(taxa_nonlinearity_df, paste0(save_dir, treatment_subset, '/simplex_embedding_first_differenced.txt'), 
+	quote = F, row.names = F)
+
