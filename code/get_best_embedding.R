@@ -25,7 +25,7 @@ treatment_subset <- unique(abx_df$treatment)[run_set]
 #	treatment_subset <- 'cef_0.5_FALSE'
 #	treatment_subset <- 'clinda_10_FALSE'
 abx_df <- abx_df %>% 
-	filter(treatment == treatment_subset) 
+	filter(treatment == treatment_subset, differenced == 'first') 
 
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
 
