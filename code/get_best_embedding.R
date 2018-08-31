@@ -72,8 +72,8 @@ for(taxa_var in taxa_list){
 	best_E <- simplex_cat %>% 
 		group_by(E) %>% 
 		summarise(median_rho = median(rho, na.rm = T)) %>% 
-		mutate(adj_rho = median_rho / E) %>% 
-		filter(adj_rho == max(adj_rho, na.rm = T)) %>% 
+		#mutate(adj_rho = median_rho / E) %>% 
+		filter(median_rho == max(median_rho, na.rm = T)) %>% 
 		pull(E)
 
 	#embedded_plot <- 
