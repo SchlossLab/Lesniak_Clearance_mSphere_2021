@@ -62,7 +62,7 @@ for(taxa_var in taxa_list){
 		rndlib <- sample(1:NROW(lib_segments), replace = T)
 		composite_lib <- lib_segments[rndlib, ]
 		composite_pred <- segments[rndpred, ]
-		simplex_out <- simplex(data.frame(select(composite_ts, day, abundance)), 
+		simplex_out <- simplex(data.frame(select(composite_ts, day, normalized_abundance)), 
 			E = 2:6, lib = composite_lib, pred = composite_pred)
 		simplex_cat <- rbind(simplex_cat, cbind(simplex_out, run = i))
 	}
