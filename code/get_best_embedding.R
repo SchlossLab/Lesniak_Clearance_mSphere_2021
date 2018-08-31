@@ -68,16 +68,17 @@ for(taxa_var in taxa_list){
 	}
 	names(simplex_out) <- taxa_var
 
-	# set E by time series (not specific lib/pred split)
-	best_E <- simplex_cat %>% 
+	simplex_median_mae <- simplex_cat %>% 
 		group_by(E) %>% 
-		summarise(median_rho = median(rho, na.rm = T)) %>% 
-		#mutate(adj_rho = median_rho / E) %>% 
-		filter(median_rho == max(median_rho, na.rm = T)) %>% 
+		summarise(median_mae = median(mae))
+
+	# set E by time series (not specific lib/pred split)
+	best_E <- simplex_median_mae %>% 
+		filter(median_mae == max(median_mae, na.rm = T)) %>% 
 		pull(E)
 
 	embedded_plot <- simplex_cat %>% 
-		ggplot(aes(x = E, y = rho)) +
+		ggplot(aes(x = E, y = mae)) +
 		#geom_smooth()
 		geom_line(aes(group = run), alpha = 0.1) + 
 		geom_point(alpha = 0.1) + 
@@ -91,7 +92,7 @@ for(taxa_var in taxa_list){
 		width = 7, height = 10, device = 'jpeg') 
 
 	taxa_nonlinearity_df <- rbind(taxa_nonlinearity_df, 
-		data.frame(taxa = taxa_var, embedding = best_E))
+		data.frame(taxa = taxa_var, simplex_median_mae))
 
 
 	print(paste('Completed ', taxa_var))
