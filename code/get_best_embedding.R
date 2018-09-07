@@ -78,7 +78,7 @@ for(taxa_var in taxa_list){
 
 	# set E by time series (not specific lib/pred split)
 	best_E <- simplex_median_mae %>% 
-		filter(median_mae == max(median_mae, na.rm = T)) %>% 
+		filter(median_mae == min(median_mae, na.rm = T)) %>% 
 		pull(E)
 
 	embedded_plot <- simplex_cat %>% 
