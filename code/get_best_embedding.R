@@ -83,12 +83,14 @@ for(taxa_var in taxa_list){
 
 	embedded_plot <- simplex_cat %>% 
 		ggplot(aes(x = E, y = mae)) +
-		#geom_smooth()
-		geom_line(aes(group = run), alpha = 0.1) + 
-		geom_point(alpha = 0.1) + 
-		geom_vline(xintercept = best_E, color = 'red') +
-		labs(title = 'Simplex plot', subtitle = 'Selected embedding highlighted with red line') + 
-		theme_bw(base_size = 8)
+			geom_line(aes(group = run), alpha = 0.05) + 
+			stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
+				alpha = 0.2, fun.args =(conf.int = 0.5), 
+				color = '#CC0000', linetype = 3, fill = NA) + 
+			stat_summary(fun.y = median, geom = 'line', color = '#CC0000') + 
+			geom_vline(xintercept = best_E, color = '#009999') + 
+			labs(title = 'Simplex plot', subtitle = 'Selected embedding highlighted with vertical blue line\nMedian (red solid line) with IQR (red dashed lines)') + 
+			theme_bw(base_size = 8)
 
 	ggsave(filename = paste0(save_dir, treatment_subset, '/embedding/', taxa_var,  
 		'_simplex_embedding_plot.jpg'),  
