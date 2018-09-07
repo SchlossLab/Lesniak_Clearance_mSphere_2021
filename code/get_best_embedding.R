@@ -74,7 +74,9 @@ for(taxa_var in taxa_list){
 
 	simplex_median_mae <- simplex_cat %>% 
 		group_by(E) %>% 
-		summarise(median_mae = median(mae))
+		summarise(median_mae = median(mae),
+			lower_iqr_mae = quantile(mae)[2], 
+			upper_iqr_mae = quantile(mae)[4])
 
 	# set E by time series (not specific lib/pred split)
 	best_E <- simplex_median_mae %>% 
