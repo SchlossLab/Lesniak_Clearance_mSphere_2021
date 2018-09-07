@@ -49,6 +49,7 @@ set.seed(seed)
 
 taxa_nonlinearity_df <- c()
 # test each otu for embedding and nonlinearity
+# taxa_var <- taxa_list[[30]]
 for(taxa_var in taxa_list){
 	simplex_cat <- c()
 	for(i in 1:500){ # when increasing seem to get repeats with treatment with 5 mice
@@ -63,10 +64,13 @@ for(taxa_var in taxa_list){
 		composite_lib <- lib_segments[rndlib, ]
 		composite_pred <- segments[rndpred, ]
 		simplex_out <- simplex(data.frame(select(composite_ts, day, normalized_abundance)), 
-			E = 2:6, lib = composite_lib, pred = composite_pred)
+			E = 2:6, lib = composite_lib, pred = composite_pred)#,
+# inspect predictions of simplex		
+#			stats_only = F)$model_output
+#			simplex_out$mae
+#			data.frame(select(composite_ts, day, normalized_abundance))[composite_pred[1]:composite_pred[2],]
 		simplex_cat <- rbind(simplex_cat, cbind(simplex_out, run = i))
 	}
-	names(simplex_out) <- taxa_var
 
 	simplex_median_mae <- simplex_cat %>% 
 		group_by(E) %>% 
