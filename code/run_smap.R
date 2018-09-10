@@ -24,6 +24,10 @@ treatment_subset <- unique(abx_df$treatment)[run_set]
 # most complete sample sets
 #	treatment_subset <- 'cef_0.5_FALSE'
 #	treatment_subset <- 'clinda_10_FALSE'
+ifelse(!dir.exists(paste0(save_dir, treatment_subset, '/nonlinearity')), 
+	dir.create(paste0(save_dir, treatment_subset, '/nonlinearity')), 
+	print(paste0(save_dir, treatment_subset, '/nonlinearity directory ready')))
+
 abx_df <- abx_df %>% 
 	filter(treatment == treatment_subset) 
 
