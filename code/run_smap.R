@@ -30,6 +30,11 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset, '/nonlinearity')),
 
 abx_df <- abx_df %>% 
 	filter(treatment == treatment_subset) 
+# check for embedding file
+if(!file.exists(paste0(save_dir, treatment_subset, 
+	'/simplex_embedding_first_differenced.txt'))){ 
+	stop('Run get_best_embedding.R first or find simplex_embedding_first_differenced.txt')
+}
 
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
 
