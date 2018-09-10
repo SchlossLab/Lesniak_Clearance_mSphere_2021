@@ -98,40 +98,44 @@ for(taxa_var in taxa_list){
 		mutate(linear_mae = head(mae, 1)) %>% 
 		group_by(data, run, theta) %>% 
 		mutate(delta_mae = mae - linear_mae) #%>% 
+		#group_by(data, theta) %>% 
+		#summarise(delta_mae = max(delta_mae, na.rm = T)) %>% 
 	smap_plot <- s_map_cat %>% 
 		ggplot(aes(x = theta, y = delta_mae)) +
+			#geom_line(alpha = 0.2)
 			stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
-				alpha = 0.2, fun.args =(conf.int = 0.5), aes(fill = data)) + 
+				alpha = 0.2, fun.args =(conf.int = 0.5), linetype = 3,
+				aes(color = data, fill = NA)) + 
 			stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
 				alpha = 0.2, fun.args =(conf.int = 0.9), aes(fill = data)) + 
 			stat_summary(aes(color = data), fun.y = median, geom = 'line') + 
 			scale_color_manual(values = c('#CC0000', '#555555'), limits = c('real', 'surrogate')) +
 			scale_fill_manual(values = c('#CC0000', '#555555'), limits = c('real', 'surrogate')) + 
-			labs(x = 'theta', y = 'delta rho', title = 'S-map Analysis - Test feature nonlinearity', 
-				subtitle = 'Surrogate data is randomly permuted time indices\nMedian with IQR and 5/95th percentile shaded') + 
-			theme_bw(base_size = 8)
-	delta_rho <- s_map_cat %>% 
+			guides(color = FALSE, fill=guide_legend(title=NULL)) + 
+			labs(x = 'theta', y = 'delta mae', title = 'S-map Analysis - Test feature nonlinearity', 
+				subtitle = 'Surrogate data is randomly permuted time indices\nMedian (solid line) with IQR (dotted lines) and 5/95th percentile (shaded area)') + 
+			theme_bw(base_size = 8) + theme(legend.position = c(0.1,0.9))
+	delta_mae <- s_map_cat %>% 
 		group_by(data) %>% 
 		filter(theta == max(theta)) %>% 
-		summarise(median_delta_rho = median(delta_rho))
+		summarise(median_delta_mae = median(delta_mae))
 
 	title <- ggdraw() + 
 	  draw_label(paste0(treatment_subset, ' with ', taxa_var,
-	  	'\n(differenced = none(raw), 1st or 2nd order)\n(treatment = Antibiotic_Dose_RecoveryBeforeChallenge)'),
+	  	'\n(First differenced, treatment = Antibiotic_Dose_RecoveryBeforeChallenge)'),
 		fontface = 'bold')
 	ggsave(filename = paste0(save_dir, treatment_subset, '/nonlinearity/', taxa_var, 
 		'_simplex_smap.jpg'), 
-		plot = plot_grid(title, plot_grid(embedded_plot, smap_plot, 
-					align = 'v', ncol = 1),  ncol = 1, rel_heights = c(0.1, 1)),
+		plot = plot_grid(title, smap_plot,  ncol = 1, rel_heights = c(0.1, 1)),
 			width = 7, height = 10, device = 'jpeg')
 	taxa_nonlinearity_df <- rbind(taxa_nonlinearity_df, 
-		data.frame(taxa = taxa_var, embedding = best_E, delta_rho))
+		data.frame(taxa = taxa_var, embedding = best_E, delta_mae))
 
 	print(paste('Completed ', taxa_var))
 }
 
 nonlinear_taxa <- taxa_nonlinearity_df %>% 
-	filter(median_delta_rho > 0, data == 'real') %>% 
+	filter(median_delta_mae > 0, data == 'real') %>% 
 	mutate(taxa_diff = taxa) %>% 
 	separate(taxa, c('otu', 'differenced')) %>% 
 	mutate(diff = case_when(differenced == 'raw' ~ 0,
