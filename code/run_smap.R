@@ -116,20 +116,20 @@ for(taxa_var in taxa_list){
 			labs(x = 'theta', y = 'delta mae', title = 'S-map Analysis - Test feature nonlinearity', 
 				subtitle = 'Surrogate data is randomly permuted time indices\nMedian (solid line) with IQR (dotted lines) and 5/95th percentile (shaded area)') + 
 			theme_bw(base_size = 8) + theme(legend.position = c(0.1,0.9))
-	delta_mae <- s_map_cat %>% 
-		group_by(data) %>% 
-		filter(theta == max(theta)) %>% 
-		summarise(median_delta_mae = median(delta_mae))
 
+	nonlinear_output <-  full_join(
+			group_by(s_map_cat, data) %>% 
+			filter(theta == max(theta)) %>% 
+			summarise(median_delta_mae = median(delta_mae)), 
 	# test each for decrease in mae (increase in prediciton with increased theta)
-	intra_nonlinearity <- s_map_cat %>% 
-		group_by(data) %>% 
-		filter(theta %in% c(min(theta), max(theta))) %>%
-		summarise(p_linear_v_nonlinear = wilcox.test(mae ~ theta,
-				alternative = 'greater')$p.value) %>% 
-		full_join(delta_mae, by = 'data')
+			group_by(s_map_cat, data) %>% 
+			filter(theta %in% c(min(theta), max(theta))) %>%
+			summarise(p_linear_v_nonlinear = wilcox.test(mae ~ theta,
+				alternative = 'greater')$p.value),
+		by = 'data')
+
 	# test if mae is lower in real vs surrogate data
-	inter_nonlinearity <- s_map_cat %>% 
+	real_v_surrogate_nonlinearity <- s_map_cat %>% 
 		filter(theta == max(theta)) %>% 
 		summarise(p_real_v_surrogate = wilcox.test(mae ~ data,
 				alternative = 'less')$p.value)
