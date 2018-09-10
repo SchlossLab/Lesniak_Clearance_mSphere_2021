@@ -97,7 +97,8 @@ for(taxa_var in taxa_list){
 		group_by(data, run) %>% 
 		mutate(linear_mae = head(mae, 1)) %>% 
 		group_by(data, run, theta) %>% 
-		mutate(delta_mae = mae - linear_mae) #%>% 
+		mutate(delta_mae = mae - linear_mae) %>% 
+		ungroup
 		#group_by(data, theta) %>% 
 		#summarise(delta_mae = max(delta_mae, na.rm = T)) %>% 
 	smap_plot <- s_map_cat %>% 
