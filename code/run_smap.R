@@ -104,11 +104,11 @@ for(taxa_var in taxa_list){
 	smap_plot <- s_map_cat %>% 
 		ggplot(aes(x = theta, y = delta_mae)) +
 			#geom_line(alpha = 0.2)
+			#stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
+			#	alpha = 0.2, fun.args =(conf.int = 0.9), linetype = 3,
+			#	aes(color = data, fill = NA)) + 
 			stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
-				alpha = 0.2, fun.args =(conf.int = 0.5), linetype = 3,
-				aes(color = data, fill = NA)) + 
-			stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
-				alpha = 0.2, fun.args =(conf.int = 0.9), aes(fill = data)) + 
+				alpha = 0.2, fun.args =(conf.int = 0.5), aes(fill = data)) + 
 			stat_summary(aes(color = data), fun.y = median, geom = 'line') + 
 			scale_color_manual(values = c('#CC0000', '#555555'), limits = c('real', 'surrogate')) +
 			scale_fill_manual(values = c('#CC0000', '#555555'), limits = c('real', 'surrogate')) + 
