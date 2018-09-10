@@ -70,7 +70,7 @@ for(taxa_var in taxa_list){
 		composite_ts <- filter(abx_df, otu_feature == taxa_var)
 		surrogate_ts <- composite_ts %>% 
 			group_by(unique_id) %>% 
-			mutate(day = sample(day)) %>% 
+			mutate(day = c(0,sample(day[day > 0]))) %>% 
 			arrange(unique_id, day) %>% 
 			ungroup
 		data_by_plot <- split(composite_ts, composite_ts$unique_id)
