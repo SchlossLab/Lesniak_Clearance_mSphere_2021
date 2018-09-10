@@ -65,6 +65,8 @@ taxa_nonlinearity_df <- c()
 for(taxa_var in taxa_list){
 	s_map_cat <- c()
 	for(i in 1:1000){
+		best_E <- filter(best_embedding, taxa == taxa_var) %>% 
+			pull(E)
 		composite_ts <- filter(abx_df, otu_feature == taxa_var)
 		surrogate_ts <- composite_ts %>% 
 			group_by(unique_id) %>% 
