@@ -121,6 +121,19 @@ for(taxa_var in taxa_list){
 		filter(theta == max(theta)) %>% 
 		summarise(median_delta_mae = median(delta_mae))
 
+	# test each for decrease in mae (increase in prediciton with increased theta)
+	intra_nonlinearity <- s_map_cat %>% 
+		group_by(data) %>% 
+		filter(theta %in% c(min(theta), max(theta))) %>%
+		summarise(p_linear_v_nonlinear = wilcox.test(mae ~ theta,
+				alternative = 'greater')$p.value) %>% 
+		full_join(delta_mae, by = 'data')
+	# test if mae is lower in real vs surrogate data
+	inter_nonlinearity <- s_map_cat %>% 
+		filter(theta == max(theta)) %>% 
+		summarise(p_real_v_surrogate = wilcox.test(mae ~ data,
+				alternative = 'less')$p.value)
+
 	title <- ggdraw() + 
 	  draw_label(paste0(treatment_subset, ' with ', taxa_var,
 	  	'\n(First differenced, treatment = Antibiotic_Dose_RecoveryBeforeChallenge)'),
