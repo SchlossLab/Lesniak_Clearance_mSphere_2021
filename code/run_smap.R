@@ -82,10 +82,10 @@ for(taxa_var in taxa_list){
 		rndlib <- sample(1:NROW(lib_segments), replace = T)
 		composite_lib <- lib_segments[rndlib, ]
 		composite_pred <- segments[rndpred, ]
-		smap_out <- s_map(data.frame(select(composite_ts, day, abundance)), 
-			E = best_E, lib = composite_lib, pred = composite_pred)
-		surrogate_smap <- s_map(data.frame(select(surrogate_ts, day, abundance)), 
-			E = best_E, lib = composite_lib, pred = composite_pred)
+		smap_out <- s_map(data.frame(select(composite_ts, day, normalized_abundance)), 
+			E = best_E, lib = composite_lib, pred = composite_pred, theta = theta)
+		surrogate_smap <- s_map(data.frame(select(surrogate_ts, day, normalized_abundance)), 
+			E = best_E, lib = composite_lib, pred = composite_pred, theta = theta)
 		s_map_cat <- rbind(s_map_cat, 
 			rbind(cbind(smap_out, data = 'real', run = i),
 				cbind(surrogate_smap, data = 'surrogate', run = i)))
