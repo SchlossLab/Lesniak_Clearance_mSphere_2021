@@ -50,14 +50,14 @@ best_embedding <- embedding %>%
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
 
 # remove otus that are present in less than 10 samples
-taxa_list <- unique(abx_df$otu_feature)
+taxa_list <- best_embedding$taxa
 mouse_list <- unique(abx_df$unique_id) 
+theta <- seq(0, 2, 0.1)
 
 # create a list of all combinations of taxa
 otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, list)
 
 set.seed(seed)
-# Choose random segments for prediction
 
 taxa_nonlinearity_df <- c()
 # test each otu for embedding and nonlinearity
