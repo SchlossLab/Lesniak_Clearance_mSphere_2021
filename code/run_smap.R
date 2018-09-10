@@ -60,43 +60,9 @@ otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, l
 set.seed(seed)
 
 taxa_nonlinearity_df <- c()
-# test each otu for embedding and nonlinearity
+# test each otu for nonlinearity
+# taxa_var <- taxa_list[[30]]
 for(taxa_var in taxa_list){
-	simplex_cat <- c()
-	for(i in 1:100){ # when increasing seem to get repeats with treatment with 5 mice
-		composite_ts <- filter(abx_df, otu_feature == taxa_var)
-		data_by_plot <- split(composite_ts, composite_ts$unique_id)
-		segments_end <- cumsum(sapply(data_by_plot, NROW))
-		segments_begin <- c(1, segments_end[-length(segments_end)] + 1)
-		segments <- cbind(segments_begin, segments_end) 
-		rndpred <- sample(1:NROW(segments), 1)
-		lib_segments <- segments[-rndpred, ]
-		rndlib <- sample(1:NROW(lib_segments), replace = T)
-		composite_lib <- lib_segments[rndlib, ]
-		composite_pred <- segments[rndpred, ]
-		simplex_out <- simplex(data.frame(select(composite_ts, day, abundance)), 
-			E = 2:6, lib = composite_lib, pred = composite_pred)
-		simplex_cat <- rbind(simplex_cat, cbind(simplex_out, run = i))
-	}
-	names(simplex_out) <- taxa_var
-
-	# set E by time series (not specific lib/pred split)
-	best_E <- simplex_cat %>% 
-		group_by(E) %>% 
-		summarise(median_rho = median(rho, na.rm = T)) %>% 
-		mutate(adj_rho = median_rho / E) %>% 
-		filter(adj_rho == max(adj_rho, na.rm = T)) %>% 
-		pull(E)
-
-	#embedded_plot <- 
-	simplex_cat %>% 
-		ggplot(aes(x = E, y = rho)) +
-		geom_line(aes(group = run), alpha = 0.1) + 
-		geom_point(alpha = 0.1) + 
-		geom_vline(xintercept = best_E, color = 'red') +
-		labs(title = 'Simplex plot', subtitle = 'Selected embedding highlighted with red line') + 
-		theme_bw(base_size = 8)
-
 	s_map_cat <- c()
 	for(i in 1:1000){
 		composite_ts <- filter(abx_df, otu_feature == taxa_var)
@@ -122,7 +88,6 @@ for(taxa_var in taxa_list){
 			rbind(cbind(smap_out, data = 'real', run = i),
 				cbind(surrogate_smap, data = 'surrogate', run = i)))
 	}
-	names(smap_out) <- names(simplex_out)
 
 	s_map_cat <- s_map_cat %>% 
 		select(run, rho, theta, data) %>% 
