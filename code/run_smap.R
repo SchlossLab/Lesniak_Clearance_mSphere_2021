@@ -92,13 +92,14 @@ for(taxa_var in taxa_list){
 	}
 
 	s_map_cat <- s_map_cat %>% 
-		select(run, rho, theta, data) %>% 
+		select(run, mae, theta, data) %>% 
 		arrange(data, run, theta) %>% 
 		group_by(data, run) %>% 
-		mutate(linear_rho = head(rho, 1),
-			delta_rho = rho - linear_rho)
+		mutate(linear_mae = head(mae, 1)) %>% 
+		group_by(data, run, theta) %>% 
+		mutate(delta_mae = mae - linear_mae) #%>% 
 	smap_plot <- s_map_cat %>% 
-		ggplot(aes(x = theta, y = delta_rho)) +
+		ggplot(aes(x = theta, y = delta_mae)) +
 			stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
 				alpha = 0.2, fun.args =(conf.int = 0.5), aes(fill = data)) + 
 			stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
