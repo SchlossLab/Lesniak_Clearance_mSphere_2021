@@ -38,12 +38,16 @@ if(!file.exists(paste0(save_dir, treatment_subset,
 embedding <- read.table(paste0(save_dir, treatment_subset, 
 	'/simplex_embedding_first_differenced.txt'), header = T, stringsAsFactors = F)
 
-print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
+# currently selecting lowest median mae
+# could also try to select lowest E which is not significantly
+# different from lowest median
+best_embedding <- embedding %>% 
+	group_by(taxa) %>% 
+	filter(median_mae == min(median_mae)) %>% 
+	filter(E == min(E)) %>% 
+	ungroup	
 
-ifelse(!dir.exists(save_dir), dir.create(save_dir), print(paste0(save_dir, ' directory ready')))
-ifelse(!dir.exists(paste0(save_dir, treatment_subset, '/nonlinearity')), 
-	dir.create(paste0(save_dir, treatment_subset, '/nonlinearity')), 
-	print(paste0(save_dir, treatment_subset, '/nonlinearity directory ready')))
+print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
 
 # remove otus that are present in less than 10 samples
 taxa_list <- unique(abx_df$otu_feature)
