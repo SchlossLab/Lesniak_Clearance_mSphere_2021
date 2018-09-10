@@ -143,7 +143,7 @@ for(taxa_var in taxa_list){
 		plot = plot_grid(title, smap_plot,  ncol = 1, rel_heights = c(0.1, 1)),
 			width = 7, height = 10, device = 'jpeg')
 	taxa_nonlinearity_df <- rbind(taxa_nonlinearity_df, 
-		data.frame(taxa = taxa_var, embedding = best_E, delta_mae))
+		data.frame(taxa = taxa_var, embedding = best_E, nonlinear_output, real_v_surrogate_nonlinearity))
 
 	print(paste('Completed ', taxa_var))
 }
