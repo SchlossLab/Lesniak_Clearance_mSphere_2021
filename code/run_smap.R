@@ -11,7 +11,6 @@ print(paste0('Running set ', run_set))
 
 ccm_otu_df <- 'data/process/ccm_otu_data.txt'
 abx_df <- read.table(ccm_otu_df, header = T, stringsAsFactors = F)
-
 #source('code/sum_otu_by_taxa.R')
 #taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
 #shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file, 
@@ -35,6 +34,9 @@ if(!file.exists(paste0(save_dir, treatment_subset,
 	'/simplex_embedding_first_differenced.txt'))){ 
 	stop('Run get_best_embedding.R first or find simplex_embedding_first_differenced.txt')
 }
+# load file with embeddings for each otu
+embedding <- read.table(paste0(save_dir, treatment_subset, 
+	'/simplex_embedding_first_differenced.txt'), header = T, stringsAsFactors = F)
 
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
 
