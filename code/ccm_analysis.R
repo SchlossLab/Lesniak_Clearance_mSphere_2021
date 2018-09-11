@@ -43,6 +43,8 @@ abx_df <- ccm_otu_df %>%
 	filter(treatment == treatment_subset) %>% 
 	filter(otu_feature %in% unique(embedding_nonlinearity$taxa))
 
+rm(ccm_otu_df)
+
 # create list of mice and taxa
 taxa_list <- best_embedding$taxa
 mouse_list <- unique(abx_df$unique_id)
