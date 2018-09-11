@@ -46,7 +46,7 @@ abx_df <- ccm_otu_df %>%
 rm(ccm_otu_df)
 
 # create list of mice and taxa
-taxa_list <- best_embedding$taxa
+taxa_list <- unique(embedding_nonlinearity$taxa)
 mouse_list <- unique(abx_df$unique_id)
 
 # create a list of all combinations of taxa
@@ -54,7 +54,7 @@ otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, l
 
 set.seed(seed)
 
-n_samples <- nrow(filter(abx_df, otu_feature == 'C_difficile_first'))
+n_samples <- nrow(filter(abx_df, otu_feature == 'C_difficile'))
 lib_sizes <- c(seq(5, n_samples, by = 5))
 
 run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
@@ -83,7 +83,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 	print(paste0('Beginning ', current_otu1, ' and ', current_otu2, ' in from ', treatment_subset))
 
 	ccm_run_results <- lapply(1:500, function(i){
-		rnd_order <- sample(1:NROW(lib_segments), replace = T)
+		rnd_order <- sample(1:NROW(segments), replace = T)
 		rnd_segments <- segments[rnd_order, ]
 		mice_order <- paste(mouse_list[rnd_order], collapse = '--')
 		
