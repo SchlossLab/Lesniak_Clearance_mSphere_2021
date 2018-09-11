@@ -17,7 +17,7 @@ ccm_otu_df   <- read.table(ccm_otu_df, header = T, stringsAsFactors = F) %>%
 #	taxa_level = 'genus')
 
 seed <- 062818
-treatment_subset <- unique(meta_file$treatment)[run_set]
+treatment_subset <- unique(ccm_otu_df$treatment)[run_set]
 # use to test function
 # most complete sample sets
 #	treatment_subset <- 'cef_0.5_FALSE'
