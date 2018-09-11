@@ -29,9 +29,6 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset, '/ccm')),
 	dir.create(paste0(save_dir, treatment_subset, '/ccm')), 
 	print(paste0(save_dir, treatment_subset, '/ccm directory ready')))
 
-abx_df <- ccm_otu_df %>% 
-	filter(treatment == treatment_subset)
-
 # check for embedding file
 if(!file.exists(paste0(save_dir, treatment_subset, 
 	'/smap_nonlinearity_first_differenced.txt'))){ 
@@ -39,10 +36,12 @@ if(!file.exists(paste0(save_dir, treatment_subset,
 }
 # load file with embeddings and nonlinearity tests for each otu
 embedding_nonlinearity <- read.table(paste0(save_dir, treatment_subset, 
-	'/smap_nonlinearity_first_differenced.txt'), header = T, stringsAsFactors = F)
 	'/smap_nonlinearity_first_differenced.txt'), header = T, stringsAsFactors = F) %>% 
 	mutate(taxa = gsub('_first', '', taxa))
 
+abx_df <- ccm_otu_df %>% 
+	filter(treatment == treatment_subset) %>% 
+	filter(otu_feature %in% unique(embedding_nonlinearity$taxa))
 
 # create list of mice and taxa
 taxa_list <- best_embedding$taxa
