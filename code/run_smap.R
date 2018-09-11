@@ -107,8 +107,8 @@ for(taxa_var in taxa_list){
 			scale_color_manual(values = c('#CC0000', '#555555'), limits = c('real', 'surrogate')) +
 			scale_fill_manual(values = c('#CC0000', '#555555'), limits = c('real', 'surrogate')) + 
 			guides(color = FALSE, fill=guide_legend(title=NULL)) + 
-			labs(x = 'theta', y = 'delta mae', title = 'S-map Analysis - Test feature nonlinearity', 
-				subtitle = 'Surrogate data is randomly permuted time indices\nMedian (solid line) with IQR (dotted lines) and 5/95th percentile (shaded area)') + 
+			labs(x = 'theta', y = 'delta mae', title = paste0('S-map Analysis - Test feature nonlinearity of ', taxa_var), 
+				subtitle = 'Surrogate data is randomly permuted time indices\nMedian (solid line) with IQR (dotted lines) and 5/95th percentile (shaded area)\n(First differenced, treatment = Antibiotic_Dose_RecoveryBeforeChallenge)') + 
 			theme_bw(base_size = 8) + theme(legend.position = c(0.1,0.9))
 
 	nonlinear_output <-  full_join(
@@ -128,14 +128,9 @@ for(taxa_var in taxa_list){
 		summarise(p_real_v_surrogate = wilcox.test(mae ~ data,
 				alternative = 'less')$p.value)
 
-	title <- ggdraw() + 
-	  draw_label(paste0(treatment_subset, ' with ', taxa_var,
-	  	'\n(First differenced, treatment = Antibiotic_Dose_RecoveryBeforeChallenge)'),
-		fontface = 'bold')
 	ggsave(filename = paste0(save_dir, treatment_subset, '/nonlinearity/', taxa_var, 
 		'_simplex_smap.jpg'), 
-		plot = plot_grid(title, smap_plot,  ncol = 1, rel_heights = c(0.1, 1)),
-			width = 7, height = 10, device = 'jpeg')
+		plot = smap_plot, width = 7, height = 10, device = 'jpeg')
 	taxa_nonlinearity_df <- rbind(taxa_nonlinearity_df, 
 		data.frame(taxa = taxa_var, embedding = best_E, nonlinear_output, real_v_surrogate_nonlinearity))
 
