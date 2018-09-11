@@ -8,7 +8,8 @@ save_dir <- paste0('scratch/ccm_otu/')
 print(paste0('Running set ', run_set))
 
 ccm_otu_df <- 'data/process/ccm_otu_data.txt'
-ccm_otu_df   <- read.table(ccm_otu_df, sep = '\t', header = T, stringsAsFactors = F) 
+ccm_otu_df   <- read.table(ccm_otu_df, header = T, stringsAsFactors = F) %>% 
+	mutate(otu_feature = gsub('_first', '', otu_feature))
 #source('code/sum_otu_by_taxa.R')
 #taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
 #shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file, 
@@ -39,6 +40,8 @@ if(!file.exists(paste0(save_dir, treatment_subset,
 # load file with embeddings and nonlinearity tests for each otu
 embedding_nonlinearity <- read.table(paste0(save_dir, treatment_subset, 
 	'/smap_nonlinearity_first_differenced.txt'), header = T, stringsAsFactors = F)
+	'/smap_nonlinearity_first_differenced.txt'), header = T, stringsAsFactors = F) %>% 
+	mutate(taxa = gsub('_first', '', taxa))
 
 
 # create list of mice and taxa
