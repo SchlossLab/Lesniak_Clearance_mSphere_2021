@@ -1,8 +1,5 @@
 library(rEDM)
 library(tidyverse)
-library(cowplot)
-library(gtools)
-#library(viridis)
 
 input_values <- commandArgs(TRUE)
 run_set <- as.numeric(input_values[1])
@@ -40,9 +37,6 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset, '/embedding')),
 # remove otus that are present in less than 10 samples
 taxa_list <- unique(abx_df$otu_feature)
 mouse_list <- unique(abx_df$unique_id) 
-
-# create a list of all combinations of taxa
-otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, list)
 
 set.seed(seed)
 # Choose random segments for prediction

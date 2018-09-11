@@ -1,8 +1,5 @@
 library(rEDM)
 library(tidyverse)
-library(cowplot)
-library(gtools)
-#library(viridis)
 
 input_values <- commandArgs(TRUE)
 run_set <- as.numeric(input_values[1])
@@ -53,9 +50,6 @@ print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
 taxa_list <- best_embedding$taxa
 mouse_list <- unique(abx_df$unique_id) 
 theta <- seq(0, 2, 0.1)
-
-# create a list of all combinations of taxa
-otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, list)
 
 set.seed(seed)
 
@@ -148,12 +142,12 @@ for(taxa_var in taxa_list){
 	print(paste('Completed ', taxa_var))
 }
 
-nonlinear_taxa <- taxa_nonlinearity_df %>% 
-	filter(median_delta_mae > 0, data == 'real') %>% 
-	mutate(taxa_diff = taxa) %>% 
-	separate(taxa, c('otu', 'differenced')) %>% 
-	mutate(diff = case_when(differenced == 'raw' ~ 0,
-		differenced == 'first' ~ 1,
-		differenced == 'second' ~ 2)) %>% 
-	group_by(otu) %>% 
-	filter(diff == min(diff))
+#nonlinear_taxa <- taxa_nonlinearity_df %>% 
+#	filter(median_delta_mae > 0, data == 'real') %>% 
+#	mutate(taxa_diff = taxa) %>% 
+#	separate(taxa, c('otu', 'differenced')) %>% 
+#	mutate(diff = case_when(differenced == 'raw' ~ 0,
+#		differenced == 'first' ~ 1,
+#		differenced == 'second' ~ 2)) %>% 
+#	group_by(otu) %>% 
+#	filter(diff == min(diff))
