@@ -142,6 +142,9 @@ for(taxa_var in taxa_list){
 	print(paste('Completed ', taxa_var))
 }
 
+write.table(taxa_nonlinearity_df, paste0(save_dir, treatment_subset, '/smap_nonlinearity_first_differenced.txt'), 
+	quote = F, row.names = F)
+
 #nonlinear_taxa <- taxa_nonlinearity_df %>% 
 #	filter(median_delta_mae > 0, data == 'real') %>% 
 #	mutate(taxa_diff = taxa) %>% 
