@@ -63,7 +63,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 	current_otu1 <- taxa_list[ otu[[1]][1] ]
 	current_otu2 <- taxa_list[ otu[[1]][2] ]
 	
-	composite_ts <- abx_df %>% 
+	composite_ts <- input_df %>% 
 		select(unique_id, day, normalized_abundance, otu_feature) %>% 
 		filter(otu_feature %in% c(current_otu1, current_otu2)) %>% 
 		spread(otu_feature, normalized_abundance)
@@ -186,7 +186,7 @@ print('Beginning CCM on 1st differenced data')
 
 output <- map_df(otu_combinations, ~ run_ccm(., input_df = data.frame(abx_df), 
 	treatment_subset = treatment_subset, taxa_list = taxa_list))
-write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_genus_', treatment_subset, '_first_differenced_', seed, 'seed.txt'), 
+write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_otu_', treatment_subset, '_first_differenced.txt'), 
 	quote = F, row.names = F)
 
 print(paste0('Completed treatment set - ', treatment_subset))
