@@ -20,9 +20,9 @@ cd $PBS_O_WORKDIR
 echo "Starting set" $PBS_ARRAYID 
 
 # get otu embeddings
-Rscript code/ccm_analysis.R $PBS_ARRAYID 
+Rscript code/get_best_embedding.R $PBS_ARRAYID 
 # determine nonlinearity of each otu
-Rscript code/ccm_analysis.R $PBS_ARRAYID 
+Rscript code/run_smap.R $PBS_ARRAYID 
 # test for interaction via ccm
 Rscript code/ccm_analysis.R $PBS_ARRAYID 
 
