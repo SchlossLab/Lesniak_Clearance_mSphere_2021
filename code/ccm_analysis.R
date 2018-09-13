@@ -58,6 +58,8 @@ n_samples <- nrow(filter(abx_df, otu_feature == 'C_difficile'))
 lib_sizes <- c(seq(5, n_samples, by = 5))
 
 run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
+	# current_otu1 <- taxa_list[ 57 ]
+	# current_otu2 <- taxa_list[ 35 ]
 	current_otu1 <- taxa_list[ otu[[1]][1] ]
 	current_otu2 <- taxa_list[ otu[[1]][2] ]
 	
@@ -124,10 +126,9 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 	# this is because otu2 has left an impression on otu1 
 
 	default_rho <- cor.test(pull(composite_ts, current_otu1), pull(composite_ts, current_otu2),
-		method = "pearson", use = 'complete.obs')
+		method = "spearman", use = 'complete.obs')
 
-	ccm_plot <- ccm_data$rho %>% 
-		mutate(causal = paste0(lib_column, ' xmap ', target_column)) %>% 
+	ccm_plot <- ccm_data %>% 
 		ggplot(aes(x = lib_size, y = rho)) +
 			stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
 				alpha = 0.2, fun.args =(conf.int = 0.5), aes(fill = data)) + 
