@@ -147,19 +147,22 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 		plot = ccm_plot, width = 7, height = 10, device = 'jpeg')
 	
 	# test for convergence
-		# test for significant monotonic increasing trend with rho(L) using kendall's tau test
-	kendalls_test_otu1 <- cor(
-		pull(filter(ccm_data, lib_column %in% current_otu1), rho),
-		pull(filter(ccm_data, lib_column %in% current_otu1), lib_size),
-		method = 'kendall')
-	kendalls_test_otu2 <- cor(
-		pull(filter(ccm_data, lib_column %in% current_otu2), rho),
-		pull(filter(ccm_data, lib_column %in% current_otu2), lib_size),
-		method = 'kendall')
-
-		# test for significant improvement  in rho(L) by Fisher's delta rho Z test 
-		# (test for difference min/max library)
-	fishers_z_test <- 
+		# test for significant monotonic increasing trend with rho(L) using spearman test
+		# test for significant improvement in rho(L) by wilcox test (difference min/max library)
+	ccm_convergence_test <- full_join( 
+		group_by(ccm_data, causal, data) %>% 
+			summarise(ccm_trend_rho = cor.test(rho, lib_size, 
+				method = 'spearman', use = 'complete.obs')$estimate,
+				ccm_trend_p = cor.test(rho, lib_size, 
+				method = 'spearman', use = 'complete.obs')$p.value),
+		filter(ccm_data, lib_size %in% c(min(lib_size), max(lib_size))) %>%
+			group_by(causal, data) %>% 
+			summarise(median_rho_min_lobs = median(rho[lib_size == min(lib_size)], na.rm = T),
+				median_rho_max_lobs = median(rho[lib_size == max(lib_size)], na.rm = T),
+				p_min_v_max_lobs = wilcox.test(rho ~ lib_size,
+					alternative = 'less')$p.value),
+		by = c('causal','data')) %>% 
+		ungroup
 
 	# test for significance of cross map
 	linear_corr_test <- 
