@@ -165,52 +165,18 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 		ungroup
 
 	# test for significance of cross map
-	linear_corr_test <- 
+	ccm_significance_test <- full_join(
+		group_by(ccm_data, causal, data) %>% 
+			summarise(linear_corr_p = t.test(rho, 
+				mu = default_rho$estimate, alternative = 'greater')$p.value) %>% 
+			ungroup,
+		group_by(ccm_data, causal) %>% 
+			summarise(ccm_null_p = wilcox.test(rho ~ data, 
+				alternative = 'greater')$p.value) %>% 
+			ungroup,
+		by = 'causal')
 
-	null_test <- 
-
-	taxa_nonlinearity_df <- rbind(taxa_nonlinearity_df, 
-		data.frame(taxa = taxa_var, embedding = best_E, nonlinear_output, real_v_surrogate_nonlinearity))
-
-	print(paste('Completed ', taxa_var))
-}
-
-write.table(taxa_nonlinearity_df, paste0(save_dir, treatment_subset, '/smap_nonlinearity_first_differenced.txt'), 
-	quote = F, row.names = F)
-
-
-
-	lobs_test_range <- round(length(unique(ccm_plot_df$lobs))*0.1)
-
-	ccm_data <- ccm_plot_df %>% 
-		group_by(driver_otu) %>% 
-		mutate(time_point = case_when(lobs %in% head(sort(unique(lobs)), lobs_test_range) ~ 'initial',
-			lobs %in% tail(sort(unique(lobs)), lobs_test_range) ~ 'end',
-			T ~ 'middle')) %>% 
-		filter(time_point != 'middle') %>% 	
-		summarise(ccm_p_value = wilcox.test(rho~time_point, alternative = 'greater')$p.value) %>%
-		full_join(ccm_data, by = c('driver_otu'))
-
-	title <- ggdraw() + 
-	  draw_label(paste0(treatment_subset, ' with ', current_otu1, ' and ', current_otu2,
-	  	'\n(Data is first differenced)\n(treatment = Antibiotic_Dose_Allow recovery before C difficile Challenge)'),
-		fontface = 'bold')
-	if(min(ccm_data$ccm_p_value) < 0.05/10^5){ # ~100,000 comparisons across all treatments
-		ggsave(filename = paste0(save_dir, treatment_subset, '/sig_ccm_', current_otu1, 
-				'_', current_otu2, '_first_differenced.jpg'),
-			plot = plot_grid(title, plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
-				CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'),  ncol = 1, rel_heights = c(0.1, 1)),
-			width = 7, height = 10, device = 'jpeg')
-		} else {
-		ggsave(filename = paste0(save_dir, treatment_subset, '/ccm_', current_otu1, 
-				'_', current_otu2, '_first_differenced.jpg'),
-			plot = plot_grid(title, plot_grid(plot_grid(lagged_dynamics_plot, dynamics_plot, embedding_dim_plot, prediction_step_plot), 
-				CCM_plot, align = 'v', ncol = 1, labels = 'AUTO'),  ncol = 1, rel_heights = c(0.1, 1)),
-			width = 7, height = 10, device = 'jpeg')
-	}
-	
-	print(paste0('Completed ', current_otu1, ' and ', current_otu2,  ' from ', treatment_subset))
-	return(ccm_data)
+	return(full_join(ccm_convergence_test, ccm_significance_test, by = c("causal", "data")))
 }
 
 print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
