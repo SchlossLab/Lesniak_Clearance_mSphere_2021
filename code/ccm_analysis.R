@@ -115,7 +115,8 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 		})
 
 	ccm_data <- do.call('rbind', ccm_run_results) %>% 
-		mutate_if(is.factor, as.character)
+		mutate_if(is.factor, as.character) %>% 
+		mutate(causal = paste0(lib_column, 'xmap', target_column))
 
 	# plot the ability of otu to predict the other otu
 	# note causal direction is opposite of xmap
