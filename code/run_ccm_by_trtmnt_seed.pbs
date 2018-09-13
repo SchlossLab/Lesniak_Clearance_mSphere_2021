@@ -1,5 +1,5 @@
 #!/bin/sh
-#PBS -N reorder_CCM_for_all_15_treatments
+#PBS -N CCM_for_all_15_treatments_091318
 
 #PBS -l nodes=1:ppn=8,mem=30gb
 #PBS -l walltime=400:00:00
@@ -19,6 +19,11 @@ cd $PBS_O_WORKDIR
 
 echo "Starting set" $PBS_ARRAYID 
 
+# get otu embeddings
+Rscript code/ccm_analysis.R $PBS_ARRAYID 
+# determine nonlinearity of each otu
+Rscript code/ccm_analysis.R $PBS_ARRAYID 
+# test for interaction via ccm
 Rscript code/ccm_analysis.R $PBS_ARRAYID 
 
 echo "Script complete"
