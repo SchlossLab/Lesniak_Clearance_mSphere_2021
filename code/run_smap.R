@@ -46,7 +46,7 @@ best_embedding <- embedding %>%
 
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
 
-# remove otus that are present in less than 10 samples
+# create list of mice, taxa and thetas
 taxa_list <- best_embedding$taxa
 mouse_list <- unique(abx_df$unique_id) 
 theta <- seq(0, 2, 0.1)
