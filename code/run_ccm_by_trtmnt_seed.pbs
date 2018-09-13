@@ -19,10 +19,15 @@ cd $PBS_O_WORKDIR
 
 echo "Starting set" $PBS_ARRAYID 
 
+echo "Running embedding script"
 # get otu embeddings
 Rscript code/get_best_embedding.R $PBS_ARRAYID 
+
+echo "Finished embeddings, starting smap analysis"
 # determine nonlinearity of each otu
 Rscript code/run_smap.R $PBS_ARRAYID 
+
+echo "Finished smap analysis, starting ccm analysis"
 # test for interaction via ccm
 Rscript code/ccm_analysis.R $PBS_ARRAYID 
 
