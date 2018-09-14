@@ -4,7 +4,6 @@ library(gtools)
 
 input_values <- commandArgs(TRUE)
 run_set <- as.numeric(input_values[1])
-save_dir <- paste0('scratch/ccm_otu/')
 print(paste0('Running set ', run_set))
 
 ccm_otu_df <- 'data/process/ccm_otu_data.txt'
@@ -24,19 +23,18 @@ treatment_subset <- unique(ccm_otu_df$treatment)[run_set]
 #	treatment_subset <- 'clinda_10_FALSE'
 
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
-
-ifelse(!dir.exists(paste0(save_dir, treatment_subset, '/ccm')), 
-	dir.create(paste0(save_dir, treatment_subset, '/ccm')), 
-	print(paste0(save_dir, treatment_subset, '/ccm directory ready')))
+save_dir <- paste0('scratch/ccm_otu/', treatment_subset, '/ccm')
+ifelse(!dir.exists(save_dir), 
+	dir.create(save_dir), 
+	print(paste0(save_dir, ' directory ready')))
 
 # check for embedding file
-if(!file.exists(paste0(save_dir, treatment_subset, 
-	'/smap_nonlinearity_first_differenced.txt'))){ 
+if(!file.exists(paste0(save_dir, '/../smap_nonlinearity_first_differenced.txt'))){ 
 	stop('Run run_smap.R first or find smap_nonlinearity_first_differenced.txt')
 }
 # load file with embeddings and nonlinearity tests for each otu
-embedding_nonlinearity <- read.table(paste0(save_dir, treatment_subset, 
-	'/smap_nonlinearity_first_differenced.txt'), header = T, stringsAsFactors = F) %>% 
+embedding_nonlinearity <- read.table(paste0(save_dir, 
+	'/../smap_nonlinearity_first_differenced.txt'), header = T, stringsAsFactors = F) %>% 
 	mutate(taxa = gsub('_first', '', taxa))
 
 abx_df <- ccm_otu_df %>% 
@@ -142,8 +140,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 			geom_hline(yintercept = default_rho$estimate, linetype = 3) + 
 			theme_bw(base_size = 8) + theme(legend.position = c(0.1,0.9))
 
-	ggsave(filename = paste0(save_dir, treatment_subset, '/ccm/', current_otu1, 
-		'_', current_otu2, 'ccm.jpg'), 
+	ggsave(filename = paste0(save_dir, '/', current_otu1, '_', current_otu2, '_ccm.jpg'), 
 		plot = ccm_plot, width = 7, height = 10, device = 'jpeg')
 	
 	# test for convergence
