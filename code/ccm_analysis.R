@@ -187,10 +187,17 @@ print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosa
 
 print('Beginning CCM on 1st differenced data')
 
-write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_otu_', treatment_subset, '_first_differenced.txt'), 
 lapply(otu_combinations, function(x){run_ccm(x, input_df = data.frame(abx_df), 
 	treatment_subset = treatment_subset, taxa_list = taxa_list)
 })
+
+output_temp <- list.files(paste0(save_dir, '/temp/'))
+ccm_cat_df <- do.call("rbind", 
+	lapply(paste0(save_dir, '/temp/', output_temp), read.table, header = TRUE)) 
+write.table(ccm_cat_df,
+		paste0(save_dir, '/../ccm_by_otu_', treatment_subset, '_first_differenced.txt'), 
 	quote = F, row.names = F)
+
+unlink(paste0(save_dir, '/temp/'), recursive = T)
 
 print(paste0('Completed treatment set - ', treatment_subset))
