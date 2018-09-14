@@ -21,6 +21,9 @@ treatment_subset <- unique(ccm_otu_df$treatment)[run_set]
 # most complete sample sets
 #	treatment_subset <- 'cef_0.5_FALSE'
 #	treatment_subset <- 'clinda_10_FALSE'
+# seq() error - no cdiff so use first otu
+#	treatment_subset <- 'cipro_10_FALSE'
+#	treatment_subset <- 'cef_0.1_FALSE'
 
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
 save_dir <- paste0('scratch/ccm_otu/', treatment_subset, '/ccm')
@@ -55,7 +58,7 @@ otu_combinations <- apply(combinations(length(taxa_list), 2, repeats=TRUE), 1, l
 
 set.seed(seed)
 
-n_samples <- nrow(filter(abx_df, otu_feature == 'C_difficile'))
+n_samples <- nrow(filter(abx_df, otu_feature == unique(embedding_nonlinearity$taxa)[1]))
 lib_sizes <- c(seq(5, n_samples, by = 5))
 
 run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
