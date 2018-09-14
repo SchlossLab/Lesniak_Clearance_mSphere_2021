@@ -27,6 +27,9 @@ save_dir <- paste0('scratch/ccm_otu/', treatment_subset, '/ccm')
 ifelse(!dir.exists(save_dir), 
 	dir.create(save_dir), 
 	print(paste0(save_dir, ' directory ready')))
+ifelse(!dir.exists(paste0(save_dir, '/temp')), 
+	dir.create(paste0(save_dir, '/temp')), 
+	print(paste0(save_dir, '/temp directory ready')))
 
 # check for embedding file
 if(!file.exists(paste0(save_dir, '/../smap_nonlinearity_first_differenced.txt'))){ 
@@ -173,7 +176,10 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 			ungroup,
 		by = 'causal')
 
-	return(full_join(ccm_convergence_test, ccm_significance_test, by = c("causal", "data")))
+	write.table(full_join(ccm_convergence_test, ccm_significance_test, by = c("causal", "data")), 
+		paste0(save_dir, '/temp/ccm_by_otu_', 
+			current_otu1, '_', current_otu2, '_', treatment_subset, '_first_differenced.txt'), 
+	quote = F, row.names = F)
 }
 
 print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
