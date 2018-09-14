@@ -187,9 +187,10 @@ print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosa
 
 print('Beginning CCM on 1st differenced data')
 
-output <- map_df(otu_combinations, ~ run_ccm(., input_df = data.frame(abx_df), 
-	treatment_subset = treatment_subset, taxa_list = taxa_list))
 write.table(output, paste0(save_dir, treatment_subset, '/ccm_by_otu_', treatment_subset, '_first_differenced.txt'), 
+lapply(otu_combinations, function(x){run_ccm(x, input_df = data.frame(abx_df), 
+	treatment_subset = treatment_subset, taxa_list = taxa_list)
+})
 	quote = F, row.names = F)
 
 print(paste0('Completed treatment set - ', treatment_subset))
