@@ -23,18 +23,18 @@ treatment_subset <- unique(ccm_otu_df$treatment)[run_set]
 #	treatment_subset <- 'clinda_10_FALSE'
 # Error in summarise_impl(.data, dots) : 
 #  missing value where TRUE/FALSE needed
-#	treatment_subset <- 'metro_1_FALSE'
+	treatment_subset <- 'metro_1_FALSE'
 #	treatment_subset <- 'amp_0.5_FALSE'
 #	treatment_subset <- 'cef_0.5_FALSE'
+#	treatment_subset <- 'cipro_10_FALSE'
 #	treatment_subset <- 'vanc_0.625_FALSE'
+#	treatment_subset <- 'cef_0.1_FALSE'
 #	treatment_subset <- 'strep_0.1_FALSE'
 #	treatment_subset <- 'strep_5_FALSE'
 #	treatment_subset <- 'strep_0.5_FALSE'
 #	treatment_subset <- 'vanc_0.3_FALSE'
 #	treatment_subset <- 'vanc_0.1_FALSE'
 # seq() error - no cdiff so use first otu
-#	treatment_subset <- 'cipro_10_FALSE'
-#	treatment_subset <- 'cef_0.1_FALSE'
 
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
 save_dir <- paste0('scratch/ccm_otu/', treatment_subset, '/ccm')
@@ -201,9 +201,10 @@ print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosa
 
 print('Beginning CCM on 1st differenced data')
 
-lapply(otu_combinations, function(x){run_ccm(x, input_df = data.frame(abx_df), 
-	treatment_subset = treatment_subset, taxa_list = taxa_list)
-})
+for(x in otu_combinations){ 
+	run_ccm(x, input_df = data.frame(abx_df), 
+		treatment_subset = treatment_subset, taxa_list = taxa_list)
+}
 
 output_temp <- list.files(paste0(save_dir, '/temp/'))
 ccm_cat_df <- do.call("rbind", 
