@@ -184,10 +184,12 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 	print('Running ccm significance test')
 	ccm_significance_test <- full_join(
 		group_by(ccm_data, causal, data) %>% 
+			filter(lib_size > quantile(lib_size)['75%']) %>% 
 			summarise(linear_corr_p = my.t.test.p.value(rho, 
 					mu = default_rho$estimate, alternative = 'greater')) %>% 
 			ungroup,
 		group_by(ccm_data, causal) %>% 
+			filter(lib_size > quantile(lib_size)['75%']) %>% 
 			summarise(ccm_null_p = wilcox.test(rho ~ data, 
 					alternative = 'greater')$p.value) %>% 
 			ungroup,
