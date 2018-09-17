@@ -152,7 +152,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 			scale_color_manual(values = c('#CC0000', '#555555'), limits = c('real', 'surrogate')) +
 			scale_fill_manual(values = c('#CC0000', '#555555'), limits = c('real', 'surrogate')) + 
 			guides(color = FALSE, fill=guide_legend(title=NULL)) + 
-			labs(x = 'theta', y = 'delta mae', title = 'S-map Analysis - Test feature nonlinearity', 
+			labs(x = 'libray size', y = 'rho', title = 'Convergent Cross Map Analysis - Test feature interaction', 
 				subtitle = 'Surrogate data is randomly permuted time indices\nMedian (solid line) with IQR (dotted lines) and 5/95th percentile (shaded area)\n(First differenced, treatment = Antibiotic_Dose_RecoveryBeforeChallenge)') + 
 			facet_grid(causal~., scale = 'free_y') + 
 			geom_hline(yintercept = default_rho$estimate, linetype = 3) + 
