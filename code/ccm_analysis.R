@@ -184,12 +184,12 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 	print('Running ccm significance test')
 	ccm_significance_test <- full_join(
 		group_by(ccm_data, causal, data) %>% 
-			summarise(linear_corr_p = t.test(rho, 
-				mu = default_rho$estimate, alternative = 'greater')$p.value) %>% 
+			summarise(linear_corr_p = my.t.test.p.value(rho, 
+					mu = default_rho$estimate, alternative = 'greater')) %>% 
 			ungroup,
 		group_by(ccm_data, causal) %>% 
 			summarise(ccm_null_p = wilcox.test(rho ~ data, 
-				alternative = 'greater')$p.value) %>% 
+					alternative = 'greater')$p.value) %>% 
 			ungroup,
 		by = 'causal')
 	print('Saving ccm results')
@@ -201,8 +201,13 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 	print(paste0('Completed ', current_otu1, ' and ', current_otu2, ' in from ', treatment_subset))
 }
 
-print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
+# create function to generate NA if t test cannot calculate value
+my.t.test.p.value <- function(...) {
+	obj<-try(t.test(...), silent=TRUE)
+    if (is(obj, "try-error")) return(NA) else return(obj$p.value)
+}
 
+print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
 
 print('Beginning CCM on 1st differenced data')
 
