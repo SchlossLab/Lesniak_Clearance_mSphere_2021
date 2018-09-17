@@ -23,7 +23,7 @@ treatment_subset <- unique(ccm_otu_df$treatment)[run_set]
 #	treatment_subset <- 'clinda_10_FALSE'
 # Error in summarise_impl(.data, dots) : 
 #  missing value where TRUE/FALSE needed
-	treatment_subset <- 'metro_1_FALSE'
+#	treatment_subset <- 'metro_1_FALSE'
 #	treatment_subset <- 'amp_0.5_FALSE'
 #	treatment_subset <- 'cef_0.5_FALSE'
 #	treatment_subset <- 'cipro_10_FALSE'
