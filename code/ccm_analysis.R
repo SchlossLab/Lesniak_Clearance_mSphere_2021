@@ -73,11 +73,12 @@ n_samples <- nrow(filter(abx_df, otu_feature == unique(embedding_nonlinearity$ta
 lib_sizes <- c(seq(5, n_samples, by = 5))
 
 run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
-	# current_otu1 <- taxa_list[ 57 ]
-	# current_otu2 <- taxa_list[ 35 ]
+	# current_otu1 <- taxa_list[ 1 ]
+	# current_otu2 <- taxa_list[ 1 ]
 	current_otu1 <- taxa_list[ otu[[1]][1] ]
 	current_otu2 <- taxa_list[ otu[[1]][2] ]
 	
+	# input_df <- abx_df
 	composite_ts <- input_df %>% 
 		select(unique_id, day, normalized_abundance, otu_feature) %>% 
 		filter(otu_feature %in% c(current_otu1, current_otu2)) %>% 
@@ -163,6 +164,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 	# test for convergence
 		# test for significant monotonic increasing trend with rho(L) using spearman test
 		# test for significant improvement in rho(L) by wilcox test (difference min/max library)
+	print('Running ccm convergence test')
 	ccm_convergence_test <- full_join( 
 		group_by(ccm_data, causal, data) %>% 
 			summarise(ccm_trend_rho = cor.test(rho, lib_size, 
@@ -179,6 +181,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 		ungroup
 
 	# test for significance of cross map
+	print('Running ccm significance test')
 	ccm_significance_test <- full_join(
 		group_by(ccm_data, causal, data) %>% 
 			summarise(linear_corr_p = t.test(rho, 
@@ -189,11 +192,13 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 				alternative = 'greater')$p.value) %>% 
 			ungroup,
 		by = 'causal')
-
+	print('Saving ccm results')
 	write.table(full_join(ccm_convergence_test, ccm_significance_test, by = c("causal", "data")), 
 		paste0(save_dir, '/temp/ccm_by_otu_', 
 			current_otu1, '_', current_otu2, '_', treatment_subset, '_first_differenced.txt'), 
 	quote = F, row.names = F)
+
+	print(paste0('Completed ', current_otu1, ' and ', current_otu2, ' in from ', treatment_subset))
 }
 
 print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
