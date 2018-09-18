@@ -4,12 +4,41 @@ library(gtools)
 
 input_values <- commandArgs(TRUE)
 run_set <- as.numeric(input_values[1])
-save_dir <- paste0('scratch/ccm_otu/')
 print(paste0('Running set ', run_set))
 
+otu_df <- 'data/process/ccm_otu_data.txt'
+otu_df   <- read.table(otu_df, header = T, stringsAsFactors = F) %>% 
+	mutate(otu_feature = gsub('_first', '', otu_feature))
+
+seed <- 062818
+treatment_subset <- unique(otu_df$treatment)[run_set]
+print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
+otu_df <- filter(otu_df, treatment %in% treatment_subset)
+save_dir <- paste0('scratch/ccm_otu/', treatment_subset, '/interactions')
+ifelse(!dir.exists(save_dir), 
+	dir.create(save_dir), 
+	print(paste0(save_dir, ' directory ready')))
+
 # import results from individual taxa test
+#	check for embedding/nonlinearity/ccm files
+load_files <- c('simplex_embedding_first_differenced.txt',
+	'smap_nonlinearity_first_differenced.txt',
+	paste0('ccm_by_otu_', treatment_subset, '_first_differenced.txt'))
+for(i in load_files){
+	if(!file.exists(paste0(save_dir, '/../', i))){ 
+		stop(paste('Run previous script or locate', i))
+		}
+	}
 #  import embedding/nonlinearity
+embedding <- read.table(paste0(save_dir, '/../', load_files[1]), 
+	header = T, stringsAsFactors = F) %>% 
+		mutate(taxa = gsub('_first', '', taxa))
+nonlinearity <- read.table(paste0(save_dir, '/../', load_files[2]), 
+	header = T, stringsAsFactors = F) %>% 
+		mutate(taxa = gsub('_first', '', taxa))
 #  import ccm analysis
+ccm <- read.table(paste0(save_dir, '/../', load_files[3]), 
+	header = T, stringsAsFactors = F) 
 
 # check for significance in all tests
 #	nonlinear
