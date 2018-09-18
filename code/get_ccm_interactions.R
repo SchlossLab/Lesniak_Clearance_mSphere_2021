@@ -21,7 +21,9 @@ print(paste0('Running set ', run_set))
 # confirm median of real data is higher
 
 # for all interactions that are significant
-# run smap
+# import embeddings
+# check mae for best theta
+# run smap with best theta
 # partial derivaties of multivariate smap approximates interactions
 
 # output file with taxa, interaction direction, interaction strength
