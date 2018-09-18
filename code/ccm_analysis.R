@@ -1,6 +1,7 @@
 library(rEDM)
 library(tidyverse)
 library(gtools)
+library(methods)
 
 input_values <- commandArgs(TRUE)
 run_set <- as.numeric(input_values[1])
