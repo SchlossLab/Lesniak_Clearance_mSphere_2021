@@ -39,7 +39,8 @@ if(!file.exists(paste0(save_dir, '/../smap_nonlinearity_first_differenced.txt'))
 # load file with embeddings and nonlinearity tests for each otu
 embedding_nonlinearity <- read.table(paste0(save_dir, 
 	'/../smap_nonlinearity_first_differenced.txt'), header = T, stringsAsFactors = F) %>% 
-	mutate(taxa = gsub('_first', '', taxa))
+	mutate(taxa = gsub('_first', '', taxa)) %>% 
+	filter(p_linear_v_nonlinear < 0.05, p_real_v_surrogate < 0.05, data == 'real')
 
 abx_df <- ccm_otu_df %>% 
 	filter(treatment == treatment_subset) %>% 
