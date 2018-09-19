@@ -39,11 +39,27 @@ ccm <- read.table(paste0(save_dir, '/../', load_files[3]),
 # check for significance in all tests
 #	nonlinear
 #		decrease in mae (increase in prediciton with increased theta) (wilcox)
+nonlinear_otus <- nonlinearity %>% 
+	filter(p_linear_v_nonlinear < 0.05, 
+		p_real_v_surrogate < 0.05, 
+		data == 'real') %>% 
+		pull(taxa)
+
 #	ccm convergence
 #		increasing (spearman), full library > min library (wilcox)
 #	ccm significance
 #		greater than linear (ttest), greater than null model (wilcox)
 # confirm median of real data is higher
+xmap_otus <- ccm %>% 
+	filter(data == 'real',
+		ccm_trend_p < 0.05,
+		ccm_trend_rho > 0,
+		median_rho_max_lobs > 0.25,
+		p_min_v_max_lobs < 0.05,
+		linear_corr_p < 0.05,
+		ccm_null_p < 0.05) %>% 
+	select(causal) %>% 
+	separate(causal, sep = 'xmap', c('driven', 'driver'))
 
 # for all interactions that are significant
 # import embeddings

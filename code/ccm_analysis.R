@@ -189,7 +189,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 	quote = F, row.names = F)
 
 	print(paste0('Completed ', current_otu1, ' and ', current_otu2, ' in from ', 
-		treatment_subset, '\n'))
+		treatment_subset))
 }
 
 # create function to generate NA if t test cannot calculate value
