@@ -30,9 +30,6 @@ for(i in load_files){
 		}
 	}
 #  import embedding/nonlinearity
-embedding <- read.table(paste0(save_dir, '/../', load_files[1]), 
-	header = T, stringsAsFactors = F) %>% 
-		mutate(taxa = gsub('_first', '', taxa))
 nonlinearity <- read.table(paste0(save_dir, '/../', load_files[2]), 
 	header = T, stringsAsFactors = F) %>% 
 		mutate(taxa = gsub('_first', '', taxa))
