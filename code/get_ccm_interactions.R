@@ -18,6 +18,16 @@ ifelse(!dir.exists(save_dir),
 	dir.create(save_dir), 
 	print(paste0(save_dir, ' directory ready')))
 
+meta_file <- 'data/process/abx_cdiff_metadata_clean.txt'
+meta_file <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
+	select(group, cage, mouse, day, CFU, cdiff, abx, dose, delayed) %>% 
+	unite(treatment, abx, dose, delayed) %>% 
+	filter(cdiff == T, day >= 0, treatment == treatment_subset)
+shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
+shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
+	inner_join(meta_file, by = c("Group" = 'group')) %>%
+	rename(C_difficile = CFU)
+
 # import results from individual taxa test
 #	check for embedding/nonlinearity/ccm files
 load_files <- c('simplex_embedding_first_differenced.txt',
@@ -61,8 +71,32 @@ xmap_otus <- ccm %>%
 	select(causal) %>% 
 	separate(causal, sep = 'xmap', c('driven', 'driver'))
 
+for(i in unique(xmap_otus$driven)){
+	otus <- xmap_otus %>% 
+		filter(driven == i) %>% 
+		pull(driver)
+	print(paste(i, 'is driven by', paste(otus, collapse = ', ')))
+	dynamics_plot <- shared_file %>% 
+			select(cage, mouse, day, one_of(i, otus)) %>% 
+			gather(bacteria, counts, one_of(i, otus)) %>% 
+				ggplot(aes(x = day, y = counts, color = interaction(as.factor(mouse), as.factor(cage)), group = interaction(cage, mouse))) + 
+					geom_line(alpha = 0.4) + 
+					geom_point() + 
+					facet_grid(bacteria~., scales = 'free_y') +
+					theme_bw() + 
+					labs(x = 'Day', y = 'Abundance \n (C difficle = CFU, Otu = 16s counts)', 
+						subtitle = 'Temporal Dynamics - Colored by mouse', 
+						title = print(paste(i, 'is driven by', paste(otus, collapse = ', ')))) + 
+					scale_x_continuous(breaks=seq(0,10, 1)) + 
+					theme_bw(base_size = 8) + 
+					theme(legend.position = 'none', panel.grid.minor = element_blank())
+	
+
+}
+
 # for all interactions that are significant
 # import embeddings
+
 # check mae for best theta
 # run smap with best theta
 # partial derivaties of multivariate smap approximates interactions
