@@ -91,6 +91,25 @@ for(i in unique(xmap_otus$driven)){
 					theme_bw(base_size = 8) + 
 					theme(legend.position = 'none', panel.grid.minor = element_blank())
 	
+	composite_ts <- otu_df %>% 
+		filter(taxa %in% c(i, otus), differenced == 'first') %>% 
+		select(taxa, day, unique_id, normalized_abundance) %>% 
+		spread(taxa, normalized_abundance) %>% 
+		arrange(unique_id, day)
+
+	surrogate_ts <- composite_ts %>% 
+		group_by(unique_id) %>% 
+		mutate(day = c(0,sample(day[day > 0]))) %>% 
+		arrange(unique_id, day) %>% 
+		ungroup
+	
+	best_E <- nonlinearity %>% 
+		filter(taxa %in% c(i, otus)) %>% 
+		select(taxa, embedding) %>% 
+		unique
+
+	print(paste0('Beginning interaction test of ', 
+		paste(i, 'is driven by', paste(otus, collapse = ', ')), ' in ', treatment_subset))
 
 }
 
