@@ -28,6 +28,8 @@ shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors 
 	inner_join(meta_file, by = c("Group" = 'group')) %>%
 	rename(C_difficile = CFU)
 
+mouse_list <- unique(otu_df$unique_id)
+
 # import results from individual taxa test
 #	check for embedding/nonlinearity/ccm files
 load_files <- c('simplex_embedding_first_differenced.txt',
@@ -110,6 +112,34 @@ for(i in unique(xmap_otus$driven)){
 
 	print(paste0('Beginning interaction test of ', 
 		paste(i, 'is driven by', paste(otus, collapse = ', ')), ' in ', treatment_subset))
+
+	test_theta <- lapply(1:500, function(blank){
+		rnd_order <- data.frame(unique_id = sample(mouse_list, replace = T), 
+			order = 1:length(mouse_list), stringsAsFactors = F)
+		rnd_composite_ts <- inner_join(composite_ts, rnd_order, by = 'unique_id') %>% 
+			arrange(order, day)
+
+		theta_run <- block_lnlp(select(rnd_composite_ts, one_of(i, otus)),
+			method = 's-map',
+			num_neighbors = 0,
+			theta = c(0, 1e-04, 3e-04, 0.001,
+				0.003, 0.01, 0.03, 0.1,
+                0.3, 0.5, 0.75, 1, 1.5,
+                2, 3, 4, 6, 8),
+			target_column = i,
+			silent = T)
+		return(theta_run)
+	})
+	test_theta <- do.call('rbind', test_theta)
+#	test_theta %>% 
+#		ggplot(aes(x = theta, y = mae)) +
+#			geom_point(alpha = 0.01) +
+#			stat_summary(fun.y = median, geom = 'line')
+	best_theta <- test_theta %>% 
+		group_by(theta) %>% 
+		summarise(median_mae = median(mae, na.rm = T)) %>% 
+		filter(median_mae == min(median_mae)) %>% 
+		pull(theta)
 
 }
 
