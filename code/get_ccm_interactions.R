@@ -112,7 +112,7 @@ for(i in unique(xmap_otus$driven)){
 
 	print(paste0('Beginning interaction test of ', 
 		paste(i, 'is driven by', paste(otus, collapse = ', ')), ' in ', treatment_subset))
-
+# check mae for best theta
 	test_theta <- lapply(1:500, function(blank){
 		rnd_order <- data.frame(unique_id = sample(mouse_list, replace = T), 
 			order = 1:length(mouse_list), stringsAsFactors = F)
@@ -140,15 +140,49 @@ for(i in unique(xmap_otus$driven)){
 		summarise(median_mae = median(mae, na.rm = T)) %>% 
 		filter(median_mae == min(median_mae)) %>% 
 		pull(theta)
-
-}
-
-# for all interactions that are significant
-# import embeddings
-
-# check mae for best theta
 # run smap with best theta
 # partial derivaties of multivariate smap approximates interactions
+	interaction_smap <- lapply(1:500, function(blank){
+		rnd_order <- data.frame(unique_id = sample(mouse_list, replace = T), 
+			order = 1:length(mouse_list), stringsAsFactors = F)
+		rnd_composite_ts <- inner_join(composite_ts, rnd_order, by = 'unique_id') %>% 
+			arrange(order, day)
+		
+		smap_res <-  block_lnlp(select(rnd_composite_ts, one_of(i, otus)),
+			method = "s-map",
+			num_neighbors = 0, 
+			theta = best_theta,
+			target_column = i,
+			silent = T,
+			save_smap_coefficients = T) # save S-map coefficients
+		smap_coef_df <- smap_res$smap_coefficients[[1]]
+		colnames(smap_coef_df) <- c(paste0('d', i, 'd', i), paste0('d', i, 'd', otus), 'intercept')
+		return(bind_cols(smap_res$model_output[[1]],
+			smap_coef_df,
+			rnd_composite_ts))		
+	})
+
+	interaction_smap <- do.call('rbind', interaction_smap)
+
+	interaction_smap %>% 
+		ggplot(aes(x = obs, y = pred)) + 
+			geom_point(alpha = 0.01) + 
+			theme_bw()
+
+	## Time series of fluctuating interaction strength
+
+	# Plot all partial derivatives
+	interaction_smap  %>% 
+		gather(interaction, strength, one_of(paste0('d', i, 'd', otus))) %>% 
+		group_by(unique_id, day) %>% 
+		summarise(median_strength = median(strength)) %>% 
+		ungroup %>% 
+		mutate(time = 1:length(day)) %>% 
+		ggplot(aes(x = time, y =median_strength)) + 
+			geom_line()
+}
+
+
 
 # output file with taxa, interaction direction, interaction strength
 
