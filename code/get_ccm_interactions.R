@@ -174,16 +174,19 @@ for(i in unique(xmap_otus$driven)){
 	# Plot all partial derivatives
 	interaction_plot <- interaction_smap  %>% 
 		gather(interaction, strength, one_of(paste0('d', i, 'd', otus))) %>% 
-		group_by(unique_id, day) %>% 
+		mutate(interaction = gsub('tu0*', 'TU', interaction)) %>% 
+		group_by(unique_id, day, interaction) %>% 
 		summarise(median_strength = median(strength)) %>% 
 		ungroup %>% 
 		mutate(time = 1:length(day)) %>% 
-		ggplot(aes(x = time, y =median_strength)) + 
+		ggplot(aes(x = time, y =median_strength, color = interaction)) + 
 			geom_line() + 
-			theme_bw()
+			theme_bw() +
+			theme(legend.position="top", legend.title=element_blank()) +
+			labs(title = paste0('Strength of effect of OTUs on ', gsub('tu0*', 'TU', i)))
 
 	ggsave(filename = paste0(save_dir, '/interactions_w_', i, '.jpg'), 
-		plot = interaction_plot, width = 7, height = 10, device = 'jpeg')
+		plot = interaction_plot, width = 12, height = 6, device = 'jpeg')
 	
 	write.table(interaction_smap, paste0(save_dir, '/interactions_w_', i, '.txt'), 
 		quote = F, row.names = F)
