@@ -172,14 +172,22 @@ for(i in unique(xmap_otus$driven)){
 	## Time series of fluctuating interaction strength
 
 	# Plot all partial derivatives
-	interaction_smap  %>% 
+	interaction_plot <- interaction_smap  %>% 
 		gather(interaction, strength, one_of(paste0('d', i, 'd', otus))) %>% 
 		group_by(unique_id, day) %>% 
 		summarise(median_strength = median(strength)) %>% 
 		ungroup %>% 
 		mutate(time = 1:length(day)) %>% 
 		ggplot(aes(x = time, y =median_strength)) + 
-			geom_line()
+			geom_line() + 
+			theme_bw()
+
+	ggsave(filename = paste0(save_dir, '/interactions_w_', i, '.jpg'), 
+		plot = interaction_plot, width = 7, height = 10, device = 'jpeg')
+	
+	write.table(interaction_smap, paste0(save_dir, '/interactions_w_', i, '.txt'), 
+		quote = F, row.names = F)
+
 }
 
 
