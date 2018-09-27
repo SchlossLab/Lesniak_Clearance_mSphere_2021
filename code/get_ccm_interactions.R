@@ -1,3 +1,4 @@
+library(cowplot)
 library(rEDM)
 library(tidyverse)
 
@@ -78,21 +79,7 @@ for(i in unique(xmap_otus$driven)){
 		filter(driven == i) %>% 
 		pull(driver)
 	print(paste(i, 'is driven by', paste(otus, collapse = ', ')))
-	dynamics_plot <- shared_file %>% 
-			select(cage, mouse, day, one_of(i, otus)) %>% 
-			gather(bacteria, counts, one_of(i, otus)) %>% 
-				ggplot(aes(x = day, y = counts, color = interaction(as.factor(mouse), as.factor(cage)), group = interaction(cage, mouse))) + 
-					geom_line(alpha = 0.4) + 
-					geom_point() + 
-					facet_grid(bacteria~., scales = 'free_y') +
-					theme_bw() + 
-					labs(x = 'Day', y = 'Abundance \n (C difficle = CFU, Otu = 16s counts)', 
-						subtitle = 'Temporal Dynamics - Colored by mouse', 
-						title = print(paste(i, 'is driven by', paste(otus, collapse = ', ')))) + 
-					scale_x_continuous(breaks=seq(0,10, 1)) + 
-					theme_bw(base_size = 8) + 
-					theme(legend.position = 'none', panel.grid.minor = element_blank())
-	
+
 	composite_ts <- otu_df %>% 
 		filter(taxa %in% c(i, otus), differenced == 'first') %>% 
 		select(taxa, day, unique_id, normalized_abundance) %>% 
@@ -163,6 +150,9 @@ for(i in unique(xmap_otus$driven)){
 	})
 
 	interaction_smap <- do.call('rbind', interaction_smap)
+	
+	write.table(interaction_smap, paste0(save_dir, '/interactions_w_', i, '.txt'), 
+	quote = F, row.names = F)
 
 	interaction_smap %>% 
 		ggplot(aes(x = obs, y = pred)) + 
@@ -172,7 +162,7 @@ for(i in unique(xmap_otus$driven)){
 	## Time series of fluctuating interaction strength
 
 	# Plot all partial derivatives
-	interaction_plot <- interaction_smap  %>% 
+	interaction_plot <- interaction_smap %>% 
 		gather(interaction, strength, one_of(paste0('d', i, 'd', otus))) %>% 
 		mutate(interaction = gsub('tu0*', 'TU', interaction)) %>% 
 		group_by(unique_id, day, interaction) %>% 
@@ -184,12 +174,29 @@ for(i in unique(xmap_otus$driven)){
 			theme_bw() +
 			theme(legend.position="top", legend.title=element_blank()) +
 			labs(title = paste0('Strength of effect of OTUs on ', gsub('tu0*', 'TU', i)))
+	
+	order <- unique(interaction_smap$unique_id)	
+	dynamics_plot <- shared_file %>% 
+			select(cage, mouse, day, one_of(i, otus)) %>% 
+			mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
+			right_join(data.frame(unique_id = rep(order, each = 11), day = rep(0:10, length(order)))) %>% 
+			mutate(time = 1:nrow(.)) %>% 
+			gather(bacteria, counts, one_of(i, otus)) %>% 
+				ggplot(aes(x = time, y = counts, color = interaction(as.factor(mouse), as.factor(cage)), group = interaction(cage, mouse))) + 
+					geom_line(alpha = 0.4) + 
+					geom_point() + 
+					facet_grid(bacteria~., scales = 'free_y') +
+					theme_bw() + 
+					labs(x = 'Day', y = 'Abundance \n (C difficle = CFU, Otu = 16s counts)', 
+						subtitle = 'Temporal Dynamics - Colored by mouse', 
+						title = paste(i, 'is driven by', paste(otus, collapse = ', '))) + 
+					theme_bw(base_size = 8) + 
+					theme(legend.position = 'none', panel.grid.minor = element_blank())
 
 	ggsave(filename = paste0(save_dir, '/interactions_w_', i, '.jpg'), 
-		plot = interaction_plot, width = 12, height = 6, device = 'jpeg')
+		plot = plot_grid(dynamics_plot, interaction_plot, nrow = 2, align = 'v'),
+		width = 14, height = 14, device = 'jpeg')
 	
-	write.table(interaction_smap, paste0(save_dir, '/interactions_w_', i, '.txt'), 
-		quote = F, row.names = F)
 
 }
 
