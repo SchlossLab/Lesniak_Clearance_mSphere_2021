@@ -133,7 +133,8 @@ for(i in unique(xmap_otus$driven)){
 		rnd_order <- data.frame(unique_id = sample(mouse_list, replace = T), 
 			order = 1:length(mouse_list), stringsAsFactors = F)
 		rnd_composite_ts <- inner_join(composite_ts, rnd_order, by = 'unique_id') %>% 
-			arrange(order, day)
+			arrange(order, day) %>% 
+			mutate(run = blank)
 		
 		smap_res <-  block_lnlp(select(rnd_composite_ts, one_of(i, otus)),
 			method = "s-map",
@@ -161,28 +162,32 @@ for(i in unique(xmap_otus$driven)){
 
 	## Time series of fluctuating interaction strength
 
+	## Time series of fluctuating interaction strength
+	order <- expand.grid(unique_id = mouse_list, day = 0:10)  %>% 
+		arrange(unique_id, day) %>% 
+		mutate(epochs = 1:NROW(.)) %>% 
+		right_join(expand.grid(epochs = 1:NROW(.), run = 1:500)) %>% 
+		arrange(unique_id, run, day)
 	# Plot all partial derivatives
 	interaction_plot <- interaction_smap %>% 
+		right_join(order) %>% 
 		gather(interaction, strength, one_of(paste0('d', i, 'd', otus))) %>% 
 		mutate(interaction = gsub('tu0*', 'TU', interaction)) %>% 
-		group_by(unique_id, day, interaction) %>% 
-		summarise(median_strength = median(strength)) %>% 
-		ungroup %>% 
-		mutate(time = 1:length(day)) %>% 
-		ggplot(aes(x = time, y =median_strength, color = interaction)) + 
-			geom_line() + 
+		ggplot(aes(x = epochs, y = strength)) + 
+			stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
+				alpha = 0.2, fun.args =(conf.int = 0.5), aes(fill = interaction)) + 
+			stat_summary(aes(color = interaction), fun.y = median, geom = 'line') + 
 			theme_bw() +
 			theme(legend.position="top", legend.title=element_blank()) +
 			labs(title = paste0('Strength of effect of OTUs on ', gsub('tu0*', 'TU', i)))
 	
-	order <- unique(interaction_smap$unique_id)	
 	dynamics_plot <- shared_file %>% 
 			select(cage, mouse, day, one_of(i, otus)) %>% 
 			mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
 			right_join(data.frame(unique_id = rep(order, each = 11), day = rep(0:10, length(order)))) %>% 
 			mutate(time = 1:nrow(.)) %>% 
 			gather(bacteria, counts, one_of(i, otus)) %>% 
-				ggplot(aes(x = time, y = counts, color = interaction(as.factor(mouse), as.factor(cage)), group = interaction(cage, mouse))) + 
+				ggplot(aes(x = time, y = counts, color = as.factor(cage), group = interaction(cage, mouse))) + 
 					geom_line(alpha = 0.4) + 
 					geom_point() + 
 					facet_grid(bacteria~., scales = 'free_y') +
