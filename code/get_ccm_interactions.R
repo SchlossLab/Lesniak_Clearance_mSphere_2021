@@ -67,7 +67,7 @@ xmap_otus <- ccm %>%
 	filter(data == 'real',
 		ccm_trend_p < 0.05,
 		ccm_trend_rho > 0,
-		median_rho_max_lobs > 0.25,
+		median_rho_max_lobs > 0,
 		p_min_v_max_lobs < 0.05,
 		linear_corr_p < 0.05,
 		ccm_null_p < 0.05) %>% 
