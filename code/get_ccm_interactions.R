@@ -73,7 +73,7 @@ xmap_otus <- ccm %>%
 		ccm_null_p < 0.05) %>% 
 	select(causal) %>% 
 	separate(causal, sep = 'xmap', c('driven', 'driver'))
-
+#i <- "C_difficile"
 for(i in unique(xmap_otus$driven)){
 	otus <- xmap_otus %>% 
 		filter(driven == i) %>% 
@@ -84,38 +84,52 @@ for(i in unique(xmap_otus$driven)){
 		filter(taxa %in% c(i, otus), differenced == 'first') %>% 
 		select(taxa, day, unique_id, normalized_abundance) %>% 
 		spread(taxa, normalized_abundance) %>% 
-		arrange(unique_id, day)
-
-	surrogate_ts <- composite_ts %>% 
-		group_by(unique_id) %>% 
-		mutate(day = c(0,sample(day[day > 0]))) %>% 
-		arrange(unique_id, day) %>% 
-		ungroup
+		arrange(unique_id, day)		
 	
+	data_by_plot <- split(composite_ts, composite_ts$unique_id)
+	segments_end <- cumsum(sapply(data_by_plot, NROW))
+	segments_begin <- c(1, segments_end[-length(segments_end)] + 1)
+	segments <- cbind(segments_begin, segments_end) 
+
 	best_E <- nonlinearity %>% 
 		filter(taxa %in% c(i, otus)) %>% 
 		select(taxa, embedding) %>% 
 		unique
+	univariate_ts <- make_block(composite_ts[,i], 
+			lib = segments)#,
+			#max_lag = pull(filter(best_E, taxa == i), embedding))
 
 	print(paste0('Beginning interaction test of ', 
 		paste(i, 'is driven by', paste(otus, collapse = ', ')), ' in ', treatment_subset))
 # check mae for best theta
 	test_theta <- lapply(1:500, function(blank){
-		rnd_order <- data.frame(unique_id = sample(mouse_list, replace = T), 
-			order = 1:length(mouse_list), stringsAsFactors = F)
-		rnd_composite_ts <- inner_join(composite_ts, rnd_order, by = 'unique_id') %>% 
-			arrange(order, day)
-
-		theta_run <- block_lnlp(select(rnd_composite_ts, one_of(i, otus)),
+		rndpred <- sample(1:NROW(segments), round(0.2 * NROW(segments)))
+		lib_segments <- segments[-rndpred, ]
+		rndlib <- sample(1:NROW(lib_segments), replace = T)
+		composite_lib <- lib_segments[rndlib, ]
+		composite_pred <- segments[rndpred, ]
+		uni_theta <- block_lnlp(univariate_ts, first_column_time = T,
 			method = 's-map',
 			num_neighbors = 0,
+			lib = composite_lib, pred = composite_pred,
+			theta = c(0, 1e-04, 3e-04, 0.001,
+				0.003, 0.01, 0.03, 0.1,
+                0.3, 0.5, 0.75, 1, 1.5,
+                2, 3, 4, 6, 8),
+			target_column = 1,
+			silent = T)
+		theta_run <- block_lnlp(select(composite_ts, one_of(i, otus)),
+			method = 's-map',
+			num_neighbors = 0,
+			lib = composite_lib, pred = composite_pred,
 			theta = c(0, 1e-04, 3e-04, 0.001,
 				0.003, 0.01, 0.03, 0.1,
                 0.3, 0.5, 0.75, 1, 1.5,
                 2, 3, 4, 6, 8),
 			target_column = i,
 			silent = T)
-		return(theta_run)
+		return(bind_rows(data.frame(theta_run, model_type = 'multivariate'),
+			data.frame(uni_theta, model_type = 'univariate')))
 	})
 	test_theta <- do.call('rbind', test_theta)
 #	test_theta %>% 
@@ -123,44 +137,60 @@ for(i in unique(xmap_otus$driven)){
 #			geom_point(alpha = 0.01) +
 #			stat_summary(fun.y = median, geom = 'line')
 	best_theta <- test_theta %>% 
-		group_by(theta) %>% 
+		group_by(model_type, theta) %>% 
 		summarise(median_mae = median(mae, na.rm = T)) %>% 
-		filter(median_mae == min(median_mae)) %>% 
-		pull(theta)
+		filter(median_mae == min(median_mae)) 
+
 # run smap with best theta
 # partial derivaties of multivariate smap approximates interactions
 	interaction_smap <- lapply(1:500, function(blank){
-		rnd_order <- data.frame(unique_id = sample(mouse_list, replace = T), 
-			order = 1:length(mouse_list), stringsAsFactors = F)
-		rnd_composite_ts <- inner_join(composite_ts, rnd_order, by = 'unique_id') %>% 
-			arrange(order, day) %>% 
-			mutate(run = blank)
-		
-		smap_res <-  block_lnlp(select(rnd_composite_ts, one_of(i, otus)),
+		rndlib <- sample(1:NROW(segments), replace = T)
+		composite_lib <- segments[rndlib, ]
+		pred_order <- data.frame(select(composite_ts[composite_lib[,1], ], unique_id),
+			order = 1:NROW(segments))
+		smap_multi <-  block_lnlp(select(composite_ts, one_of(i, otus)),
+			lib = composite_lib, pred = composite_lib,
 			method = "s-map",
 			num_neighbors = 0, 
-			theta = best_theta,
+			theta = pull(filter(best_theta, model_type == 'multivariate'), theta),
 			target_column = i,
 			silent = T,
 			save_smap_coefficients = T) # save S-map coefficients
-		smap_coef_df <- smap_res$smap_coefficients[[1]]
-		colnames(smap_coef_df) <- c(paste0('d', i, 'd', i), paste0('d', i, 'd', otus), 'intercept')
-		return(bind_cols(smap_res$model_output[[1]],
-			smap_coef_df,
-			rnd_composite_ts))		
+		smap_uni <-  block_lnlp(univariate_ts, first_column_time = T,
+			lib = composite_lib, pred = composite_lib,
+			method = "s-map",
+			num_neighbors = 0, 
+			theta = pull(filter(best_theta, model_type == 'univariate'), theta),
+			target_column = 1,
+			silent = T,
+			save_smap_coefficients = T) # save S-map coefficients
+		smap_coef_df <- smap_multi$smap_coefficients[[1]]
+		colnames(smap_coef_df) <- c(paste0('d', i, '_d', i), paste0('d', i, '_d', otus), 'intercept')
+		return(bind_rows(data.frame(bind_cols(smap_multi$model_output[[1]],
+					smap_coef_df,
+					right_join(composite_ts, pred_order, by = 'unique_id')), 
+				embed = 'multi'),
+			data.frame(smap_uni$model_output[[1]], embed = 'uni')))		
 	})
 
 	interaction_smap <- do.call('rbind', interaction_smap)
+
 	
-	write.table(interaction_smap, paste0(save_dir, '/interactions_w_', i, '.txt'), 
-	quote = F, row.names = F)
+#	write.table(interaction_smap, paste0(save_dir, '/interactions_w_', i, '.txt'), 
+#	quote = F, row.names = F)
 
 	interaction_smap %>% 
-		ggplot(aes(x = obs, y = pred)) + 
-			geom_point(alpha = 0.01) + 
-			theme_bw()
+		ggplot(aes(x = obs, y = pred, color = embed)) + 
+			geom_point(alpha = .2) + 
+			theme_bw() + 
+		    coord_cartesian(ylim=c(-2, 2), xlim=c(-2, 2))
+cor.test(interaction_smap$obs, interaction_smap$pred, method = 'spearman')
+interaction_smap %>% 
+	filter(embed == 'uni') %>% 
+	summarise(mean = mean(obs, na.rm = T), median = median(obs, na.rm = T),
+		pval = cor.test(.$obs, .$pred, method = 'spearman')$p.val,
+		cor = cor.test(.$obs, .$pred, method = 'spearman')$estimate)
 
-	## Time series of fluctuating interaction strength
 
 	## Time series of fluctuating interaction strength
 	order <- expand.grid(unique_id = mouse_list, day = 0:10)  %>% 
@@ -169,9 +199,9 @@ for(i in unique(xmap_otus$driven)){
 		right_join(expand.grid(epochs = 1:NROW(.), run = 1:500)) %>% 
 		arrange(unique_id, run, day)
 	# Plot all partial derivatives
-	interaction_plot <- interaction_smap %>% 
+	interaction_plot <- interaction_smap %>% filter(embed == 'multi') %>% 
 		right_join(order) %>% 
-		gather(interaction, strength, one_of(paste0('d', i, 'd', otus))) %>% 
+		gather(interaction, strength, one_of(paste0('d', i, '_d', otus))) %>% 
 		mutate(interaction = gsub('tu0*', 'TU', interaction)) %>% 
 		ggplot(aes(x = epochs, y = strength)) + 
 			stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
