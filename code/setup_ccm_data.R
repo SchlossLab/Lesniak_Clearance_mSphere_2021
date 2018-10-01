@@ -61,4 +61,4 @@ ccm_df <- ccm_df %>%
 	mutate(otu_feature = paste0(taxa, '_', differenced))
 
 write.table(ccm_df, paste0(save_dir, 'ccm_otu_data.txt'), 
-	quote = F, row.names = F,)
+	quote = F, row.names = F)

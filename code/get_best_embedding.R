@@ -46,19 +46,26 @@ taxa_nonlinearity_df <- c()
 # taxa_var <- taxa_list[[30]]
 for(taxa_var in taxa_list){
 	simplex_cat <- c()
+
+	composite_ts <- filter(abx_df, otu_feature == taxa_var)
+	pred_num <- round(0.2 * length(mouse_list))
+	data_by_plot <- split(composite_ts, composite_ts$unique_id)
+	segments_end <- cumsum(sapply(data_by_plot, NROW))
+	segments_begin <- c(1, segments_end[-length(segments_end)] + 1)
+	segments <- cbind(segments_begin, segments_end) 
+	lib_segments <- segments[-tail(1:NROW(segments), pred_num), ]
+	pred_segments <- segments[tail(1:NROW(segments), pred_num), ]
+
 	for(i in 1:500){ # when increasing seem to get repeats with treatment with 5 mice
-		composite_ts <- filter(abx_df, otu_feature == taxa_var)
-		data_by_plot <- split(composite_ts, composite_ts$unique_id)
-		segments_end <- cumsum(sapply(data_by_plot, NROW))
-		segments_begin <- c(1, segments_end[-length(segments_end)] + 1)
-		segments <- cbind(segments_begin, segments_end) 
-		rndpred <- sample(1:NROW(segments), 1)
-		lib_segments <- segments[-rndpred, ]
-		rndlib <- sample(1:NROW(lib_segments), replace = T)
-		composite_lib <- lib_segments[rndlib, ]
-		composite_pred <- segments[rndpred, ]
-		simplex_out <- simplex(data.frame(select(composite_ts, day, normalized_abundance)), 
-			E = 2:6, lib = composite_lib, pred = composite_pred)#,
+		rndpred <- sample(1:length(mouse_list), pred_num)
+		pred_order <- data.frame(
+			unique_id = c(sample(mouse_list[-rndpred], replace = T), mouse_list[rndpred]),
+			order = 1:NROW(mouse_list), 
+			stringsAsFactors = F)
+		rnd_composite_ts <- right_join(composite_ts, pred_order, by = 'unique_id')
+		simplex_out <- simplex(data.frame(select(rnd_composite_ts, day, normalized_abundance)), 
+			E = 2:6, lib = lib_segments, pred = pred_segments)#,
+
 # inspect predictions of simplex		
 #			stats_only = F)$model_output
 #			simplex_out$mae

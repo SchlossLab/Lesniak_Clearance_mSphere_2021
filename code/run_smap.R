@@ -58,28 +58,38 @@ taxa_nonlinearity_df <- c()
 # taxa_var <- taxa_list[[30]]
 for(taxa_var in taxa_list){
 	s_map_cat <- c()
+
+	composite_ts <- filter(abx_df, otu_feature == taxa_var)
+	best_E <- filter(best_embedding, taxa == taxa_var) %>% 
+		pull(E)
+
+	pred_num <- round(0.2 * length(mouse_list))
+	data_by_plot <- split(composite_ts, composite_ts$unique_id)
+	segments_end <- cumsum(sapply(data_by_plot, NROW))
+	segments_begin <- c(1, segments_end[-length(segments_end)] + 1)
+	segments <- cbind(segments_begin, segments_end) 
+	lib_segments <- segments[-tail(1:NROW(segments), pred_num), ]
+	pred_segments <- segments[tail(1:NROW(segments), pred_num), ]
+
 	for(i in 1:1000){
-		best_E <- filter(best_embedding, taxa == taxa_var) %>% 
-			pull(E)
-		composite_ts <- filter(abx_df, otu_feature == taxa_var)
+		rndpred <- sample(1:length(mouse_list), pred_num)
+		pred_order <- data.frame(
+			unique_id = c(sample(mouse_list[-rndpred], replace = T), mouse_list[rndpred]),
+			order = 1:NROW(mouse_list), 
+			stringsAsFactors = F)
+		rnd_composite_ts <- right_join(composite_ts, pred_order, by = 'unique_id')
+
 		surrogate_ts <- composite_ts %>% 
 			group_by(unique_id) %>% 
 			mutate(day = c(0,sample(day[day > 0]))) %>% 
 			arrange(unique_id, day) %>% 
-			ungroup
-		data_by_plot <- split(composite_ts, composite_ts$unique_id)
-		segments_end <- cumsum(sapply(data_by_plot, NROW))
-		segments_begin <- c(1, segments_end[-length(segments_end)] + 1)
-		segments <- cbind(segments_begin, segments_end) 
-		rndpred <- sample(1:NROW(segments), 1)
-		lib_segments <- segments[-rndpred, ]
-		rndlib <- sample(1:NROW(lib_segments), replace = T)
-		composite_lib <- lib_segments[rndlib, ]
-		composite_pred <- segments[rndpred, ]
-		smap_out <- s_map(data.frame(select(composite_ts, day, normalized_abundance)), 
-			E = best_E, lib = composite_lib, pred = composite_pred, theta = theta)
+			ungroup %>% 
+			right_join(pred_order, by = 'unique_id')
+
+		smap_out <- s_map(data.frame(select(rnd_composite_ts, day, normalized_abundance)), 
+			E = best_E, lib = lib_segments, pred = pred_segments, theta = theta)
 		surrogate_smap <- s_map(data.frame(select(surrogate_ts, day, normalized_abundance)), 
-			E = best_E, lib = composite_lib, pred = composite_pred, theta = theta)
+			E = best_E, lib = lib_segments, pred = pred_segments, theta = theta)
 		s_map_cat <- rbind(s_map_cat, 
 			rbind(cbind(smap_out, data = 'real', run = i),
 				cbind(surrogate_smap, data = 'surrogate', run = i)))

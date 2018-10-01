@@ -71,11 +71,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 		select(unique_id, day, normalized_abundance, otu_feature) %>% 
 		filter(otu_feature %in% c(current_otu1, current_otu2)) %>% 
 		spread(otu_feature, normalized_abundance)
-	surrogate_ts <- composite_ts %>% 
-		group_by(unique_id) %>% 
-		mutate(day = c(0,sample(day[day > 0]))) %>% 
-		arrange(unique_id, day) %>% 
-		ungroup
+
 	data_by_plot <- split(composite_ts, composite_ts$unique_id)
 	segments_end <- cumsum(sapply(data_by_plot, NROW))
 	segments_begin <- c(1, segments_end[-length(segments_end)] + 1)
@@ -89,27 +85,32 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 	print(paste0('Beginning ', current_otu1, ' and ', current_otu2, ' in from ', treatment_subset))
 
 	ccm_run_results <- lapply(1:500, function(i){
-		rnd_order <- sample(1:NROW(segments), replace = T)
-		rnd_segments <- segments[rnd_order, ]
-		mice_order <- paste(mouse_list[rnd_order], collapse = '--')
-		
+		surrogate_ts <- composite_ts %>% 
+			group_by(unique_id) %>% 
+			mutate(day = c(0,sample(day[day > 0]))) %>% 
+			arrange(unique_id, day) %>% 
+			ungroup
+		pred_order <- data.frame(unique_id = sample(mouse_list, replace = T),
+			order = 1:NROW(mouse_list), stringsAsFactors = F)
+		rnd_composite_ts <- right_join(composite_ts, pred_order, by = 'unique_id')
+		rnd_surrogate_ts <- right_join(surrogate_ts, pred_order, by = 'unique_id')
 		#Run the CCM test
 		# Does B "cause" A?
-		otu1_xmap_otu2 <- ccm(composite_ts, lib = rnd_segments, pred = rnd_segments, 
+		otu1_xmap_otu2 <- ccm(rnd_composite_ts, lib = segments, pred = segments, 
 			lib_column = current_otu1, target_column = current_otu2, 
 			E = pull(filter(best_E, taxa %in% current_otu1), embedding), 
 			lib_sizes = lib_sizes, silent = TRUE)
 		# Does A "cause" B?
-		otu2_xmap_otu1 <- ccm(composite_ts, lib = rnd_segments, pred = rnd_segments, 
+		otu2_xmap_otu1 <- ccm(rnd_composite_ts, lib = segments, pred = segments, 
 			lib_column = current_otu2, target_column = current_otu1, 
 			E = pull(filter(best_E, taxa %in% current_otu2), embedding), 
     		lib_sizes = lib_sizes, silent = TRUE)
 		# null model with surrogate data
-		otu1_xmap_otu2_surr <- ccm(surrogate_ts, lib = rnd_segments, pred = rnd_segments, 
+		otu1_xmap_otu2_surr <- ccm(surrogate_ts, lib = segments, pred = segments, 
 			lib_column = current_otu1, target_column = current_otu2, 
 			E = pull(filter(best_E, taxa %in% current_otu1), embedding), 
 			lib_sizes = lib_sizes, silent = TRUE)
-		otu2_xmap_otu1_surr <- ccm(surrogate_ts, lib = rnd_segments, pred = rnd_segments, 
+		otu2_xmap_otu1_surr <- ccm(surrogate_ts, lib = segments, pred = segments, 
 			lib_column = current_otu2, target_column = current_otu1, 
 			E = pull(filter(best_E, taxa %in% current_otu2), embedding), 
     		lib_sizes = lib_sizes, silent = TRUE)

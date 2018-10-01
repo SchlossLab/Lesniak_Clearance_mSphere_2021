@@ -90,38 +90,45 @@ for(i in unique(xmap_otus$driven)){
 	segments_end <- cumsum(sapply(data_by_plot, NROW))
 	segments_begin <- c(1, segments_end[-length(segments_end)] + 1)
 	segments <- cbind(segments_begin, segments_end) 
+	pred_num <- round(0.2 * length(mouse_list))
+	lib_segments <- segments[-tail(1:NROW(segments), pred_num), ]
+	pred_segments <- segments[tail(1:NROW(segments), pred_num), ]
 
 	best_E <- nonlinearity %>% 
 		filter(taxa %in% c(i, otus)) %>% 
 		select(taxa, embedding) %>% 
 		unique
-	univariate_ts <- make_block(composite_ts[,i], 
-			lib = segments)#,
+	univariate_ts <- bind_cols(composite_ts[, c('day', 'unique_id')], 
+		make_block(composite_ts[,i],
+			lib = segments))#,
 			#max_lag = pull(filter(best_E, taxa == i), embedding))
 
 	print(paste0('Beginning interaction test of ', 
 		paste(i, 'is driven by', paste(otus, collapse = ', ')), ' in ', treatment_subset))
 # check mae for best theta
 	test_theta <- lapply(1:500, function(blank){
-		rndpred <- sample(1:NROW(segments), round(0.2 * NROW(segments)))
-		lib_segments <- segments[-rndpred, ]
-		rndlib <- sample(1:NROW(lib_segments), replace = T)
-		composite_lib <- lib_segments[rndlib, ]
-		composite_pred <- segments[rndpred, ]
-		uni_theta <- block_lnlp(univariate_ts, first_column_time = T,
+		rndpred <- sample(1:length(mouse_list), pred_num)
+		pred_order <- data.frame(
+			unique_id = c(sample(mouse_list[-rndpred], replace = T), mouse_list[rndpred]),
+			order = 1:NROW(mouse_list), 
+			stringsAsFactors = F)
+		rnd_composite_ts <- right_join(composite_ts, pred_order, by = 'unique_id')
+		rnd_univariate_ts <- right_join(univariate_ts, pred_order, by = 'unique_id')
+
+		uni_theta <- block_lnlp(select(univariate_ts, contains('col1')),
 			method = 's-map',
 			num_neighbors = 0,
-			lib = composite_lib, pred = composite_pred,
+			lib = lib_segments, pred = pred_segments,
 			theta = c(0, 1e-04, 3e-04, 0.001,
 				0.003, 0.01, 0.03, 0.1,
                 0.3, 0.5, 0.75, 1, 1.5,
                 2, 3, 4, 6, 8),
-			target_column = 1,
+			target_column = 'col1',
 			silent = T)
 		theta_run <- block_lnlp(select(composite_ts, one_of(i, otus)),
 			method = 's-map',
 			num_neighbors = 0,
-			lib = composite_lib, pred = composite_pred,
+			lib = lib_segments, pred = pred_segments,
 			theta = c(0, 1e-04, 3e-04, 0.001,
 				0.003, 0.01, 0.03, 0.1,
                 0.3, 0.5, 0.75, 1, 1.5,
@@ -144,24 +151,24 @@ for(i in unique(xmap_otus$driven)){
 # run smap with best theta
 # partial derivaties of multivariate smap approximates interactions
 	interaction_smap <- lapply(1:500, function(blank){
-		rndlib <- sample(1:NROW(segments), replace = T)
-		composite_lib <- segments[rndlib, ]
-		pred_order <- data.frame(select(composite_ts[composite_lib[,1], ], unique_id),
-			order = 1:NROW(segments))
-		smap_multi <-  block_lnlp(select(composite_ts, one_of(i, otus)),
-			lib = composite_lib, pred = composite_lib,
+		pred_order <- data.frame(unique_id = sample(mouse_list, replace = T),
+			order = 1:NROW(mouse_list), stringsAsFactors = F)
+		rnd_composite_ts <- right_join(composite_ts, pred_order, by = 'unique_id')
+		rnd_univariate_ts <- right_join(univariate_ts, pred_order, by = 'unique_id')
+		smap_multi <-  block_lnlp(select(rnd_composite_ts, one_of(i, otus)),
+			lib = segments, pred = segments,
 			method = "s-map",
 			num_neighbors = 0, 
 			theta = pull(filter(best_theta, model_type == 'multivariate'), theta),
 			target_column = i,
 			silent = T,
 			save_smap_coefficients = T) # save S-map coefficients
-		smap_uni <-  block_lnlp(univariate_ts, first_column_time = T,
-			lib = composite_lib, pred = composite_lib,
+		smap_uni <-  block_lnlp(select(univariate_ts, contains('col1')),
+			lib = segments, pred = segments,
 			method = "s-map",
 			num_neighbors = 0, 
 			theta = pull(filter(best_theta, model_type == 'univariate'), theta),
-			target_column = 1,
+			target_column = 'col1',
 			silent = T,
 			save_smap_coefficients = T) # save S-map coefficients
 		smap_coef_df <- smap_multi$smap_coefficients[[1]]
@@ -175,22 +182,21 @@ for(i in unique(xmap_otus$driven)){
 
 	interaction_smap <- do.call('rbind', interaction_smap)
 
-	
-#	write.table(interaction_smap, paste0(save_dir, '/interactions_w_', i, '.txt'), 
-#	quote = F, row.names = F)
+	write.table(interaction_smap, paste0(save_dir, '/interactions_w_', i, '.txt'), 
+	quote = F, row.names = F)
 
-	interaction_smap %>% 
-		ggplot(aes(x = obs, y = pred, color = embed)) + 
-			geom_point(alpha = .2) + 
-			theme_bw() + 
-		    coord_cartesian(ylim=c(-2, 2), xlim=c(-2, 2))
-cor.test(interaction_smap$obs, interaction_smap$pred, method = 'spearman')
-interaction_smap %>% 
-	filter(embed == 'uni') %>% 
-	summarise(mean = mean(obs, na.rm = T), median = median(obs, na.rm = T),
-		pval = cor.test(.$obs, .$pred, method = 'spearman')$p.val,
-		cor = cor.test(.$obs, .$pred, method = 'spearman')$estimate)
-
+	# comparison to univariate is limited to late time points 
+	# so  limited interpretation
+	#interaction_smap %>% 
+	#	ggplot(aes(x = obs, y = pred, color = embed)) + 
+	#		geom_point(alpha = .2) + 
+	#		theme_bw() + 
+	#	    coord_cartesian(ylim=c(-2, 2), xlim=c(-2, 2))
+	#interaction_smap %>% 
+	#	group_by(embed) %>% 
+	#	summarise(mean = mean(obs, na.rm = T), median = median(obs, na.rm = T),
+	#		pval = cor.test(.$obs, .$pred, method = 'spearman')$p.val,
+	#		cor = cor.test(.$obs, .$pred, method = 'spearman')$estimate)
 
 	## Time series of fluctuating interaction strength
 	order <- expand.grid(unique_id = mouse_list, day = 0:10)  %>% 
@@ -199,8 +205,9 @@ interaction_smap %>%
 		right_join(expand.grid(epochs = 1:NROW(.), run = 1:500)) %>% 
 		arrange(unique_id, run, day)
 	# Plot all partial derivatives
-	interaction_plot <- interaction_smap %>% filter(embed == 'multi') %>% 
-		right_join(order) %>% 
+	interaction_plot <- interaction_smap %>% 
+		filter(embed == 'multi') %>% 
+		right_join(order, by = c('day', 'unique_id')) %>% 
 		gather(interaction, strength, one_of(paste0('d', i, '_d', otus))) %>% 
 		mutate(interaction = gsub('tu0*', 'TU', interaction)) %>% 
 		ggplot(aes(x = epochs, y = strength)) + 
