@@ -27,9 +27,13 @@ echo "Starting set" $PBS_ARRAYID
 ## determine nonlinearity of each otu
 #Rscript code/run_smap.R $PBS_ARRAYID 
 
-echo "Finished smap analysis, starting ccm analysis"
-# test for interaction via ccm
-Rscript code/ccm_analysis.R $PBS_ARRAYID 
+#echo "Finished smap analysis, starting ccm analysis"
+## test for interaction via ccm
+#Rscript code/ccm_analysis.R $PBS_ARRAYID 
+
+echo "Finished ccm analysis, starting interaction strength analysis"
+# strength of interaction identified by ccm
+Rscript code/get_ccm_interactions.R $PBS_ARRAYID 
 
 echo "Script complete"
 
