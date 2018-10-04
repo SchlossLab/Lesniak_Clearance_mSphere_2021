@@ -122,21 +122,21 @@ for(taxa_var in taxa_list){
 			theme_bw(base_size = 8) + theme(legend.position = c(0.1,0.9))
 
 	nonlinear_output <-  full_join(
-			group_by(s_map_cat, data) %>% 
+		group_by(s_map_cat, data) %>% 
 			filter(theta == max(theta)) %>% 
 			summarise(median_delta_mae = median(delta_mae)), 
 	# test each for decrease in mae (increase in prediciton with increased theta)
-			group_by(s_map_cat, data) %>% 
+		group_by(s_map_cat, data) %>% 
 			filter(theta %in% c(min(theta), max(theta))) %>%
-			summarise(p_linear_v_nonlinear = wilcox.test(mae ~ theta,
-				alternative = 'greater')$p.value),
+			summarise(p_linear_v_nonlinear = log10(wilcox.test(mae ~ theta,
+				alternative = 'greater')$p.value)),
 		by = 'data')
 
 	# test if mae is lower in real vs surrogate data
 	real_v_surrogate_nonlinearity <- s_map_cat %>% 
 		filter(theta == max(theta)) %>% 
-		summarise(p_real_v_surrogate = wilcox.test(mae ~ data,
-				alternative = 'less')$p.value)
+		summarise(p_real_v_surrogate = log10(wilcox.test(mae ~ data,
+				alternative = 'less')$p.value))
 
 	ggsave(filename = paste0(save_dir, treatment_subset, '/nonlinearity/', taxa_var, 
 		'_simplex_smap.jpg'), 

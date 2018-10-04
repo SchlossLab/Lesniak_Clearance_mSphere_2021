@@ -40,7 +40,7 @@ if(!file.exists(paste0(save_dir, '/../smap_nonlinearity_first_differenced.txt'))
 embedding_nonlinearity <- read.table(paste0(save_dir, 
 	'/../smap_nonlinearity_first_differenced.txt'), header = T, stringsAsFactors = F) %>% 
 	mutate(taxa = gsub('_first', '', taxa)) %>% 
-	filter(p_linear_v_nonlinear < 0.05, p_real_v_surrogate < 0.05, data == 'real')
+	filter(p_linear_v_nonlinear < log10(0.05), p_real_v_surrogate < log10(0.05), data == 'real')
 
 abx_df <- ccm_otu_df %>% 
 	filter(treatment == treatment_subset) %>% 
@@ -159,14 +159,14 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 			group_by(ccm_data, causal, data) %>% 
 				summarise(ccm_trend_rho = cor.test(rho, lib_size, 
 					method = 'spearman', use = 'complete.obs')$estimate,
-					ccm_trend_p = cor.test(rho, lib_size, 
-					method = 'spearman', use = 'complete.obs')$p.value),
+					ccm_trend_p = log10(cor.test(rho, lib_size, 
+					method = 'spearman', use = 'complete.obs')$p.value)),
 			filter(ccm_data, lib_size %in% c(min(lib_size), max(lib_size))) %>%
 				group_by(causal, data) %>% 
 				summarise(median_rho_min_lobs = median(rho[lib_size == min(lib_size)], na.rm = T),
 					median_rho_max_lobs = median(rho[lib_size == max(lib_size)], na.rm = T),
-					p_min_v_max_lobs = wilcox.test(rho ~ lib_size,
-						alternative = 'less')$p.value),
+					p_min_v_max_lobs = log10(wilcox.test(rho ~ lib_size,
+						alternative = 'less')$p.value)),
 			by = c('causal','data')) %>% 
 			ungroup
 
@@ -180,8 +180,8 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 				ungroup,
 			group_by(ccm_data, causal) %>% 
 				filter(lib_size > quantile(lib_size)['75%']) %>% 
-				summarise(ccm_null_p = wilcox.test(rho ~ data, 
-						alternative = 'greater')$p.value) %>% 
+				summarise(ccm_null_p = log10(wilcox.test(rho ~ data, 
+					alternative = 'greater')$p.value)) %>% 
 				ungroup,
 			by = 'causal')
 		print('Saving ccm results')
@@ -202,7 +202,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 # create function to generate NA if t test cannot calculate value
 my.t.test.p.value <- function(...) {
 	obj<-try(t.test(...), silent=TRUE)
-    if (is(obj, "try-error")) return(NA) else return(obj$p.value)
+    if (is(obj, "try-error")) return(NA) else return(log10(obj$p.value))
 }
 
 print(paste0('Beginning Treatment Set - ', treatment_subset, ' (Antibiotic, Dosage, Delay Challenge with C difficile)'))
