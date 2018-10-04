@@ -179,8 +179,8 @@ for(i in unique(xmap_otus$driven)){
 		interaction_smap[[iter]] <- bind_rows(
 			data.frame(bind_cols(smap_multi$model_output[[1]], smap_coef_df,
 					right_join(composite_ts, pred_order, by = 'unique_id')), 
-				embed = 'multi', stringsAsFactors = F),
-			data.frame(smap_uni$model_output[[1]], embed = 'uni', stringsAsFactors = F))		
+				embed = 'multi', run = iter, stringsAsFactors = F),
+			data.frame(smap_uni$model_output[[1]], embed = 'uni', run = iter, stringsAsFactors = F))		
 	}
 
 	interaction_smap <- do.call('rbind', interaction_smap)
@@ -210,7 +210,7 @@ for(i in unique(xmap_otus$driven)){
 	# Plot all partial derivatives
 	interaction_plot <- interaction_smap %>% 
 		filter(embed == 'multi') %>% 
-		right_join(order, by = c('day', 'unique_id')) %>% 
+		right_join(order, by = c('day', 'unique_id', 'run')) %>% 
 		gather(interaction, strength, one_of(paste0('d', i, '_d', otus))) %>% 
 		mutate(interaction = gsub('tu0*', 'TU', interaction)) %>% 
 		ggplot(aes(x = epochs, y = strength)) + 
