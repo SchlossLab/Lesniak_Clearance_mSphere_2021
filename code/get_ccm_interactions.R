@@ -106,7 +106,8 @@ for(i in unique(xmap_otus$driven)){
 	print(paste0('Beginning interaction test of ', 
 		paste(i, 'is driven by', paste(otus, collapse = ', ')), ' in ', treatment_subset))
 # check mae for best theta
-	test_theta <- lapply(1:500, function(blank){
+	test_theta <- list()
+	for(iter in 1:500){
 		rndpred <- sample(1:length(mouse_list), pred_num)
 		pred_order <- data.frame(
 			unique_id = c(sample(mouse_list[-rndpred], replace = T), mouse_list[rndpred]),
@@ -135,9 +136,10 @@ for(i in unique(xmap_otus$driven)){
                 2, 3, 4, 6, 8),
 			target_column = i,
 			silent = T)
-		return(bind_rows(data.frame(theta_run, model_type = 'multivariate'),
-			data.frame(uni_theta, model_type = 'univariate')))
-	})
+		test_theta[[iter]] <- bind_rows(
+			data.frame(theta_run, model_type = 'multivariate', stringsAsFactors = F),
+			data.frame(uni_theta, model_type = 'univariate', stringsAsFactors = F))
+	}
 	test_theta <- do.call('rbind', test_theta)
 #	test_theta %>% 
 #		ggplot(aes(x = theta, y = mae)) +
@@ -147,10 +149,11 @@ for(i in unique(xmap_otus$driven)){
 		group_by(model_type, theta) %>% 
 		summarise(median_mae = median(mae, na.rm = T)) %>% 
 		filter(median_mae == min(median_mae)) 
-
+	rm(test_theta)
 # run smap with best theta
 # partial derivaties of multivariate smap approximates interactions
-	interaction_smap <- lapply(1:500, function(blank){
+	interaction_smap <- list()
+	for(iter in 1:500){
 		pred_order <- data.frame(unique_id = sample(mouse_list, replace = T),
 			order = 1:NROW(mouse_list), stringsAsFactors = F)
 		rnd_composite_ts <- right_join(composite_ts, pred_order, by = 'unique_id')
@@ -173,12 +176,12 @@ for(i in unique(xmap_otus$driven)){
 			save_smap_coefficients = T) # save S-map coefficients
 		smap_coef_df <- smap_multi$smap_coefficients[[1]]
 		colnames(smap_coef_df) <- c(paste0('d', i, '_d', i), paste0('d', i, '_d', otus), 'intercept')
-		return(bind_rows(data.frame(bind_cols(smap_multi$model_output[[1]],
-					smap_coef_df,
+		interaction_smap[[iter]] <- bind_rows(
+			data.frame(bind_cols(smap_multi$model_output[[1]], smap_coef_df,
 					right_join(composite_ts, pred_order, by = 'unique_id')), 
-				embed = 'multi'),
-			data.frame(smap_uni$model_output[[1]], embed = 'uni')))		
-	})
+				embed = 'multi', stringsAsFactors = F),
+			data.frame(smap_uni$model_output[[1]], embed = 'uni', stringsAsFactors = F))		
+	}
 
 	interaction_smap <- do.call('rbind', interaction_smap)
 
