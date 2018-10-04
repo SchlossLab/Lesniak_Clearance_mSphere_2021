@@ -219,7 +219,8 @@ for(i in unique(xmap_otus$driven)){
 			stat_summary(aes(color = interaction), fun.y = median, geom = 'line') + 
 			theme_bw() +
 			theme(legend.position="top", legend.title=element_blank()) +
-			labs(title = paste0('Strength of effect of OTUs on ', gsub('tu0*', 'TU', i)))
+			labs(title = paste0('Strength of effect of OTUs on ', gsub('tu0*', 'TU', i)),
+				subtitle = 'Median with IQR shown')
 	
 	dynamics_plot <- shared_file %>% 
 			select(cage, mouse, day, one_of(i, otus)) %>% 
