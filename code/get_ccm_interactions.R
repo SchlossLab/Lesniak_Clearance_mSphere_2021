@@ -204,13 +204,13 @@ for(i in unique(xmap_otus$driven)){
 	## Time series of fluctuating interaction strength
 	order <- expand.grid(unique_id = mouse_list, day = 0:10)  %>% 
 		arrange(unique_id, day) %>% 
-		mutate(epochs = 1:NROW(.)) %>% 
-		right_join(expand.grid(epochs = 1:NROW(.), run = 1:500)) %>% 
-		arrange(unique_id, run, day)
+		mutate(epochs = 1:NROW(.)) #%>% 
+		#right_join(expand.grid(epochs = 1:NROW(.), run = 1:500)) %>% 
+		#arrange(unique_id, run, day)
 	# Plot all partial derivatives
 	interaction_plot <- interaction_smap %>% 
 		filter(embed == 'multi') %>% 
-		right_join(order, by = c('day', 'unique_id', 'run')) %>% 
+		right_join(order, by = c('day', 'unique_id')) %>% 
 		gather(interaction, strength, one_of(paste0('d', i, '_d', otus))) %>% 
 		mutate(interaction = gsub('tu0*', 'TU', interaction)) %>% 
 		ggplot(aes(x = epochs, y = strength)) + 
@@ -225,10 +225,10 @@ for(i in unique(xmap_otus$driven)){
 	dynamics_plot <- shared_file %>% 
 			select(cage, mouse, day, one_of(i, otus)) %>% 
 			mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
-			right_join(data.frame(unique_id = rep(order, each = 11), day = rep(0:10, length(order)))) %>% 
-			mutate(time = 1:nrow(.)) %>% 
+			right_join(order) %>% 
+			#mutate(time = 1:nrow(.)) %>% 
 			gather(bacteria, counts, one_of(i, otus)) %>% 
-				ggplot(aes(x = time, y = counts, color = as.factor(cage), group = interaction(cage, mouse))) + 
+				ggplot(aes(x = epochs, y = counts, color = as.factor(cage), group = interaction(cage, mouse))) + 
 					geom_line(alpha = 0.4) + 
 					geom_point() + 
 					facet_grid(bacteria~., scales = 'free_y') +
