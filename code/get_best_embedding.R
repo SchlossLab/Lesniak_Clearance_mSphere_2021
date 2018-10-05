@@ -3,11 +3,12 @@ library(tidyverse)
 
 input_values <- commandArgs(TRUE)
 run_set <- as.numeric(input_values[1])
+input_file <- as.character(input_values[2])
 save_dir <- paste0('scratch/ccm_otu/')
 print(paste0('Running set ', run_set))
 
-ccm_otu_df <- 'data/process/ccm_otu_data.txt'
-abx_df <- read.table(ccm_otu_df, header = T, stringsAsFactors = F)
+#input_file <- 'data/process/ccm_otu_data.txt' 
+abx_df <- read.table(input_file, header = T, stringsAsFactors = F)
 
 #source('code/sum_otu_by_taxa.R')
 #taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
@@ -36,7 +37,7 @@ ifelse(!dir.exists(paste0(save_dir, treatment_subset, '/embedding')),
 
 # remove otus that are present in less than 10 samples
 taxa_list <- unique(abx_df$otu_feature)
-mouse_list <- unique(abx_df$unique_id) 
+sample_list <- unique(abx_df$unique_id) 
 
 set.seed(seed)
 # Choose random segments for prediction
@@ -48,7 +49,7 @@ for(taxa_var in taxa_list){
 	simplex_cat <- c()
 
 	composite_ts <- filter(abx_df, otu_feature == taxa_var)
-	pred_num <- round(0.2 * length(mouse_list))
+	pred_num <- round(0.2 * length(sample_list))
 	data_by_plot <- split(composite_ts, composite_ts$unique_id)
 	segments_end <- cumsum(sapply(data_by_plot, NROW))
 	segments_begin <- c(1, segments_end[-length(segments_end)] + 1)

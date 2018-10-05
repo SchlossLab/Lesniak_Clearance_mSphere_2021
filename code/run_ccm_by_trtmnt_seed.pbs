@@ -21,7 +21,7 @@ echo "Starting set" $PBS_ARRAYID
 
 #echo "Running embedding script"
 ## get otu embeddings
-#Rscript code/get_best_embedding.R $PBS_ARRAYID 
+#Rscript code/get_best_embedding.R $PBS_ARRAYID 'data/process/ccm_otu_data.txt'
 #
 #echo "Finished embeddings, starting smap analysis"
 ## determine nonlinearity of each otu
