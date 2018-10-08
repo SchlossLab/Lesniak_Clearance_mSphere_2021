@@ -53,8 +53,8 @@ ccm <- read.table(paste0(save_dir, '/../', load_files[3]),
 #	nonlinear
 #		decrease in mae (increase in prediciton with increased theta) (wilcox)
 nonlinear_otus <- nonlinearity %>% 
-	filter(p_linear_v_nonlinear < 0.05, 
-		p_real_v_surrogate < 0.05, 
+	filter(p_linear_v_nonlinear < log10(0.05), 
+		p_real_v_surrogate < log10(0.05), 
 		data == 'real') %>% 
 		pull(taxa)
 
