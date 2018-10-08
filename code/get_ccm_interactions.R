@@ -65,12 +65,12 @@ nonlinear_otus <- nonlinearity %>%
 # confirm median of real data is higher
 xmap_otus <- ccm %>% 
 	filter(data == 'real',
-		ccm_trend_p < 0.05,
+		ccm_trend_p < log10(0.05),
 		ccm_trend_rho > 0,
 		median_rho_max_lobs > 0,
-		p_min_v_max_lobs < 0.05,
-		linear_corr_p < 0.05,
-		ccm_null_p < 0.05) %>% 
+		p_min_v_max_lobs < log10(0.05),
+		linear_corr_p < log10(0.05),
+		ccm$ccm_null_p < log10(0.05)) %>% 
 	select(causal) %>% 
 	separate(causal, sep = 'xmap', c('driven', 'driver'))
 #i <- "C_difficile"
