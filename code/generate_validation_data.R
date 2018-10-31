@@ -44,47 +44,48 @@ GLVE <- function(interaction_matrix, K, gamma, noise_level, length, delta_time){
 	initial_state <- runif(numberofSpecies, min = 5, max = 9)
 	current_state <- initial_state
 	time_series <- c(0, current_state)
+	NOISE <- rnorm(1, mean = 0, sd = noise_level) 
 	for(tick in 1:length){
-		if(gamma == 0){
-			new_state <- current_state + ( 
-				( ri * (1 - sum(exp(current_state))/K) ) + 
-				( interaction_matrix %*% ((a1 * exp(current_state))/ K)) ) * delta_time + 
-				rnorm(numberofSpecies, mean = 0, sd = noise_level)
-		} else if(gamma == 1){
-			new_state <- current_state + ( 
-				( ri * (1 - sum(exp(current_state))/K) ) + 
-				( interaction_matrix %*% c((a2 * exp(current_state)^gamma)/ 
-					(beta*K^gamma + exp(current_state)^gamma)) )) * delta_time + 
-				rnorm(numberofSpecies, mean = 0, sd = noise_level)
-		} else if(gamma >= 2){
-			new_state <- current_state + ( 
-				( ri * (1 - sum(exp(current_state))/K) ) + 
-				( interaction_matrix %*% c((a3 * exp(current_state)^gamma)/ 
-					(beta*K^gamma + exp(current_state)^gamma)) )) * delta_time + 
-				rnorm(numberofSpecies, mean = 0, sd = noise_level)
-#		new_state <- c()
-#		for(i in 1:numberofSpecies){
-#			xi <- current_state[i]
-#			if(gamma == 0){ 
-#				new_state[i] <- xi + (  
-#					( ri * (1 - sum(exp(current_state))/K) ) +  
-#					(sum(a1 * interaction_matrix[i, ] * exp(current_state))/ K ) ) * delta_time +  
-#					rnorm(1, mean = 0, sd = noise_level) 
-#			} else if(gamma == 1){ 
-#				new_state[i] <- xi + ( ( ri * (1 - sum(exp(current_state))/K) ) +  
-#					sum((a2 * interaction_matrix[i, ] * exp(current_state)^gamma)/ 
-#						(beta*K^gamma + exp(current_state)^gamma) ) ) * delta_time +  
-#					rnorm(1, mean = 0, sd = noise_level) 
-#			} else if(gamma >= 2){ 
-#				new_state[i] <- xi + ( ( ri * (1 - sum(exp(current_state))/K) ) +  
-#					sum((a3 * interaction_matrix[i, ] * exp(current_state)^gamma)/ 
-#						(beta*K^gamma + exp(current_state)^gamma) ) ) * delta_time +  
-#					rnorm(1, mean = 0, sd = noise_level) 
+#		if(gamma == 0){
+#			new_state <- current_state + ( 
+#				( ri * (1 - sum(exp(current_state))/K) ) + 
+#				( interaction_matrix %*% ((a1 * exp(current_state))/ K)) ) * delta_time + 
+#				rnorm(1, mean = 0, sd = noise_level)
+#		} else if(gamma == 1){
+#			new_state <- current_state + ( 
+#				( ri * (1 - sum(exp(current_state))/K) ) + 
+#				( interaction_matrix %*% c((a2 * exp(current_state)^gamma)/ 
+#					(beta*K^gamma + exp(current_state)^gamma)) )) * delta_time + 
+#				rnorm(1, mean = 0, sd = noise_level)
+#		} else if(gamma >= 2){
+#			new_state <- current_state + ( 
+#				( ri * (1 - sum(exp(current_state))/K) ) + 
+#				( interaction_matrix %*% c((a3 * exp(current_state)^gamma)/ 
+#					(beta*K^gamma + exp(current_state)^gamma)) )) * delta_time + 
+#				rnorm(1, mean = 0, sd = noise_level)
+		new_state <- c()
+		for(i in 1:numberofSpecies){
+			xi <- current_state[i]
+			if(gamma == 0){ 
+				new_state[i] <- xi + (  
+					( ri * (1 - sum(exp(current_state))/K) ) +  
+					(sum(a1 * interaction_matrix[i, ] * exp(current_state))/ K ) ) * delta_time +  
+					NOISE
+			} else if(gamma == 1){ 
+				new_state[i] <- xi + ( ( ri * (1 - sum(exp(current_state))/K) ) +  
+					sum((a2 * interaction_matrix[i, ] * exp(current_state)^gamma)/ 
+						(beta*K^gamma + exp(current_state)^gamma) ) ) * delta_time +  
+					NOISE
+			} else if(gamma >= 2){ 
+				new_state[i] <- xi + ( ( ri * (1 - sum(exp(current_state))/K) ) +  
+					sum((a3 * interaction_matrix[i, ] * exp(current_state)^gamma)/ 
+						(beta*K^gamma + exp(current_state)^gamma) ) ) * delta_time +  
+					NOISE
 			} else {
 				print('Error: gamma input incorrect')
 			}
-#		}
-		current_state - new_state
+		}
+#		current_state - new_state
 		if(min(new_state) < 0) stop('Error: Species went extinct')
 		time_series <- rbind(time_series, c(tick, new_state))
 		current_state <- new_state
