@@ -45,32 +45,32 @@ GLVE <- function(interaction_matrix, K, gamma, noise_level, length, delta_time){
 	current_state <- initial_state
 	time_series <- c(0, current_state)
 	for(tick in 1:length){
+		new_state <- c()
 		for(i in 1:numberofSpecies){
 			xi <- current_state[i]
-			xj <- current_state[-i]	
-			if(gamma == 0){
-				new_state[i] <- 
-					xi + ( 
-						( ri * (1 - sum(exp(current_state))/K) ) + 
-					(sum(a1 * interaction_matrix[i, -i] * exp(xj))/ K ) ) * delta_time + 
-					rnorm(1, mean = 0, sd = noise_level)
-			} else if(gamma == 1){
-				new_state[i] <- xi + ( ( ri * (1 - sum(exp(current_state))/K) ) + 
-					sum((a2 * interaction_matrix[i, -i] * exp(xj)^gamma)/ (beta*K^gamma + exp(xj)^gamma) ) ) * delta_time + 
-					rnorm(1, mean = 0, sd = noise_level)
-			} else if(gamma >= 2){
-				new_state[i] <- xi + ( ( ri * (1 - sum(exp(current_state))/K) ) + 
-					sum((a3 * interaction_matrix[i, -i] * exp(xj)^gamma)/ (beta*K^gamma + exp(xj)^gamma) ) ) * delta_time + 
-					rnorm(1, mean = 0, sd = noise_level)
+			if(gamma == 0){ 
+				new_state[i] <- xi + (  
+					( ri * (1 - sum(exp(current_state))/K) ) +  
+					(sum(a1 * interaction_matrix[i, ] * exp(current_state))/ K ) ) * delta_time +  
+					rnorm(1, mean = 0, sd = noise_level) 
+			} else if(gamma == 1){ 
+				new_state[i] <- xi + ( ( ri * (1 - sum(exp(current_state))/K) ) +  
+					sum((a2 * interaction_matrix[i, ] * exp(current_state)^gamma)/ 
+						(beta*K^gamma + exp(current_state)^gamma) ) ) * delta_time +  
+					rnorm(1, mean = 0, sd = noise_level) 
+			} else if(gamma >= 2){ 
+				new_state[i] <- xi + ( ( ri * (1 - sum(exp(current_state))/K) ) +  
+					sum((a3 * interaction_matrix[i, ] * exp(current_state)^gamma)/ 
+						(beta*K^gamma + exp(current_state)^gamma) ) ) * delta_time +  
+					rnorm(1, mean = 0, sd = noise_level) 
 			} else {
-					print('Error: gamma input incorrect')
+				print('Error: gamma input incorrect')
 			}
 		}
 		if(min(new_state) < 0) stop('Error: Species went extinct')
 		time_series <- rbind(time_series, c(tick, new_state))
 		current_state <- new_state
-		new_state <- c()
-	}
+		}
 	colnames(time_series) <- c('ticks', paste0('OTU_', 1:numberofSpecies))
 	return(time_series)
 }
@@ -80,7 +80,7 @@ time_series <- GLVE(interaction_matrix, K, gamma, noise_level, simulation_length
 time_series %>%
 	data.frame %>% 
 	filter(ticks %in% seq((simulation_length - sampling_length), simulation_length, sampling_interval)) %>% 
-	mutate(ticks = ticks - (simulation_length - sampling_length)) %>% 
+	mutate(ticks = (ticks - (simulation_length - sampling_length))/sampling_interval) %>% 
 	gather(OTU, abundance, contains('OTU')) %>%
 	mutate(abundance = exp(abundance)) %>%  
 	ggplot(aes(x = ticks, y = abundance, color = OTU)) + 
