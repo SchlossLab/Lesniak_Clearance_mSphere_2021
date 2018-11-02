@@ -2,6 +2,9 @@
 # Based on method and script used by 
 # Kenta Suzuki, et al. 2017 Methods in Ecology and Evolution
 #  https://besjournals.onlinelibrary.wiley.com/action/downloadSupplement?doi=10.1111%2F2041-210X.12814&file=mee312814-sup-0002-SupInfo.nb
+
+library(tidyverse)
+
 seed <- input
 set.seed(seed)
 
@@ -24,8 +27,9 @@ beta <- (0.1*K)^gamma # half-saturation constant of the interspecific interactio
 sigma <- 0.1 # used 0.01, 0.1, 0.2
 noise_level <-  sigma * (delta_time^0.5) # 
 ri <- 1 # intrinsic growth rate
+a1 <- 7.5; a2 <- 2.7; a3 <- 2#; B <- 0.1
 
-# Generate Interaction matrix
+# Create function to generate Interaction matrix
 IM <- function(numberofSpecies, connectance, cii, cij){ 
 	# create a vector containing random sample of interactions
 	total_interactions <- numberofSpecies^2
@@ -38,19 +42,13 @@ IM <- function(numberofSpecies, connectance, cii, cij){
 }
 
 # Create Generalized Lotka-Voltera Equation Function
-a1 <- 7.5; a2 <- 2.7; a3 <- 2; B <- 0.1
-noise <- 0.0316
-interaction <- matrix(unlist(read.table('~/True_interaction_matrix.txt')),
-	byrow = T, nrow = 10)
-
+initial_state <- runif(numberofSpecies, min = 5, max = 9)
 GLVE <- function(interaction_matrix, K, gamma, noise_level, length, delta_time){
 	time_series <- c()
-	initial_state <- runif(numberofSpecies, min = 5, max = 9)
 	current_state <- initial_state
 	time_series <- c(0, current_state)
 	beta <- (0.1*K)^gamma # half-saturation constant of the interspecific interaction
-	#NOISE <- rnorm(1, mean = 0, sd = noise_level) 
-	for(tick in 1:10){
+	for(tick in 1:length){
 		new_state <- c()
 		if(gamma == 0){
 			new_state <- current_state + ( 
@@ -90,7 +88,6 @@ GLVE <- function(interaction_matrix, K, gamma, noise_level, length, delta_time){
 				print('Error: gamma input incorrect')
 			}
 #		}
-#		current_state - new_state
 		if(min(new_state) < 0) stop('Error: Species went extinct')
 		time_series <- rbind(time_series, c(tick, new_state))
 		current_state <- new_state
@@ -98,24 +95,24 @@ GLVE <- function(interaction_matrix, K, gamma, noise_level, length, delta_time){
 	colnames(time_series) <- c('ticks', paste0('OTU_', 1:numberofSpecies))
 	return(time_series)
 }
-numberofSpecies <- 7
+
+# Create Sample Time Series
 interaction_matrix <- IM(numberofSpecies, connectance, cii, cij)	
-interaction_matrix <- matrix(unlist(read.table('~/ssm_interaction_matrix.txt')),
-	byrow = T, nrow = 7)
-time_series <- GLVE(interaction_matrix, K, gamma, 0, simulation_length, delta_time)
+interaction <- matrix(unlist(read.table('~/True_interaction_matrix.txt')),
+	byrow = T, nrow = 10)
+
+time_series <- GLVE(interaction_matrix, K, gamma, 0, 10, delta_time)
 time_series %>%
 	data.frame %>% 
-	filter(ticks %in% seq((simulation_length - sampling_length), simulation_length, sampling_interval)) %>% 
-	mutate(ticks = (ticks - (simulation_length - sampling_length))/sampling_interval) %>% 
+	#filter(ticks %in% seq((simulation_length - sampling_length), simulation_length, sampling_interval)) %>% 
+	#mutate(ticks = (ticks - (simulation_length - sampling_length))/sampling_interval) %>% 
 	gather(OTU, abundance, contains('OTU')) %>%
 	mutate(abundance = exp(abundance)) %>%  
 	ggplot(aes(x = ticks, y = abundance, color = OTU)) + 
 		geom_line()
 
-# Create Sample Time Series
-
-
-
 # Save data
-write.table(time_series, paste0(save_dir, treatment_subset, '/validation_data_set.txt'), 
+write.table(time_series, paste0(save_dir, treatment_subset, '/validation_temporal_data.txt'), 
+	quote = F, row.names = F)
+write.table(interaction_matrix, paste0(save_dir, treatment_subset, '/validation_interaction_matrix.txt'), 
 	quote = F, row.names = F)
