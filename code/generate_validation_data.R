@@ -1,7 +1,7 @@
 # File to generate validation data set
 # Based on method and script used by 
 # Kenta Suzuki, et al. 2017 Methods in Ecology and Evolution
-
+#  https://besjournals.onlinelibrary.wiley.com/action/downloadSupplement?doi=10.1111%2F2041-210X.12814&file=mee312814-sup-0002-SupInfo.nb
 seed <- input
 set.seed(seed)
 
@@ -42,52 +42,6 @@ a1 <- 7.5; a2 <- 2.7; a3 <- 2; B <- 0.1
 noise <- 0.0316
 interaction <- matrix(unlist(read.table('~/True_interaction_matrix.txt')),
 	byrow = T, nrow = 10)
-
-# Pat ODE
-library(deSolve)
-
-ode_model <- function(t, x, p){
-	n <- length(x)
-	data <- ( p$growth*(1-sum(x)/1) + p$interaction %*% x ) * 
-			(1 + rnorm(n, mean = 0, sd = p$noise))
-	list(data * x)
-}
-
-generate_community <- function(initial, time, growth, interaction=NULL,
-														perturbation=NULL, susceptibility=NULL,
-														n_replicates=1, noise=0, method="ode45"){
-	output_data <- list()
-	if(is.list(initial)){
-		n_replicates <- length(initial)
-	}
-	for(replicate in 1:n_replicates){
-		params <- list(growth = growth, interaction = interaction,
-											noise = noise)
-		start <- NULL
-		if(is.list(initial)){
-			start <- initial[[replicate]]
-		} else {
-			start <- initial
-		}
-		data <- ode(start, time, ode_model, params, method)[,-1]
-		output_data[[replicate]] <- as.matrix(data)
-	}
-	names(output_data) <- 1:n_replicates
-	output_data
-}
-
-growth <- rep(0.5,numberofSpecies)
-tmp <- runif(numberofSpecies)
-initial <- tmp/sum(tmp)
-time <- seq(1,1000,10)
-times <- list(time, time, time, time, time, time, time, time, time, time)
-names(times) <- as.character(length(times))
-X_obs <- generate_community(initial=initial, time=time, growth=growth,
-							interaction=interaction, n_replicates=length(times), noise=noise)
-X_obs$`1` %>% data.frame %>% mutate(ticks = time) %>% gather(OTU, abundance, -ticks) %>% mutate(OTU = gsub('X', 'OTU_', OTU)) %>% ggplot(aes(x = ticks, y = abundance, color = OTU)) + geom_line()
-# issue: limited dynamics, not affected by noise, replicates don't differ
-
-# Suzuki 2017 (https://besjournals.onlinelibrary.wiley.com/action/downloadSupplement?doi=10.1111%2F2041-210X.12814&file=mee312814-sup-0002-SupInfo.nb)
 
 GLVE <- function(interaction_matrix, K, gamma, noise_level, length, delta_time){
 	time_series <- c()
@@ -155,35 +109,6 @@ time_series %>%
 	mutate(ticks = (ticks - (simulation_length - sampling_length))/sampling_interval) %>% 
 	gather(OTU, abundance, contains('OTU')) %>%
 	mutate(abundance = exp(abundance)) %>%  
-	ggplot(aes(x = ticks, y = abundance, color = OTU)) + 
-		geom_line()
-# without noise, eventually becomes stable, with noise, continually interact
-
-
-# Fisher Mehta - LIMITS (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4108331/bin/pone.0102451.s001.nb)
-interaction <- matrix(unlist(read.table('~/True_interaction_matrix.txt')),
-	byrow = T, nrow = 10)
-numberofSpecies <- 10
-L <- 100
-random_time_series <- function(interaction_matrix, sigma, L){
-	# simulates a timeseries of length L for interaction matrix interaction_matrix and 
-	# stochasticity sigma
-	tc <- matrix(nrow = c(L + 1), ncol = c(numberofSpecies))
-	x <- matrix(rlnorm((L + 1) * numberofSpecies, mean = 0, sd = sigma), nrow = c(L + 1))
-	tc[1,] <- x[1,]
-	for(i in 1:L){
-		tc[i + 1, ] <- x[c(i + 1), ] * tc[i, ] * exp(interaction %*% tc[i, ])
-	}
-	return(tc)
-}
-LIMITS_ts <- random_time_series(interaction, noise_level, L)
-apply(LIMITS_ts, 1, function(x)x/sum(x)) %>% t %>% 
-	data.frame %>% 
-	mutate(ticks = 0:L - 35) %>% 
-	gather(OTU, abundance, contains('X')) %>% 
-	mutate(OTU = gsub('X','OTU_', OTU),		
-		abundance = abundance) %>% 
-	filter(ticks >= 0) %>% 
 	ggplot(aes(x = ticks, y = abundance, color = OTU)) + 
 		geom_line()
 
