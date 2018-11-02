@@ -4,6 +4,7 @@
 #  https://besjournals.onlinelibrary.wiley.com/action/downloadSupplement?doi=10.1111%2F2041-210X.12814&file=mee312814-sup-0002-SupInfo.nb
 
 library(tidyverse)
+library(deSolve)
 
 seed <- input
 set.seed(seed)
@@ -43,39 +44,31 @@ IM <- function(numberofSpecies, connectance, cii, cij){
 
 # Create Generalized Lotka-Voltera Equation Function
 initial_state <- runif(numberofSpecies, min = 5, max = 9)
-GLVE <- function(interaction_matrix, K, gamma, noise_level, length, delta_time){
-	time_series <- c()
-	current_state <- initial_state
-	time_series <- c(0, current_state)
-	beta <- (0.1*K)^gamma # half-saturation constant of the interspecific interaction
-	for(tick in 1:length){
-		new_state <- c()
-		if(gamma == 0){
-			new_state <- current_state + ( 
-				( ri * (1 - sum(exp(current_state))/K) ) + 
-				( interaction_matrix %*% ((a1 * exp(current_state))/ K)) ) * delta_time + 
-				rnorm(numberofSpecies, mean = 0, sd = noise_level)
-		} else if(gamma == 1){
-			new_state <- current_state + ( 
-				( ri * (1 - sum(exp(current_state))/K) ) + 
-				( interaction_matrix %*% c((a2 * exp(current_state)^gamma)/ 
-					(beta + exp(current_state)^gamma)) )) * delta_time + 
-				rnorm(numberofSpecies, mean = 0, sd = noise_level)
-		} else if(gamma >= 2){
-			new_state <- current_state + ( 
-				( ri * (1 - sum(exp(current_state))/K) ) + 
-				( interaction_matrix %*% c((a3 * exp(current_state)^gamma)/ 
-					(beta + exp(current_state)^gamma)) )) * delta_time + 
-				rnorm(numberofSpecies, mean = 0, sd = noise_level)
-		} else {
-			print('Error: gamma input incorrect')
-		}
-		if(min(new_state) < 0) stop('Error: Species went extinct')
-		time_series <- rbind(time_series, c(tick, new_state))
-		current_state <- new_state
-		}
-	colnames(time_series) <- c('ticks', paste0('OTU_', 1:numberofSpecies))
-	return(time_series)
+
+GLVE <- function(t, current_state, p){ 
+	noise_level <- p$noise_level
+	if(gamma == 0){
+	new_state <- current_state + ( 
+			( ri * (1 - sum(exp(current_state))/K) ) + 
+			( interaction_matrix %*% ((a1 * exp(current_state))/ K)) ) * delta_time + 
+			rnorm(numberofSpecies, mean = 0, sd = noise_level)
+	} else if(gamma == 1){
+		new_state <- current_state + ( 
+			( ri * (1 - sum(exp(current_state))/K) ) + 
+			( interaction_matrix %*% c((a2 * exp(current_state)^gamma)/ 
+				(beta + exp(current_state)^gamma)) )) * delta_time + 
+			rnorm(numberofSpecies, mean = 0, sd = noise_level)
+	} else if(gamma >= 2){
+		new_state <- current_state + ( 
+			( ri * (1 - sum(exp(current_state))/K) ) + 
+			( interaction_matrix %*% c((a3 * exp(current_state)^gamma)/ 
+				(beta + exp(current_state)^gamma)) )) * delta_time + 
+			rnorm(numberofSpecies, mean = 0, sd = noise_level)
+	} else {
+		print('Error: gamma input incorrect')
+	}
+	if(min(new_state) < 0) stop('Error: Species went extinct')
+	list(new_state)
 }
 
 # Create Sample Time Series
@@ -83,12 +76,23 @@ interaction_matrix <- IM(numberofSpecies, connectance, cii, cij)
 #interaction <- matrix(unlist(read.table('~/True_interaction_matrix.txt')),
 #	byrow = T, nrow = 10)
 
+params <- list()
+
+time_series <- ode(y = initial_state, # initial values (vector)
+	times = 0:10, # time sequence desired
+	func = GLVE, # R-function with func <- function(t, y, parms, ...), 
+				# t = current time, y = current estimate, parms = parameters
+				# must output a list of derivatives of y with respect to time
+	parms = list(noise_level = 0), # list of parameters input to model
+     method = "iteration")
+
 time_series <- GLVE(interaction_matrix, K, gamma, 0, 10, delta_time)
 time_series %>%
 	data.frame %>% 
 	#filter(ticks %in% seq((simulation_length - sampling_length), simulation_length, sampling_interval)) %>% 
 	#mutate(ticks = (ticks - (simulation_length - sampling_length))/sampling_interval) %>% 
-	gather(OTU, abundance, contains('OTU')) %>%
+	gather(OTU, abundance, -time) %>%
+	mutate(ticks = time) %>% 
 	mutate(abundance = exp(abundance)) %>%  
 	ggplot(aes(x = ticks, y = abundance, color = OTU)) + 
 		geom_line()
