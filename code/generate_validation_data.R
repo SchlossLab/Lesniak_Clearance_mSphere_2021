@@ -67,27 +67,9 @@ GLVE <- function(interaction_matrix, K, gamma, noise_level, length, delta_time){
 				( interaction_matrix %*% c((a3 * exp(current_state)^gamma)/ 
 					(beta + exp(current_state)^gamma)) )) * delta_time + 
 				rnorm(numberofSpecies, mean = 0, sd = noise_level)
-#		for(i in 1:numberofSpecies){
-#			xi <- current_state[i]
-#			if(gamma == 0){ 
-#				new_state[i] <- xi + (  
-#					( ri * (1 - sum(exp(current_state))/K) ) +  
-#					(sum(a1 * interaction_matrix[i, ] * exp(current_state))/ K ) ) * delta_time +  
-#					rnorm(1, mean = 0, sd = noise_level) 
-#			} else if(gamma == 1){ 
-#				new_state[i] <- xi + ( ( ri * (1 - sum(exp(current_state))/K) ) +  
-#					sum((a2 * interaction_matrix[i, ] * exp(current_state)^gamma)/ 
-#						(beta + exp(current_state)^gamma) ) ) * delta_time +  
-#					rnorm(1, mean = 0, sd = noise_level) 
-#			} else if(gamma >= 2){ 
-#				new_state[i] <- xi + ( ( ri * (1 - sum(exp(current_state))/K) ) +  
-#					sum((a3 * interaction_matrix[i, ] * exp(current_state)^gamma)/ 
-#						(beta + exp(current_state)^gamma) ) ) * delta_time +  
-#					rnorm(1, mean = 0, sd = noise_level) 
-			} else {
-				print('Error: gamma input incorrect')
-			}
-#		}
+		} else {
+			print('Error: gamma input incorrect')
+		}
 		if(min(new_state) < 0) stop('Error: Species went extinct')
 		time_series <- rbind(time_series, c(tick, new_state))
 		current_state <- new_state
@@ -98,8 +80,8 @@ GLVE <- function(interaction_matrix, K, gamma, noise_level, length, delta_time){
 
 # Create Sample Time Series
 interaction_matrix <- IM(numberofSpecies, connectance, cii, cij)	
-interaction <- matrix(unlist(read.table('~/True_interaction_matrix.txt')),
-	byrow = T, nrow = 10)
+#interaction <- matrix(unlist(read.table('~/True_interaction_matrix.txt')),
+#	byrow = T, nrow = 10)
 
 time_series <- GLVE(interaction_matrix, K, gamma, 0, 10, delta_time)
 time_series %>%
