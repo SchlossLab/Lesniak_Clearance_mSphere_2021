@@ -75,6 +75,20 @@ GLVE <- function(t, current_state, p){
 interaction_matrix <- IM(numberofSpecies, connectance, cii, cij)	
 #interaction <- matrix(unlist(read.table('~/True_interaction_matrix.txt')),
 #	byrow = T, nrow = 10)
+interaction_matrix <- IM(numberofSpecies, connectance, cii, cij)
+# test and create matrix until interactions produce persistent existence
+x <- NULL
+while(!is.numeric(x)){
+	x <- try(ode(y = runif(numberofSpecies, min = 5, max = 9), times = 0:5000, 
+		func = GLVE, parms = list(noise_level = 0), method = "iteration"), 
+		silent = T)
+	if (class(x)=="try-error") {
+		cat("ERROR1: ", x, "\n")
+		Sys.sleep(1)
+		print("Trying new matrix")
+		interaction_matrix <- IM(numberofSpecies, connectance, cii, cij)
+	} else break 
+}
 
 params <- list()
 
