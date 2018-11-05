@@ -11,8 +11,8 @@ set.seed(seed)
 
 # Set simulation parameters
 delta_time <- 0.1
-simulation_length <- 5000
-sampling_length <- 1000
+simulation_length <- 1000
+sampling_length <- 11
 sampling_interval <- 10
 
 # Set model parameters
@@ -28,7 +28,7 @@ beta <- (0.1*K)^gamma # half-saturation constant of the interspecific interactio
 sigma <- 0.1 # used 0.01, 0.1, 0.2
 noise_level <-  sigma * (delta_time^0.5) # 
 ri <- 1 # intrinsic growth rate
-a1 <- 7.5; a2 <- 2.7; a3 <- 2#; B <- 0.1
+a1 <- 7.5; a2 <- 2.7; a3 <- 2#; B <- 0.1 #alternative to beta
 
 # Create function to generate Interaction matrix
 IM <- function(numberofSpecies, connectance, cii, cij){ 
@@ -43,8 +43,6 @@ IM <- function(numberofSpecies, connectance, cii, cij){
 }
 
 # Create Generalized Lotka-Voltera Equation Function
-initial_state <- runif(numberofSpecies, min = 5, max = 9)
-
 GLVE <- function(t, current_state, p){ 
 	noise_level <- p$noise_level
 	if(gamma == 0){
@@ -72,7 +70,9 @@ GLVE <- function(t, current_state, p){
 }
 
 # Create Sample Time Series
-interaction_matrix <- IM(numberofSpecies, connectance, cii, cij)	
+initial_state <- runif(numberofSpecies, min = 5, max = 9)
+
+# Generate interaction matrix
 #interaction <- matrix(unlist(read.table('~/True_interaction_matrix.txt')),
 #	byrow = T, nrow = 10)
 interaction_matrix <- IM(numberofSpecies, connectance, cii, cij)
@@ -90,25 +90,24 @@ while(!is.numeric(x)){
 	} else break 
 }
 
-params <- list()
-
+# Generate simulation of time series
 time_series <- ode(y = initial_state, # initial values (vector)
-	times = 0:10, # time sequence desired
+	times = 0:simulation_length, # time sequence desired
 	func = GLVE, # R-function with func <- function(t, y, parms, ...), 
 				# t = current time, y = current estimate, parms = parameters
 				# must output a list of derivatives of y with respect to time
-	parms = list(noise_level = 0), # list of parameters input to model
-     method = "iteration")
+	parms = list(noise_level = noise_level), # list of parameters input to model
+	method = "iteration")
 
-time_series <- GLVE(interaction_matrix, K, gamma, 0, 10, delta_time)
-time_series %>%
+# Use tail timepoints (after temporal dynamics have become stable)
+time_series %>% 
 	data.frame %>% 
-	#filter(ticks %in% seq((simulation_length - sampling_length), simulation_length, sampling_interval)) %>% 
-	#mutate(ticks = (ticks - (simulation_length - sampling_length))/sampling_interval) %>% 
+	filter(time %in% seq((simulation_length - sampling_length), simulation_length, 
+		delta_time * sampling_interval)) %>% 
+	mutate(time = time - min(time)) %>% 
 	gather(OTU, abundance, -time) %>%
-	mutate(ticks = time) %>% 
 	mutate(abundance = exp(abundance)) %>%  
-	ggplot(aes(x = ticks, y = abundance, color = OTU)) + 
+	ggplot(aes(x = time, y = abundance, color = OTU)) + 
 		geom_line()
 
 # Save data
