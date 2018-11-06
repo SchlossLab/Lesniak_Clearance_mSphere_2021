@@ -3,10 +3,16 @@
 # Kenta Suzuki, et al. 2017 Methods in Ecology and Evolution
 #  https://besjournals.onlinelibrary.wiley.com/action/downloadSupplement?doi=10.1111%2F2041-210X.12814&file=mee312814-sup-0002-SupInfo.nb
 
-library(tidyverse)
-library(deSolve)
+library(tidyverse) # for tidyr/dplyr/%>% functions
+library(deSolve) # ode() to run GLVE
+library(purrr) # mp_dfr() to create replicate time series
 
-seed <- input
+input <- commandArgs(TRUE)
+if(length(input) != 2) stop('Incomplete input. Please enter a seed and gamma (0, 1, or 2))')
+seed <- as.numeric(input[1])
+gamma <- as.numeric(input[2])
+if(!is.numeric(seed)) stop('Please input a seed')
+if(!is.numeric(gamma)) stop('Please input a gamma (0, 1, 2)')
 set.seed(seed)
 
 # Set simulation parameters
@@ -23,7 +29,7 @@ cii <- -0.5 #intraspecific interaction
 cij_min <- 0.05 # interspecific interaction
 cij_max <- 1 # interspecific interaction
 K <- 10^4 # carrying capacity (upper limit of abundance, set to subsample amount)
-gamma <- 2 # select type of Holling Type Functional Response
+#gamma <- 2 # select type of Holling Type Functional Response
 # 0 for linear interactions, 1 for intermediate nonlinearity, >1 all cases nonlinearity
 beta <- (0.1*K)^gamma # half-saturation constant of the interspecific interaction
 sigma <- 0.1 # used 0.01, 0.1, 0.2
@@ -100,6 +106,10 @@ time_series <- map_dfr(1:replicates, function(x){
 		func = GLVE, # R-function with func <- function(t, y, parms, ...), 
 					# t = current time, y = current estimate, parms = parameters
 					# must output a list of derivatives of y with respect to time
+		parms = list(noise_level = noise_level), # list of parameters input to model
+		method = "iteration") %>% 
+		data.frame %>% 
+		# Use tail timepoints (after temporal dynamics have become stable)
 		filter(time %in% seq((simulation_length - sampling_length), simulation_length, 
 			delta_time * sampling_interval)) %>% 
 		mutate(time = time - min(time),
@@ -108,6 +118,8 @@ time_series <- map_dfr(1:replicates, function(x){
 
 colnames(time_series) <- gsub('X', 'OTU_', colnames(time_series))
 
+suffix <- paste0('_gamma', gamma, '_seed',  seed, '.') 
+ggsave(paste0('data/process/validation/validation_time_series', suffix, 'jpg'),
 	time_series %>% 
 		gather(OTU, abundance, contains('OTU')) %>%
 		mutate(abundance = exp(abundance)) %>%  
@@ -115,7 +127,7 @@ colnames(time_series) <- gsub('X', 'OTU_', colnames(time_series))
 			geom_line())
 
 # Save data
-write.table(time_series, paste0(save_dir, treatment_subset, '/validation_temporal_data.txt'), 
+write.table(time_series, paste0('data/process/validation/validation_temporal_data', suffix, 'txt'),
 	quote = F, row.names = F)
-write.table(interaction_matrix, paste0(save_dir, treatment_subset, '/validation_interaction_matrix.txt'), 
+write.table(interaction_matrix, paste0('data/process/validation/validation_interaction_matrix', suffix, 'txt'),
 	quote = F, row.names = F)
