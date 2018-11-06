@@ -86,8 +86,10 @@ interaction_matrix <- IM(numberofSpecies, connectance, cii, cij)
 # test and create matrix until interactions produce persistent existence
 x <- NULL
 while(!is.numeric(x)){
-	x <- try(ode(y = runif(numberofSpecies, min = 5, max = 9), times = 0:5000, 
-		func = GLVE, parms = list(noise_level = 0), method = "iteration"), 
+	x <- try(map_dfr(1:replicates, function(x){
+			ode(y = runif(numberofSpecies, min = 5, max = 9), times = 0:5000, 
+				func = GLVE, parms = list(noise_level = 0), method = "iteration")
+			}), 
 		silent = T)
 	if (class(x)=="try-error") {
 		cat("ERROR1: ", x, "\n")
