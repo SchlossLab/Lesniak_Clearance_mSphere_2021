@@ -14,6 +14,7 @@ delta_time <- 0.1
 simulation_length <- 1000
 sampling_length <- 11
 sampling_interval <- 10
+replicates <- 12
 
 # Set model parameters
 numberofSpecies <- 7
@@ -90,25 +91,28 @@ while(!is.numeric(x)){
 	} else break 
 }
 
-# Generate simulation of time series
-time_series <- ode(y = initial_state, # initial values (vector)
-	times = 0:simulation_length, # time sequence desired
-	func = GLVE, # R-function with func <- function(t, y, parms, ...), 
-				# t = current time, y = current estimate, parms = parameters
-				# must output a list of derivatives of y with respect to time
-	parms = list(noise_level = noise_level), # list of parameters input to model
-	method = "iteration")
 
-# Use tail timepoints (after temporal dynamics have become stable)
-time_series %>% 
-	data.frame %>% 
-	filter(time %in% seq((simulation_length - sampling_length), simulation_length, 
-		delta_time * sampling_interval)) %>% 
-	mutate(time = time - min(time)) %>% 
-	gather(OTU, abundance, -time) %>%
-	mutate(abundance = exp(abundance)) %>%  
-	ggplot(aes(x = time, y = abundance, color = OTU)) + 
-		geom_line()
+# Generate simulation of time series
+time_series <- map_dfr(1:replicates, function(x){
+	# simulate time series
+	ode(y = initial_state, # initial values (vector)
+		times = 0:simulation_length, # time sequence desired
+		func = GLVE, # R-function with func <- function(t, y, parms, ...), 
+					# t = current time, y = current estimate, parms = parameters
+					# must output a list of derivatives of y with respect to time
+		filter(time %in% seq((simulation_length - sampling_length), simulation_length, 
+			delta_time * sampling_interval)) %>% 
+		mutate(time = time - min(time),
+			replicate = x)
+	})
+
+colnames(time_series) <- gsub('X', 'OTU_', colnames(time_series))
+
+	time_series %>% 
+		gather(OTU, abundance, contains('OTU')) %>%
+		mutate(abundance = exp(abundance)) %>%  
+		ggplot(aes(x = time, y = abundance, color = OTU, group = interaction(OTU, replicate))) + 
+			geom_line())
 
 # Save data
 write.table(time_series, paste0(save_dir, treatment_subset, '/validation_temporal_data.txt'), 
