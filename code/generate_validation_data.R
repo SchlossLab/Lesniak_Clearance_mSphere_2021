@@ -75,6 +75,8 @@ GLVE <- function(t, current_state, p){
 	if(min(new_state) < 0) stop('Error: Species went extinct')
 	list(new_state)
 }
+date()
+print(paste0('Using gamma = ', gamma, ' and seed set to ', seed))
 
 # Create Sample Time Series
 initial_state <- runif(numberofSpecies, min = 5, max = 9)
@@ -93,13 +95,14 @@ while(!is.numeric(x)){
 			}), 
 		silent = T)
 	if (class(x)=="try-error") {
-		cat("ERROR1: ", x, "\n")
+		#cat("ERROR1: ", x, "\n")
 		Sys.sleep(1)
-		print("Trying new matrix")
+		#print("Trying new matrix")
 		interaction_matrix <- IM(numberofSpecies, connectance, cii, cij)
 	} else break 
 }
-
+print('Interaction Matrix set')
+date()
 
 # Generate simulation of time series
 time_series <- map_dfr(1:replicates, function(x){
