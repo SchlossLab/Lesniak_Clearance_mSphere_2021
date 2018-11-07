@@ -132,4 +132,4 @@ ggsave(paste0('data/process/validation/validation_time_series', suffix, 'jpg'),
 write.table(time_series, paste0('data/process/validation/validation_temporal_data', suffix, 'txt'),
 	quote = F, row.names = F)
 write.table(interaction_matrix, paste0('data/process/validation/validation_interaction_matrix', suffix, 'txt'),
-	quote = F, row.names = F)
+	quote = F, row.names = F, col.names = F)
