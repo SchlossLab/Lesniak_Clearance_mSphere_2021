@@ -88,7 +88,8 @@ x <- NULL
 while(!is.numeric(x)){
 	x <- try(map_dfr(1:replicates, function(x){
 			ode(y = runif(numberofSpecies, min = 5, max = 9), times = 0:5000, 
-				func = GLVE, parms = list(noise_level = 0), method = "iteration")
+				func = GLVE, parms = list(noise_level = 0), method = "iteration") %>% 
+				data.frame
 			}), 
 		silent = T)
 	if (class(x)=="try-error") {
