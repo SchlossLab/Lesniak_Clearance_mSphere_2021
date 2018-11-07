@@ -80,15 +80,14 @@ print(paste0('Using gamma = ', gamma, ' and seed set to ', seed))
 
 # Create Sample Time Series
 initial_state <- runif(numberofSpecies, min = 5, max = 9)
-
 # Generate interaction matrix
-#interaction <- matrix(unlist(read.table('~/True_interaction_matrix.txt')),
-#	byrow = T, nrow = 10)
+# interaction_matrix <- as.matrix(
+#	read.table('data/process/validation/validation_interaction_matrix_gamma2_seed1.txt'))
 interaction_matrix <- IM(numberofSpecies, connectance, cii, cij)
 # test and create matrix until interactions produce persistent existence
 x <- NULL
 while(!is.numeric(x)){
-	x <- try(map_dfr(1:replicates, function(x){
+	x <- try(map_df(1:20, function(x){
 			ode(y = runif(numberofSpecies, min = 5, max = 9), times = 0:5000, 
 				func = GLVE, parms = list(noise_level = 0), method = "iteration") %>% 
 				data.frame
@@ -105,7 +104,7 @@ print('Interaction Matrix set')
 date()
 
 # Generate simulation of time series
-time_series <- map_dfr(1:replicates, function(x){
+time_series <- map_dfr(1:10, function(x){
 	# simulate time series
 	ode(y = initial_state, # initial values (vector)
 		times = 0:simulation_length, # time sequence desired
