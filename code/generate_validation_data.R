@@ -21,6 +21,7 @@ simulation_length <- 1000
 sampling_length <- 11
 sampling_interval <- 10
 replicates <- 12
+subsample_level <- 2000
 
 # Set model parameters
 numberofSpecies <- 7
@@ -75,6 +76,26 @@ GLVE <- function(t, current_state, p){
 	if(min(new_state) < 0) stop('Error: Species went extinct')
 	list(new_state)
 }
+
+# Subsample simulated count data
+subsample <- function (count_data){
+	subsample_df <- apply(select(count_data, -time), 
+			1, function(x){
+				values <- round(exp(x)) %>% 
+					rep(names(.), .) %>% 
+					sample(., subsample_level, replace = T)}) %>% 
+		t %>% 
+		data.frame(stringsAsFactors = F) %>% 
+		mutate(time = count_data$time - min(count_data$time)) %>% 
+		gather(draw, otu, -time) %>% 
+		group_by(time) %>% 
+		count(otu) %>% 
+		spread(otu, n) %>% 
+		ungroup
+	subsample_df[is.na(subsample_df)] <- 0
+	return(subsample_df)
+}
+
 date()
 print(paste0('Using gamma = ', gamma, ' and seed set to ', seed))
 
@@ -106,7 +127,7 @@ date()
 # Generate simulation of time series
 time_series <- map_dfr(1:10, function(x){
 	# simulate time series
-	ode(y = initial_state, # initial values (vector)
+	ts <- ode(y = initial_state, # initial values (vector)
 		times = 0:simulation_length, # time sequence desired
 		func = GLVE, # R-function with func <- function(t, y, parms, ...), 
 					# t = current time, y = current estimate, parms = parameters
@@ -119,6 +140,10 @@ time_series <- map_dfr(1:10, function(x){
 			delta_time * sampling_interval)) %>% 
 		mutate(time = time - min(time),
 			replicate = x)
+	# subsample time series
+	ts <- subsample(ts) %>% 
+		mutate(replicate = x)
+	return(ts)
 	})
 
 colnames(time_series) <- gsub('X', 'OTU_', colnames(time_series))
@@ -127,7 +152,7 @@ suffix <- paste0('_gamma', gamma, '_seed',  seed, '.')
 ggsave(paste0('data/process/validation/validation_time_series', suffix, 'jpg'),
 	time_series %>% 
 		gather(OTU, abundance, contains('OTU')) %>%
-		mutate(abundance = exp(abundance)) %>%  
+		mutate(abundance = abundance) %>%  
 		ggplot(aes(x = time, y = abundance, color = OTU, group = interaction(OTU, replicate))) + 
 			geom_line())
 
