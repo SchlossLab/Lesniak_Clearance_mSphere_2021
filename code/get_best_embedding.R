@@ -42,11 +42,11 @@ sample_list <- unique(abx_df$unique_id)
 set.seed(seed)
 # Choose random segments for prediction
 
-taxa_nonlinearity_df <- c()
+taxa_nonlinearity_df <- list()
 # test each otu for embedding and nonlinearity
-# taxa_var <- taxa_list[[30]]
-for(taxa_var in taxa_list){
-	simplex_cat <- c()
+# taxa <- 1
+for(taxa in 1:length(taxa_list)){
+	taxa_var <- taxa_list[[taxa]]
 
 	composite_ts <- filter(abx_df, otu_feature == taxa_var)
 	pred_num <- round(0.2 * length(sample_list))
@@ -57,11 +57,12 @@ for(taxa_var in taxa_list){
 	lib_segments <- segments[-tail(1:NROW(segments), pred_num), ]
 	pred_segments <- segments[tail(1:NROW(segments), pred_num), ]
 
+	simplex_cat <- list()
 	for(i in 1:500){ # when increasing seem to get repeats with treatment with 5 mice
-		rndpred <- sample(1:length(mouse_list), pred_num)
+		rndpred <- sample(1:length(sample_list), pred_num)
 		pred_order <- data.frame(
-			unique_id = c(sample(mouse_list[-rndpred], replace = T), mouse_list[rndpred]),
-			order = 1:NROW(mouse_list), 
+			unique_id = c(sample(sample_list[-rndpred], replace = T), sample_list[rndpred]),
+			order = 1:NROW(sample_list), 
 			stringsAsFactors = F)
 		rnd_composite_ts <- right_join(composite_ts, pred_order, by = 'unique_id')
 		simplex_out <- simplex(data.frame(select(rnd_composite_ts, day, normalized_abundance)), 
@@ -71,8 +72,9 @@ for(taxa_var in taxa_list){
 #			stats_only = F)$model_output
 #			simplex_out$mae
 #			data.frame(select(composite_ts, day, normalized_abundance))[composite_pred[1]:composite_pred[2],]
-		simplex_cat <- rbind(simplex_cat, cbind(simplex_out, run = i))
+		simplex_cat[[i]] <- cbind(simplex_out, run = i)
 	}
+	simplex_cat <- do.call('rbind', simplex_cat)
 
 	simplex_median_mae <- simplex_cat %>% 
 		group_by(E) %>% 
@@ -101,12 +103,13 @@ for(taxa_var in taxa_list){
 		plot = embedded_plot, 
 		width = 7, height = 10, device = 'jpeg') 
 
-	taxa_nonlinearity_df <- rbind(taxa_nonlinearity_df, 
-		data.frame(taxa = taxa_var, simplex_median_mae))
+	taxa_nonlinearity_df[[taxa]] <- data.frame(taxa = taxa_var, simplex_median_mae)
 
 
 	print(paste('Completed ', taxa_var))
 }
+
+taxa_nonlinearity_df <- do.call('rbind', taxa_nonlinearity_df)
 
 write.table(taxa_nonlinearity_df, paste0(save_dir, treatment_subset, '/simplex_embedding_first_differenced.txt'), 
 	quote = F, row.names = F)
