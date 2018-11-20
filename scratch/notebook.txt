@@ -86,3 +86,41 @@ LIMITS
 		seqtime package - https://hallucigenia-sparsa.github.io/seqtime/articles/network_inference.html
 		LIMITS - http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0102451
 			"Any algorithm for inferring ecological interactions must overcome three major obstacles: 1) a correlation between the abundances of two species does not imply that those species are interacting, 2) the sum constraint on the relative abundances obtained from metagenomic studies makes it difficult to infer the parameters in timeseries models, and 3) errors due to experimental uncertainty, or mis-assignment of sequencing reads into operational taxonomic units, bias inferences of species interactions due to a statistical problem called “errors-in-variables”. Learning Interactions from MIcrobial Time Series (LIMITS), that overcomes these obstacles. LIMITS uses sparse linear regression with boostrap aggregation to infer a discrete-time Lotka-Volterra model for microbial dynamics"
+
+Test set
+Bucci 2016. Genome Biol. 2016 Jun 3;17(1):121. doi: 10.1186/s13059-016-0980-6.
+	MDSINE: Microbial Dynamical Systems INference Engine for microbiome time-series analyses.
+	Vanni Bucci, Belinda Tzen, Ning Li, Matt Simmons, Takeshi Tanoue, Elijah Bogart, Luxue Deng, Vladimir Yeliseyev, Mary L. Delaney, Qing Liu, Bernat Olle, Richard R. Stein, Kenya Honda, Lynn Bry and Georg K. Gerber
+	The SRA project ID is SRP065075.
+		https://trace.ncbi.nlm.nih.gov/Traces/study/?acc=SRP065075&go=go
+		https://www.ebi.ac.uk/ena/data/view/PRJNA299293
+	V4 region
+	5 mice individually caged gnotobiotic mice gavaged with bac mix
+		sampled 0.75, 1, 2, 3, 4, 6, 8, 10, 14, 17, 21, 24, and 28 (post inoculation and CDI)
+		also diet exp with 7 mice 13 members followed for 70 days
+	software - http://dx.doi.org/10.5281/zenodo.50624
+		contains counts for cdifficile and 22 other taxa
+	github - https://github.com/SchlossLab/dynamics/blob/master/test/matlab/matlab_data.tsv
+		doesnt match experiment sampling?
+Buffie 2015. Nature. 2015 Jan 8;517(7533):205-8. doi: 10.1038/nature13828.
+	Precision microbiome reconstitution restores bile acid mediated resistance to Clostridium difficile. 
+    Charlie G. Buffie, Vanni Bucci, Richard R. Stein, Peter T. McKenney, Lilan Ling, Asia Gobourne, Daniel No, Hui Liu, Melissa Kinnebrew, Agnes Viale, Eric Littmann, Marcel R. M. van den Brink, Robert R. Jenq, Ying Taur, Chris Sander, Justin R. Cross, Nora C. Toussaint, Joao B. Xavier & Eric G. Pamer
+	The SRA project ID is SRP045811.
+	3 treatments - clinda, amp, enro (3 mice per treatment)
+		samples at -2, 1, 6, 10, 14, 21
+	CDI Data?
+Stein 2013 - PLoS Comput Biol. 2013 Dec; 9(12): e1003388.
+	Ecological Modeling from Time-Series Inference: Insight into Dynamics and Stability of Intestinal Microbiota
+	Richard R. Stein, Vanni Bucci, Nora C. Toussaint, Charlie G. Buffie, Gunnar Rätsch, Eric G. Pamer, Chris Sander, and João B. Xavier
+	XLSX File - https://journals.plos.org/ploscompbiol/article/file?type=supplementary&id=info:doi/10.1371/journal.pcbi.1003388.s001
+	github - https://github.com/SchlossLab/dynamics/blob/master/test/stein/stein.tsv
+		does not match xlsx/doesnt match experiment sampling? 
+	3 Treatments - CDI, Clinda, Clinda + CDI (3 mice per treatment)
+		samples at 0,2,3,4,5,6,7,9,12,16,23,30
+	10 most abundant genera
+	Zero is set to random distribution between 0 and LOD	
+	Used data from 
+		Buffie - Infect Immun. 2012 Jan; 80(1): 62–73. doi:  10.1128/IAI.05496-11
+			Raw data not posted
+			Profound Alterations of Intestinal Microbiota following a Single Dose of Clindamycin Results in Sustained Susceptibility to Clostridium difficile-Induced Colitis
+			Charlie G. Buffie, Irene Jarchum, Michele Equinda, Lauren Lipuma, Asia Gobourne, Agnes Viale, Carles Ubeda, Joao Xavier, and Eric G. Pamer
