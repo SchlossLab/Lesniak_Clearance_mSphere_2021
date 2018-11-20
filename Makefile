@@ -183,6 +183,95 @@ $(BASIC_STEM).genus.1.subsample.shared $(BASIC_STEM).phyla.5.subsample.shared : 
 #
 ################################################################################
 
+# Generate simulated community with known interactions
+data/process/validation/* : code/generate_validation_data.R
+	for gamma in `seq 0 2`;
+	do
+		for seed in `seq 1 5`;
+		do
+		Rscript code/generate_validation_data.R $seed $gamma
+		done
+	done 
+
+################################################################################
+# Setup data for CCM
+# Z-score normalize and first-difference data
+data/process/abx_cdiff_metadata_clean.txt : code/clean_metadata.R\
+											data/raw/abx_cdiff_metadata.tsv 
+	Rscript code/clean_metadata.R
+data/process/ccm_otu_data.txt : code/setup_ccm_data.R\
+								data/process/abx_cdiff_metadata_clean.txt
+	Rscript code/setup_ccm_data.R
+data/process/validation/ccm_validation_data.txt : data/process/validation/validation_temporal_data_*.txt \
+												  data/process/validation/validation_interaction_matrix_*.txt\
+												  code/setup_validation_data.R
+	Rscript code/setup_validation_data.R
+
+################################################################################
+# determine best embedding for each OTU
+data/process/ccm/*/simplex_embedding_first_differenced.txt : code/get_best_embedding.R\ 
+								data/process/bucci/ccm_bucci_data.txt\
+								data/process/ccm_otu_data.txt
+	for i in `seq 1 15`;
+	do
+		Rscript code/get_best_embedding.R $i 'data/process/ccm_otu_data.txt'
+	done  
+data/process/ccm/validation/simplex_embedding_first_differenced.txt : code/get_best_embedding.R\ 
+								data/process/ccm_validation_data.txt
+	for i in `seq 1 15`;
+	do
+		Rscript code/get_best_embedding.R $i 'data/process/ccm_validation_data.txt'
+	done  
+
+################################################################################
+# check each OTU for nonlinearity
+data/process/ccm/*/smap_nonlinearity_first_differenced.txt : code/run_smap.R\ 
+								data/process/ccm/*/simplex_embedding_first_differenced.txt
+	for i in `seq 1 15`;
+	do
+		Rscript code/run_smap.R $i
+	done  
+data/process/ccm/*/smap_nonlinearity_first_differenced.txt : code/run_smap.R\ 
+							   data/process/ccm/*/simplex_embedding_first_differenced.txt
+	for i in `seq 1 15`;
+	do
+		Rscript code/run_smap.R $i 'data/process/ccm_validation_data.txt'
+	done  
+
+################################################################################
+# run CCM on all OTUs that are significantly nonlinear
+data/process/ccm/*/ccm_by_otu_*_first_differenced.txt : code/run_smap.R\ 
+														data/process/ccm/*/simplex_embedding_first_differenced.txt\
+														data/process/ccm/*/smap_nonlinearity_first_differenced.txt
+	for i in `seq 1 15`;
+	do
+		Rscript code/ccm_analysis.R $i 'data/process/ccm_otu_data.txt'
+	done  
+data/process/ccm/*/ccm_by_otu_*_first_differenced.txt : code/run_smap.R\ 
+														data/process/ccm/*/simplex_embedding_first_differenced.txt\
+														data/process/ccm/*/smap_nonlinearity_first_differenced.txt
+	for i in `seq 1 15`;
+	do
+		Rscript code/ccm_analysis.R $i 'data/process/ccm_validation_data.txt'
+	done  
+
+################################################################################
+# run smap to determine interactions
+
+data/process/ccm/*/interactions_w_*.txt : code/get_ccm_interactions.R\
+										  data/process/ccm_validation_data.txt\
+										  data/process/ccm/*/simplex_embedding_first_differenced.txt\
+										  data/process/ccm/*/smap_nonlinearity_first_differenced.txt\
+										  data/process/ccm/*/ccm_by_otu_*_first_differenced.txt
+	Rscript code/get_ccm_interactions.R 10 'data/process/ccm_validation_data.txt'
+
+
+################################################################################
+# commands for processing the dependencies to create the targets
+
+target : dependencies
+	commands
+
 write.paper : $(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.subsample.shared\
 		$(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.cons.taxonomy\
 		$(BASIC_STEM).pick.pick.pick.an.unique_list.groups.ave-std.summary\
