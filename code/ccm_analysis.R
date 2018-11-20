@@ -20,6 +20,7 @@ ccm_otu_df   <- read.table(input_file, header = T, stringsAsFactors = F) %>%
 
 seed <- 062818
 treatment_subset <- unique(ccm_otu_df$treatment)[run_set]
+# treatment_subset <- 'bucci_none'
 # use to test function
 # most complete sample sets
 #	treatment_subset <- 'cef_0.5_FALSE'
@@ -41,8 +42,8 @@ if(!file.exists(paste0(save_dir, '/../smap_nonlinearity_first_differenced.txt'))
 # load file with embeddings and nonlinearity tests for each otu
 embedding_nonlinearity <- read.table(paste0(save_dir, 
 	'/../smap_nonlinearity_first_differenced.txt'), header = T, stringsAsFactors = F) %>% 
-	mutate(taxa = gsub('_first', '', taxa)) %>% 
-	filter(p_linear_v_nonlinear < log10(0.05), p_real_v_surrogate < log10(0.05), data == 'real')
+	mutate(taxa = gsub('_first', '', taxa)) #%>%
+	#filter(p_linear_v_nonlinear < log10(0.05), p_real_v_surrogate < log10(0.05), data == 'real')
 
 abx_df <- ccm_otu_df %>% 
 	filter(treatment == treatment_subset) %>% 
@@ -90,7 +91,7 @@ run_ccm <- function(otu, input_df, treatment_subset, taxa_list){
 		ccm_run_results <- lapply(1:500, function(i){
 			surrogate_ts <- composite_ts %>% 
 				group_by(unique_id) %>% 
-				mutate(day = c(0,sample(day[day > 0]))) %>% 
+				mutate(day = c(0.75,sample(day[day > 0.75]))) %>% 
 				arrange(unique_id, day) %>% 
 				ungroup
 			pred_order <- data.frame(unique_id = sample(mouse_list, replace = T),

@@ -55,9 +55,10 @@ ccm <- read.table(paste0(save_dir, '/../', load_files[3]),
 #	nonlinear
 #		decrease in mae (increase in prediciton with increased theta) (wilcox)
 nonlinear_otus <- nonlinearity %>% 
-	filter(p_linear_v_nonlinear < log10(0.05), 
-		p_real_v_surrogate < log10(0.05), 
-		data == 'real') %>% 
+	filter(data == 'real',
+		#p_linear_v_nonlinear < log10(0.05), 
+		#p_real_v_surrogate < log10(0.05)
+		) %>% 
 		pull(taxa)
 
 #	ccm convergence
@@ -76,10 +77,10 @@ xmap_otus <- ccm %>%
 	select(causal) %>% 
 	separate(causal, sep = 'xmap', c('driven', 'driver'))
 #i <- "C_difficile"
-for(i in unique(xmap_otus$driven)){
-	otus <- xmap_otus %>% 
-		filter(driven == i) %>% 
-		pull(driver)
+for(i in unique(xmap_otus$driven)){ 
+  otus <- xmap_otus %>%  
+    filter(driven == i) %>%  
+    pull(driver) 
 	print(paste(i, 'is driven by', paste(otus, collapse = ', ')))
 
 	composite_ts <- otu_df %>% 
