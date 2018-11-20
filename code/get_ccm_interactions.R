@@ -50,6 +50,12 @@ nonlinearity <- read.table(paste0(save_dir, '/../', load_files[2]),
 #  import ccm analysis
 ccm <- read.table(paste0(save_dir, '/../', load_files[3]), 
 	header = T, stringsAsFactors = F) 
+# if validation, import known interactions
+true_interactions <- read.table(paste0('data/process/validation/validation_interaction_matrix_', 
+	treatment_subset, '.txt')) %>% 
+	mutate(affected_otu = unique(nonlinearity$taxa)) %>% 
+	gather(interaction, actual_strength, -affected_otu) %>% 
+	mutate(interaction =  gsub('V', 'OTU_', interaction))
 
 # check for significance in all tests
 #	nonlinear
