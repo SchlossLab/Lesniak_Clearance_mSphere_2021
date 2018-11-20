@@ -16,10 +16,10 @@ if(!is.numeric(gamma)) stop('Please input a gamma (0, 1, 2)')
 set.seed(seed)
 
 # Set simulation parameters
-delta_time <- 0.1
+delta_time <- 1
 simulation_length <- 1000
 sampling_length <- 11
-sampling_interval <- 10
+sampling_interval <- 1
 replicates <- 12
 subsample_level <- 2000
 
@@ -135,11 +135,9 @@ time_series <- map_dfr(1:10, function(x){
 		parms = list(noise_level = noise_level), # list of parameters input to model
 		method = "iteration") %>% 
 		data.frame %>% 
+		mutate(time = time * delta_time) %>% 
 		# Use tail timepoints (after temporal dynamics have become stable)
-		filter(time %in% seq((simulation_length - sampling_length), simulation_length, 
-			delta_time * sampling_interval)) %>% 
-		mutate(time = time - min(time),
-			replicate = x)
+		filter(time >= c((simulation_length - sampling_length * sampling_interval) * delta_time)) 
 	# subsample time series
 	ts <- subsample(ts) %>% 
 		mutate(replicate = x)
