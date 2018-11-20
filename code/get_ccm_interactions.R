@@ -211,7 +211,7 @@ for(i in unique(xmap_otus$driven)){
 		#right_join(expand.grid(epochs = 1:NROW(.), run = 1:500)) %>% 
 		#arrange(unique_id, run, day)
 	# Plot all partial derivatives
-	interaction_plot <- interaction_smap %>% 
+	interaction_temporal_plot <- interaction_smap %>% 
 		filter(embed == 'multi') %>% 
 		right_join(order, by = c('day', 'unique_id')) %>% 
 		gather(interaction, strength, one_of(paste0('d', i, '_d', otus))) %>% 
@@ -224,28 +224,44 @@ for(i in unique(xmap_otus$driven)){
 			theme(legend.position="top", legend.title=element_blank()) +
 			labs(title = paste0('Strength of effect of OTUs on ', gsub('tu0*', 'TU', i)),
 				subtitle = 'Median with IQR shown')
+
+	interaction_dist_plot <- interaction_smap %>% 
+		filter(embed == 'multi') %>% 
+		right_join(order, by = c('day', 'unique_id')) %>% 
+		gather(interaction, strength, one_of(paste0('d', i, '_d', otus))) %>% 
+		mutate(interaction = gsub('^.*_d', '', interaction)) %>% 
+		inner_join(filter(true_interactions, affected_otu == i), ) %>% 
+		ggplot(aes(x = interaction, y = strength, fill = interaction)) + 
+			geom_hline(yintercept = 0, linetype = 'dashed') + 
+			geom_violin(alpha = 0.5) + 
+			geom_boxplot(aes(y = actual_strength), color = 'red') + 
+			theme_bw() +
+			theme(legend.position='none') +
+			labs(title = paste0('Strength of effect of OTUs on ', gsub('tu0*', 'TU', i)),
+				subtitle = 'Median with IQR shown')
 	
-	dynamics_plot <- shared_file %>% 
-			select(cage, mouse, day, one_of(i, otus)) %>% 
-			mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
-			right_join(order) %>% 
-			#mutate(time = 1:nrow(.)) %>% 
-			gather(bacteria, counts, one_of(i, otus)) %>% 
-				ggplot(aes(x = epochs, y = counts, color = as.factor(cage), group = interaction(cage, mouse))) + 
-					geom_line(alpha = 0.4) + 
-					geom_point() + 
-					facet_grid(bacteria~., scales = 'free_y') +
-					theme_bw() + 
-					labs(x = 'Day', y = 'Abundance \n (C difficle = CFU, Otu = 16s counts)', 
-						subtitle = 'Temporal Dynamics - Colored by mouse', 
-						title = paste(i, 'is driven by', paste(otus, collapse = ', '))) + 
-					theme_bw(base_size = 8) + 
-					theme(legend.position = 'none', panel.grid.minor = element_blank())
+#	dynamics_plot <- shared_file %>% 
+#			select(cage, mouse, day, one_of(i, otus)) %>% 
+#			mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
+#			right_join(order) %>% 
+#			#mutate(time = 1:nrow(.)) %>% 
+#			gather(bacteria, counts, one_of(i, otus)) %>% 
+#				ggplot(aes(x = epochs, y = counts, color = as.factor(cage), group = interaction(cage, mouse))) + 
+#					geom_line(alpha = 0.4) + 
+#					geom_point() + 
+#					facet_grid(bacteria~., scales = 'free_y') +
+#					theme_bw() + 
+#					labs(x = 'Day', y = 'Abundance \n (C difficle = CFU, Otu = 16s counts)', 
+#						subtitle = 'Temporal Dynamics - Colored by mouse', 
+#						title = paste(i, 'is driven by', paste(otus, collapse = ', '))) + 
+#					theme_bw(base_size = 8) + 
+#					theme(legend.position = 'none', panel.grid.minor = element_blank())
 
 	ggsave(filename = paste0(save_dir, '/interactions_w_', i, '.jpg'), 
-		plot = plot_grid(dynamics_plot, interaction_plot, nrow = 2, align = 'v'),
+		plot = plot_grid(interaction_temporal_plot, interaction_dist_plot, nrow = 2, align = 'v'),
 		width = 14, height = 14, device = 'jpeg')
 	
 
+#}
 }
 # output file with taxa, interaction direction, interaction strength
