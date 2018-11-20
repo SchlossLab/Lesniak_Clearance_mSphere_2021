@@ -21,15 +21,15 @@ ifelse(!dir.exists(save_dir),
 	dir.create(save_dir), 
 	print(paste0(save_dir, ' directory ready')))
 
-meta_file <- 'data/process/abx_cdiff_metadata_clean.txt'
-meta_file <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
-	select(group, cage, mouse, day, CFU, cdiff, abx, dose, delayed) %>% 
-	unite(treatment, abx, dose, delayed) %>% 
-	filter(cdiff == T, day >= 0, treatment == treatment_subset)
-shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
-shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
-	inner_join(meta_file, by = c("Group" = 'group')) %>%
-	rename(C_difficile = CFU)
+## meta_file <- 'data/process/abx_cdiff_metadata_clean.txt'
+## meta_file <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
+## 	select(group, cage, mouse, day, CFU, cdiff, abx, dose, delayed) %>% 
+## 	unite(treatment, abx, dose, delayed) %>% 
+## 	filter(cdiff == T, day >= 0, treatment == treatment_subset)
+## shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
+## shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
+## 	inner_join(meta_file, by = c("Group" = 'group')) %>%
+## 	rename(C_difficile = CFU)
 
 mouse_list <- unique(otu_df$unique_id)
 
