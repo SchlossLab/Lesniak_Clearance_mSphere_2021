@@ -4,7 +4,7 @@ library(tidyverse)
 input_values <- commandArgs(TRUE)
 run_set <- as.numeric(input_values[1])
 input_file <- as.character(input_values[2])
-save_dir <- paste0('scratch/ccm_otu/')
+save_dir <- paste0('data/process/ccm/')
 print(paste0('Running set ', run_set))
 
 #input_file <- 'data/process/ccm_otu_data.txt' 

@@ -3,11 +3,13 @@ library(tidyverse)
 
 input_values <- commandArgs(TRUE)
 run_set <- as.numeric(input_values[1])
-save_dir <- paste0('scratch/ccm_otu/')
+save_dir <- paste0('data/process/ccm/')
 print(paste0('Running set ', run_set))
-
-ccm_otu_df <- 'data/process/ccm_otu_data.txt'
-abx_df <- read.table(ccm_otu_df, header = T, stringsAsFactors = F)
+input_file <- as.character(input_values[2])
+#input_file <- 'data/process/ccm_otu_data.txt'
+#input_file <- 'data/process/ccm_validation_data.txt'
+#input_file <- 'data/process/bucci/ccm_bucci_data.txt'
+abx_df <- read.table(input_file, header = T, stringsAsFactors = F)
 #source('code/sum_otu_by_taxa.R')
 #taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
 #shared_by_genus <- sum_otu_by_taxa(taxonomy_file = taxonomy_file, 

@@ -6,9 +6,11 @@ library(methods)
 input_values <- commandArgs(TRUE)
 run_set <- as.numeric(input_values[1])
 print(paste0('Running set ', run_set))
-
-ccm_otu_df <- 'data/process/ccm_otu_data.txt'
-ccm_otu_df   <- read.table(ccm_otu_df, header = T, stringsAsFactors = F) %>% 
+input_file <- as.character(input_values[2])
+#input_file <- 'data/process/ccm_otu_data.txt'
+#input_file <- 'data/process/ccm_validation_data.txt'
+#input_file <- 'data/process/bucci/ccm_bucci_data.txt'
+ccm_otu_df   <- read.table(input_file, header = T, stringsAsFactors = F) %>% 
 	mutate(otu_feature = gsub('_first', '', otu_feature))
 #source('code/sum_otu_by_taxa.R')
 #taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
@@ -24,7 +26,7 @@ treatment_subset <- unique(ccm_otu_df$treatment)[run_set]
 #	treatment_subset <- 'clinda_10_FALSE'
 
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
-save_dir <- paste0('scratch/ccm_otu/', treatment_subset, '/ccm')
+save_dir <- paste0('data/process/ccm/', treatment_subset, '/ccm')
 ifelse(!dir.exists(save_dir), 
 	dir.create(save_dir), 
 	print(paste0(save_dir, ' directory ready')))
