@@ -161,7 +161,7 @@ for(i in otu_list){
   for(n in 1:length(otu_list[otu_list != i])){
     mae_list <- rbind(mae_list, smap_output[[n]]$mae)
   }
-
+  mae_list
 # for all other otus, test for prediction by s-map
   step_perf <- list()
   step_mae <- c()
