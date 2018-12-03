@@ -166,14 +166,42 @@ run_smap <- function(i, j, univariate = F){
   return(output)
 }
 
+Qc <- 0.01
+
+# check univariate performance and set as initial MSE
+univariate_smap_output <- map_dfr(otu_list, function(i) run_smap(i, i, univariate = T))
+MSE_prev <- univariate_smap_output
+
 # for each otu
-for(i in otu_list){
-  smap_output <- lapply(otu_list[otu_list != i], function(j) run_smap(i, j))
-  mae_list <- c()
-  for(n in 1:length(otu_list[otu_list != i])){
-    mae_list <- rbind(mae_list, smap_output[[n]]$mae)
+#iters <- 5
+# run smap stepwise and incorporate the best OTU at each step
+while(otu_list > 0){
+  # run all otus by all other OTUs, keeping the best performing 
+  # and then checking for improvement by remaining OTUs 
+  # and repeat until additonal OTU doesnt provide improvement
+  smap_output <- map_dfr(otu_list, function(i){
+    Q <- 1
+    active <- c(i)
+    while(Q > Qc | length(active) < (length(otu_list) - 1))
+      stepwise_otu_list <- lapply(as.list(otu_list[!otu_list %in% c(i, active)]), 
+        function(x) append(x, active))
+      smap_out <- map_dfr(stepwise_otu_list, function(j) run_smap(i, j))
+      run_smap(i, stepwise_otu_list[[1]])
+      MSE_best <- smap_out %>% 
+        filter(median_mae == min(median_mae)) %>% 
+        select(affector_otu, median_mae)
+      Q <- 1 - (MSE_best$median_mae / MSE_prev[MSE_prev$affected_otu == i, 'mae'])
+      if(Q > Qc){
+        active <- c(active, MSE_best$affector_otu)
+        } 
+    })
+
+  
+
+  if(Q > Qc){
+    MSE_prev <- MSE_best
   }
-  mae_list
+    
 # for all other otus, test for prediction by s-map
   step_perf <- list()
   step_mae <- c()
