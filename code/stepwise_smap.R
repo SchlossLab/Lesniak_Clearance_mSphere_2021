@@ -44,7 +44,7 @@ true_interactions <- read.table(paste0('data/process/validation/validation_inter
   gather(affector_otu, actual_strength, -affected_otu) %>% 
   mutate(affector_otu =  gsub('V', 'OTU_', affector_otu))
 
-run_smap <- function(i, j){
+run_smap <- function(i, j, univariate = F){
   composite_ts <- otu_df %>% 
     filter(taxa %in% c(i, j)) %>% 
     select(taxa, day, unique_id, normalized_abundance) %>% 
@@ -73,30 +73,33 @@ run_smap <- function(i, j){
       stringsAsFactors = F)
     rnd_composite_ts <- right_join(composite_ts, pred_order, by = 'unique_id')
     rnd_univariate_ts <- right_join(univariate_ts, pred_order, by = 'unique_id')
-
-    uni_theta <- block_lnlp(select(univariate_ts, contains('col1')),
-      method = 's-map',
-      num_neighbors = 0,
-      lib = lib_segments, pred = pred_segments,
-      theta = c(0, 1e-04, 3e-04, 0.001,
-        0.003, 0.01, 0.03, 0.1,
-                0.3, 0.5, 0.75, 1, 1.5,
-                2, 3, 4, 6, 8),
-      target_column = 'col1',
-      silent = T)
-    theta_run <- block_lnlp(select(composite_ts, one_of(i, j)),
-      method = 's-map',
-      num_neighbors = 0,
-      lib = lib_segments, pred = pred_segments,
-      theta = c(0, 1e-04, 3e-04, 0.001,
-        0.003, 0.01, 0.03, 0.1,
-                0.3, 0.5, 0.75, 1, 1.5,
-                2, 3, 4, 6, 8),
-      target_column = i,
-      silent = T)
-    test_theta[[iter]] <- bind_rows(
-      data.frame(theta_run, model_type = 'multivariate', stringsAsFactors = F),
-      data.frame(uni_theta, model_type = 'univariate', stringsAsFactors = F))
+    if(univariate == T){
+      uni_theta <- block_lnlp(select(univariate_ts, contains('col1')),
+        method = 's-map',
+        num_neighbors = 0,
+        lib = lib_segments, pred = pred_segments,
+        theta = c(0, 1e-04, 3e-04, 0.001,
+          0.003, 0.01, 0.03, 0.1,
+                  0.3, 0.5, 0.75, 1, 1.5,
+                  2, 3, 4, 6, 8),
+        target_column = 'col1',
+        silent = T)
+      test_theta[[iter]] <- data.frame(uni_theta, 
+        model_type = 'univariate', stringsAsFactors = F)
+      } else {
+      theta_run <- block_lnlp(select(composite_ts, one_of(i, j)),
+        method = 's-map',
+        num_neighbors = 0,
+        lib = lib_segments, pred = pred_segments,
+        theta = c(0, 1e-04, 3e-04, 0.001,
+          0.003, 0.01, 0.03, 0.1,
+                  0.3, 0.5, 0.75, 1, 1.5,
+                  2, 3, 4, 6, 8),
+        target_column = i,
+        silent = T)
+      test_theta[[iter]] <- data.frame(theta_run, 
+        model_type = 'multivariate', stringsAsFactors = F)
+      }
   }
 
   best_theta <- do.call('rbind', test_theta) %>% 
@@ -112,45 +115,54 @@ run_smap <- function(i, j){
       order = 1:NROW(sample_list), stringsAsFactors = F)
     rnd_composite_ts <- right_join(composite_ts, pred_order, by = 'unique_id')
     rnd_univariate_ts <- right_join(univariate_ts, pred_order, by = 'unique_id')
-    smap_multi <-  block_lnlp(select(rnd_composite_ts, one_of(i, j)),
-      lib = segments, pred = segments,
-      method = "s-map",
-      num_neighbors = 0, 
-      theta = pull(filter(best_theta, model_type == 'multivariate'), theta),
-      target_column = i,
-      silent = T,
-      save_smap_coefficients = T) # save S-map coefficients
-    smap_uni <-  block_lnlp(select(univariate_ts, contains('col1')),
-      lib = segments, pred = segments,
-      method = "s-map",
-      num_neighbors = 0, 
-      theta = pull(filter(best_theta, model_type == 'univariate'), theta),
-      target_column = 'col1',
-      silent = T,
-      save_smap_coefficients = T) # save S-map coefficients
-    smap_coef_df <- smap_multi$smap_coefficients[[1]]
-    colnames(smap_coef_df) <- c(paste0('d', i, '_d', i), paste0('d', i, '_d', j), 'intercept')
-    interaction_smap[[iter]] <- bind_rows(
-      data.frame(bind_cols(smap_multi$model_output[[1]], smap_coef_df,
+    if(univariate == T){
+      smap_uni <-  block_lnlp(select(univariate_ts, contains('col1')),
+        lib = segments, pred = segments,
+        method = "s-map",
+        #num_neighbors = 0, 
+        theta = pull(filter(best_theta, model_type == 'univariate'), theta),
+        target_column = 'col1',
+        silent = T,
+        save_smap_coefficients = T) # save S-map coefficients    
+      interaction_smap[[iter]] <- data.frame(smap_uni$model_output[[1]], embed = 'uni', run = iter, 
+        mae = smap_uni$mae, stringsAsFactors = F)
+    } else {
+      smap_multi <-  block_lnlp(select(rnd_composite_ts, one_of(i, j)),
+        lib = segments, pred = segments,
+        method = "s-map",
+        num_neighbors = 0, 
+        theta = pull(filter(best_theta, model_type == 'multivariate'), theta),
+        target_column = i,
+        silent = T,
+        save_smap_coefficients = T) # save S-map coefficients
+      smap_coef_df <- smap_multi$smap_coefficients[[1]]
+      colnames(smap_coef_df) <- c(paste0('d', i, '_d', i), paste0('d', i, '_d', j), 'intercept')
+      interaction_smap[[iter]] <- data.frame(bind_cols(smap_multi$model_output[[1]], smap_coef_df,
           right_join(composite_ts, pred_order, by = 'unique_id')), 
-        embed = 'multi', run = iter, mae = smap_multi$mae, stringsAsFactors = F),
-      data.frame(smap_uni$model_output[[1]], embed = 'uni', run = iter, 
-        mae = smap_uni$mae, stringsAsFactors = F))    
+        embed = 'multi', run = iter, mae = smap_multi$mae, stringsAsFactors = F)
+    }
   }
   output <- list(model_output = do.call('rbind', interaction_smap))
-  output[['mae']] <- cbind(data.frame(affected_otu = i, affector_otu = j,
-        mae = output[['model_output']] %>%
-          filter(embed == 'multi') %>%
-          pull(mae) %>%
-          median, stringsAsFactors = F),
-      output[['model_output']] %>% 
-        filter(embed == 'multi') %>%
-        gather(interaction, strength, contains('dOTU')) %>%
-        group_by(interaction) %>% 
-        summarise(median_interaction = median(strength, na.rm = T),
-          lower_quartile = quantile(strength, na.rm = T)['25%'],
-          upper_quartile = quantile(strength, na.rm = T)['75%'])
-        )
+  if(univariate == T){
+    output <- data.frame(affected_otu = i, 
+      median_mae = median(output[['model_output']]$mae), stringsAsFactors = F)
+  } else {
+    output <- full_join(
+        output[['model_output']] %>% 
+            group_by(embed) %>%
+            summarise(median_mae = median(mae)),
+        output[['model_output']] %>% 
+          gather(interaction, strength, contains('dOTU')) %>%
+          group_by(interaction, embed) %>% 
+          summarise(median_interaction = median(strength, na.rm = T),
+            ixn_lower_qrtl = quantile(strength, na.rm = T)['25%'],
+            ixn_upper_qrtl = quantile(strength, na.rm = T)['75%']) %>% 
+          filter(interaction == paste0('d', i, '_d', i) & embed == 'uni' |
+            interaction %in% paste0('d', i, '_d', j) & embed == 'multi'),
+          by = 'embed') %>% 
+          mutate(otus_tmp = gsub('d', '', gsub('_d', 'SEP', interaction))) %>% 
+      separate(otus_tmp, c('affected_otu', 'affector_otu'), sep = 'SEP')
+  }
   return(output)
 }
 
