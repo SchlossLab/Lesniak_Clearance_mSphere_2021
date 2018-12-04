@@ -43,7 +43,7 @@ true_interactions <- read.table(paste0('data/process/validation/validation_inter
   mutate(affected_otu = otu_list) %>% 
   gather(affector_otu, actual_strength, -affected_otu) %>% 
   mutate(affector_otu =  gsub('V', 'OTU_', affector_otu))
-
+#i <- 'OTU_3'; j <- 'OTU_6'
 run_smap <- function(i, j, univariate = F){
   composite_ts <- otu_df %>% 
     filter(taxa %in% c(i, j)) %>% 
@@ -60,7 +60,7 @@ run_smap <- function(i, j, univariate = F){
   pred_segments <- segments[tail(1:NROW(segments), pred_num), ]
 
   univariate_ts <- bind_cols(composite_ts[, c('day', 'unique_id')], 
-    make_block(composite_ts[,i],
+    make_block(select(composite_ts, i),
       lib = segments))#,
 
   # check mae for best theta
@@ -74,7 +74,7 @@ run_smap <- function(i, j, univariate = F){
     rnd_composite_ts <- right_join(composite_ts, pred_order, by = 'unique_id')
     rnd_univariate_ts <- right_join(univariate_ts, pred_order, by = 'unique_id')
     if(univariate == T){
-      uni_theta <- block_lnlp(select(univariate_ts, contains('col1')),
+      uni_theta <- block_lnlp(select(univariate_ts, contains(i)),
         method = 's-map',
         num_neighbors = 0,
         lib = lib_segments, pred = pred_segments,
@@ -82,7 +82,7 @@ run_smap <- function(i, j, univariate = F){
           0.003, 0.01, 0.03, 0.1,
                   0.3, 0.5, 0.75, 1, 1.5,
                   2, 3, 4, 6, 8),
-        target_column = 'col1',
+        target_column = i,
         silent = T)
       test_theta[[iter]] <- data.frame(uni_theta, 
         model_type = 'univariate', stringsAsFactors = F)
@@ -116,27 +116,28 @@ run_smap <- function(i, j, univariate = F){
     rnd_composite_ts <- right_join(composite_ts, pred_order, by = 'unique_id')
     rnd_univariate_ts <- right_join(univariate_ts, pred_order, by = 'unique_id')
     if(univariate == T){
-      smap_uni <-  block_lnlp(select(univariate_ts, contains('col1')),
+      smap_uni <-  block_lnlp(select(univariate_ts, contains(i)),
         lib = segments, pred = segments,
         method = "s-map",
-        #num_neighbors = 0, 
+        num_neighbors = 0, 
         theta = pull(filter(best_theta, model_type == 'univariate'), theta),
-        target_column = 'col1',
+        target_column = i,
         silent = T,
         save_smap_coefficients = T) # save S-map coefficients    
       interaction_smap[[iter]] <- data.frame(smap_uni$model_output[[1]], embed = 'uni', run = iter, 
         mae = smap_uni$mae, stringsAsFactors = F)
     } else {
+      feature_names <- colnames(select(rnd_composite_ts, one_of(i, j)))
       smap_multi <-  block_lnlp(select(rnd_composite_ts, one_of(i, j)),
         lib = segments, pred = segments,
         method = "s-map",
         num_neighbors = 0, 
         theta = pull(filter(best_theta, model_type == 'multivariate'), theta),
-        target_column = i,
+        target_column = i, columns = c(i, j),
         silent = T,
         save_smap_coefficients = T) # save S-map coefficients
       smap_coef_df <- smap_multi$smap_coefficients[[1]]
-      colnames(smap_coef_df) <- c(paste0('d', i, '_d', i), paste0('d', i, '_d', j), 'intercept')
+      colnames(smap_coef_df) <- c(paste0('d', i, '_d', feature_names), 'intercept')
       interaction_smap[[iter]] <- data.frame(bind_cols(smap_multi$model_output[[1]], smap_coef_df,
           right_join(composite_ts, pred_order, by = 'unique_id')), 
         embed = 'multi', run = iter, mae = smap_multi$mae, stringsAsFactors = F)
@@ -175,26 +176,30 @@ MSE_prev <- univariate_smap_output
 # for each otu
 #iters <- 5
 # run smap stepwise and incorporate the best OTU at each step
-while(otu_list > 0){
+remaining_otus <- otu_list
+while(length(remaining_otus) > 0){
   # run all otus by all other OTUs, keeping the best performing 
   # and then checking for improvement by remaining OTUs 
   # and repeat until additonal OTU doesnt provide improvement
   smap_output <- map_dfr(otu_list, function(i){
     Q <- 1
-    active <- c(i)
-    while(Q > Qc | length(active) < (length(otu_list) - 1))
-      stepwise_otu_list <- lapply(as.list(otu_list[!otu_list %in% c(i, active)]), 
+for(i in otu_list){
+    active <- c()
+    while(Q > Qc){
+      stepwise_otu_list <- lapply(as.list(otu_list[!otu_list %in% c(i, active)]),
         function(x) append(x, active))
       smap_out <- map_dfr(stepwise_otu_list, function(j) run_smap(i, j))
-      run_smap(i, stepwise_otu_list[[1]])
       MSE_best <- smap_out %>% 
-        filter(median_mae == min(median_mae)) %>% 
+      	filter(!affector_otu %in% active) %>%
+    	filter(median_mae == min(median_mae)) %>% 
         select(affector_otu, median_mae)
-      Q <- 1 - (MSE_best$median_mae / MSE_prev[MSE_prev$affected_otu == i, 'mae'])
+      Q <- 1 - (MSE_best$median_mae / MSE_prev[MSE_prev$affected_otu == i, 'median_mae'])
       if(Q > Qc){
-        active <- c(active, MSE_best$affector_otu)
-        } 
-    })
+        active <- rbind(active, MSE_best)
+        } else {
+        	stop('No further improvement')
+        }
+    }
 
   
 
