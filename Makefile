@@ -256,6 +256,16 @@ data/process/ccm/*/ccm_by_otu_*_first_differenced.txt : code/run_smap.R\
 	done  
 
 ################################################################################
+# run Smap stepwise to detect OTUs most predictive
+
+data/process/ccm/interactions/interactions_*.txt : code/stepwise_smap.R\ 
+												   data/process/ccm/ccm_validation_data.txt
+	for i in `seq 1 15`;
+	do
+		Rscript code/stepwise_smap.R $i 'data/process/ccm_validation_data.txt'
+	done  
+
+################################################################################
 # run smap to determine interactions
 
 data/process/ccm/*/interactions_w_*.txt : code/get_ccm_interactions.R\
@@ -263,7 +273,7 @@ data/process/ccm/*/interactions_w_*.txt : code/get_ccm_interactions.R\
 										  data/process/ccm/*/simplex_embedding_first_differenced.txt\
 										  data/process/ccm/*/smap_nonlinearity_first_differenced.txt\
 										  data/process/ccm/*/ccm_by_otu_*_first_differenced.txt
-	Rscript code/get_ccm_interactions.R 10 'data/process/ccm_validation_data.txt'
+	Rscript code/get_ccm_interactions.R $i 'data/process/ccm_validation_data.txt'
 
 
 ################################################################################
