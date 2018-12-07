@@ -240,7 +240,7 @@ data/process/ccm/*/smap_nonlinearity_first_differenced.txt : code/run_smap.R\
 
 ################################################################################
 # run CCM on all OTUs that are significantly nonlinear
-data/process/ccm/*/ccm_by_otu_*_first_differenced.txt : code/run_smap.R\ 
+data/process/ccm/*/ccm_by_otu_*_first_differenced.txt : code/ccm_analysis.R\ 
 														data/process/ccm/*/simplex_embedding_first_differenced.txt\
 														data/process/ccm/*/smap_nonlinearity_first_differenced.txt
 	for i in `seq 1 15`;
