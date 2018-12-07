@@ -17,7 +17,7 @@ seed <- 062818
 treatment_subset <- unique(otu_df$treatment)[run_set]
 print(paste0('Running set ', run_set, ' - Treatment ', treatment_subset))
 otu_df <- filter(otu_df, treatment %in% treatment_subset)
-save_dir <- paste0('data/process/ccm/', treatment_subset, '/interactions')
+save_dir <- paste0('data/process/ccm/interactions')
 ifelse(!dir.exists(save_dir), 
   dir.create(save_dir), 
   print(paste0(save_dir, ' directory ready')))
@@ -43,7 +43,7 @@ true_interactions <- read.table(paste0('data/process/validation/validation_inter
   mutate(affected_otu = otu_list) %>% 
   gather(affector_otu, actual_strength, -affected_otu) %>% 
   mutate(affector_otu =  gsub('V', 'OTU_', affector_otu))
-#i <- 'OTU_3'; j <- 'OTU_6'
+#iters <- 5;i <- 'OTU_3'; j <- c('OTU_6', 'OTU_2', 'OTU_4'); univariate <- F
 run_smap <- function(i, j, univariate = F){
   composite_ts <- otu_df %>% 
     filter(taxa %in% c(i, j)) %>% 
@@ -157,9 +157,7 @@ run_smap <- function(i, j, univariate = F){
           group_by(interaction, embed) %>% 
           summarise(median_interaction = median(strength, na.rm = T),
             ixn_lower_qrtl = quantile(strength, na.rm = T)['25%'],
-            ixn_upper_qrtl = quantile(strength, na.rm = T)['75%']) %>% 
-          filter(interaction == paste0('d', i, '_d', i) & embed == 'uni' |
-            interaction %in% paste0('d', i, '_d', j) & embed == 'multi'),
+            ixn_upper_qrtl = quantile(strength, na.rm = T)['75%']),
           by = 'embed') %>% 
           mutate(otus_tmp = gsub('d', '', gsub('_d', 'SEP', interaction))) %>% 
       separate(otus_tmp, c('affected_otu', 'affector_otu'), sep = 'SEP')
@@ -174,137 +172,144 @@ univariate_smap_output <- map_dfr(otu_list, function(i) run_smap(i, i, univariat
 MSE_prev <- univariate_smap_output
 
 # for each otu
-#iters <- 5
+#iters <- 500
 # run smap stepwise and incorporate the best OTU at each step
-remaining_otus <- otu_list
-while(length(remaining_otus) > 0){
   # run all otus by all other OTUs, keeping the best performing 
   # and then checking for improvement by remaining OTUs 
   # and repeat until additonal OTU doesnt provide improvement
-  smap_output <- map_dfr(otu_list, function(i){
-    Q <- 1
-for(i in otu_list){
-    active <- c()
-    while(Q > Qc){
-      stepwise_otu_list <- lapply(as.list(otu_list[!otu_list %in% c(i, active)]),
-        function(x) append(x, active))
-      smap_out <- map_dfr(stepwise_otu_list, function(j) run_smap(i, j))
-      MSE_best <- smap_out %>% 
-      	filter(!affector_otu %in% active) %>%
-    	filter(median_mae == min(median_mae)) %>% 
-        select(affector_otu, median_mae)
-      Q <- 1 - (MSE_best$median_mae / MSE_prev[MSE_prev$affected_otu == i, 'median_mae'])
-      if(Q > Qc){
-        active <- rbind(active, MSE_best)
-        } else {
-        	stop('No further improvement')
-        }
-    }
-
-  
-
-  if(Q > Qc){
-    MSE_prev <- MSE_best
+smap_output <- map_dfr(otu_list, function(current_otu){
+  Q <- 1
+  remaining_otus <- otu_list[!otu_list %in% current_otu]
+  active <- c()
+  MSE_current <- MSE_prev[MSE_prev$affected_otu == current_otu, 'median_mae']
+  while(Q > Qc & length(active$affector_otu) < length(remaining_otus)){
+    # create list of predictive OTUs with one of each OTU not most predictive yet
+    stepwise_otu_list <- lapply(as.list(otu_list[!otu_list %in% c(current_otu, active$affector_otu)]),
+      function(x) append(x, active$affector_otu))
+    # run smap with set of predictive OTUs with one new OTU (for all unactive OTUs)
+    smap_out <- map_dfr(stepwise_otu_list, function(j) run_smap(current_otu, j))
+    # identify which of the new OTUs results in the best performance (lowest MAE)
+    MSE_best <- smap_out %>% 
+    	filter(!affector_otu %in% active$affector_otu) %>%
+     	filter(median_mae == min(median_mae)) %>% 
+      select(affector_otu, median_mae)
+    # determine the relative increase in MAE
+    Q <- 1 - (MSE_best$median_mae / MSE_current)
+    # if increase in MAE is greater than threshold (Qc) then add OTU to active and update MSE
+    if(Q > Qc){
+      active <- rbind(active, data.frame(MSE_best, Q = Q))
+      MSE_current <- MSE_best$median_mae
+      best_interaction <- smap_out %>% 
+        filter(median_mae == min(median_mae)) %>% 
+        select(affector_otu, affected_otu, median_interaction, ixn_upper_qrtl, ixn_lower_qrtl)
+      }
   }
-    
-# for all other otus, test for prediction by s-map
-  step_perf <- list()
-  step_mae <- c()
+  return(full_join(rbind(data.frame(affector_otu = current_otu, affected_otu = current_otu, 
+        median_mae = MSE_prev[MSE_prev$affected_otu == current_otu, 'median_mae'], Q = 0, stringsAsFactors = F),
+      data.frame(affected_otu = current_otu, active, stringsAsFactors = F)),
+    best_interaction, by = c('affector_otu', 'affected_otu')))
+})
 
-step_mae
-for( in 
-step_increase[[]] %>%
-  filter(embed == 'multi') %>%
-  pull(mae) %>%
-  median
-  table
+smap_output <- smap_output  %>% 
+  group_by(affected_otu) %>% 
+  mutate(order = (1:length(affector_otu)) - 1) %>% 
+  ungroup
 
-tmp <- do.call('rbind', step_increase)
-tmp %>%
-    gather(interaction, interaction_strength, contains('dOTU')) %>%
-    gather(OTU_time, OTU_abundance, contains('OTU'))
-  filter(mae == min(mae)) %>%
-  pull(run) %>%
-  unique
+detected_ixn_df <- full_join(true_interactions, smap_output, by = c('affector_otu', 'affected_otu')) %>% 
+  mutate(actual_ixn_TF = ifelse(abs(actual_strength) > 0, T, F),
+    predicted_ixn_TF = ifelse(is.na(median_mae), F, T))
 
-  write.table(interaction_smap, paste0(save_dir, '/interactions_w_', i, '.txt'), 
+write.table(detected_ixn_df, paste0(save_dir, '/interactions_', treatment_subset, '.txt'), 
   quote = F, row.names = F)
 
-  # comparison to univariate is limited to late time points 
-  # so  limited interpretation
-  #interaction_smap %>% 
-  # ggplot(aes(x = obs, y = pred, color = embed)) + 
-  #   geom_point(alpha = .2) + 
-  #   theme_bw() + 
-  #     coord_cartesian(ylim=c(-2, 2), xlim=c(-2, 2))
-  #interaction_smap %>% 
-  # group_by(embed) %>% 
-  # summarise(mean = mean(obs, na.rm = T), median = median(obs, na.rm = T),
-  #   pval = cor.test(.$obs, .$pred, method = 'spearman')$p.val,
-  #   cor = cor.test(.$obs, .$pred, method = 'spearman')$estimate)
 
-  ## Time series of fluctuating interaction strength
-  order <- expand.grid(unique_id = sample_list, day = 0:10)  %>% 
-    arrange(unique_id, day) %>% 
-    mutate(epochs = 1:NROW(.)) #%>% 
-    #right_join(expand.grid(epochs = 1:NROW(.), run = 1:500)) %>% 
-    #arrange(unique_id, run, day)
-  # Plot all partial derivatives
-  interaction_temporal_plot <- interaction_smap %>% 
-    filter(embed == 'multi') %>% 
-    right_join(order, by = c('day', 'unique_id')) %>% 
-    gather(interaction, strength, one_of(paste0('d', i, '_d', j))) %>% 
-    mutate(interaction = gsub('tu0*', 'TU', interaction)) %>% 
-    ggplot(aes(x = epochs, y = strength)) + 
-      stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
-        alpha = 0.2, fun.args =(conf.int = 0.5), aes(fill = interaction)) + 
-      stat_summary(aes(color = interaction), fun.y = median, geom = 'line') + 
-      theme_bw() +
-      theme(legend.position="top", legend.title=element_blank()) +
-      labs(title = paste0('Strength of effect of OTUs on ', gsub('tu0*', 'TU', i)),
-        subtitle = 'Median with IQR shown')
+Actual_pos <- nrow(filter(detected_ixn_df, actual_ixn_TF == T)) 
+TP <- nrow(filter(detected_ixn_df, actual_ixn_TF == T & predicted_ixn_TF == T)) 
+sensitivity <- nrow(filter(detected_ixn_df, actual_ixn_TF == T & predicted_ixn_TF == T)) / 
+  nrow(filter(detected_ixn_df, actual_ixn_TF == T))
+specificity <- nrow(filter(detected_ixn_df, actual_ixn_TF == F & predicted_ixn_TF == F)) / 
+  nrow(filter(detected_ixn_df, actual_ixn_TF == F))
 
-  interaction_dist_plot <- interaction_smap %>% 
-    filter(embed == 'multi') %>% 
-    right_join(order, by = c('day', 'unique_id')) %>% 
-    gather(interaction, strength, one_of(paste0('d', i, '_d', j))) %>% 
-    mutate(interaction = gsub('^.*_d', '', interaction)) %>% 
-    inner_join(filter(true_interactions, affected_otu == i), ) %>% 
-    ggplot(aes(x = interaction, y = strength, fill = interaction)) + 
-      geom_hline(yintercept = 0, linetype = 'dashed') + 
-      geom_violin(alpha = 0.5) + 
-      geom_boxplot(aes(y = actual_strength), color = 'red') + 
-      theme_bw() +
-      theme(legend.position='none') +
-      labs(title = paste0('Strength of effect of OTUs on ', gsub('tu0*', 'TU', i)),
-        subtitle = 'Median with IQR shown')
-  
-# dynamics_plot <- shared_file %>% 
-#     select(cage, mouse, day, one_of(i, j)) %>% 
-#     mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
-#     right_join(order) %>% 
-#     #mutate(time = 1:nrow(.)) %>% 
-#     gather(bacteria, counts, one_of(i, j)) %>% 
-#       ggplot(aes(x = epochs, y = counts, color = as.factor(cage), group = interaction(cage, mouse))) + 
-#         geom_line(alpha = 0.4) + 
-#         geom_point() + 
-#         facet_grid(bacteria~., scales = 'free_y') +
-#         theme_bw() + 
-#         labs(x = 'Day', y = 'Abundance \n (C difficle = CFU, Otu = 16s counts)', 
-#           subtitle = 'Temporal Dynamics - Colored by mouse', 
-#           title = paste(i, 'is driven by', paste(j, collapse = ', '))) + 
-#         theme_bw(base_size = 8) + 
-#         theme(legend.position = 'none', panel.grid.minor = element_blank())
+data.frame(treatment = treatment_subset, sensitivity = sensitivity, specificity = specificity,
+  detected_ixn_df)
 
-  ggsave(filename = paste0(save_dir, '/interactions_w_', i, '.jpg'), 
-    plot = plot_grid(interaction_temporal_plot, interaction_dist_plot, nrow = 2, align = 'v'),
-    width = 14, height = 14, device = 'jpeg')
-  
 
-#}
-}
-# output file with taxa, interaction direction, interaction strength
 
+##   # comparison to univariate is limited to late time points 
+##   # so  limited interpretation
+##   #interaction_smap %>% 
+##   # ggplot(aes(x = obs, y = pred, color = embed)) + 
+##   #   geom_point(alpha = .2) + 
+##   #   theme_bw() + 
+##   #     coord_cartesian(ylim=c(-2, 2), xlim=c(-2, 2))
+##   #interaction_smap %>% 
+##   # group_by(embed) %>% 
+##   # summarise(mean = mean(obs, na.rm = T), median = median(obs, na.rm = T),
+##   #   pval = cor.test(.$obs, .$pred, method = 'spearman')$p.val,
+##   #   cor = cor.test(.$obs, .$pred, method = 'spearman')$estimate)
+## 
+##   ## Time series of fluctuating interaction strength
+##   order <- expand.grid(unique_id = sample_list, day = 0:10)  %>% 
+##     arrange(unique_id, day) %>% 
+##     mutate(epochs = 1:NROW(.)) #%>% 
+##     #right_join(expand.grid(epochs = 1:NROW(.), run = 1:500)) %>% 
+##     #arrange(unique_id, run, day)
+##   # Plot all partial derivatives
+##   interaction_temporal_plot <- interaction_smap %>% 
+##     filter(embed == 'multi') %>% 
+##     right_join(order, by = c('day', 'unique_id')) %>% 
+##     gather(interaction, strength, one_of(paste0('d', i, '_d', j))) %>% 
+##     mutate(interaction = gsub('tu0*', 'TU', interaction)) %>% 
+##     ggplot(aes(x = epochs, y = strength)) + 
+##       stat_summary(fun.data = 'median_hilow', geom = 'ribbon', 
+##         alpha = 0.2, fun.args =(conf.int = 0.5), aes(fill = interaction)) + 
+##       stat_summary(aes(color = interaction), fun.y = median, geom = 'line') + 
+##       theme_bw() +
+##       theme(legend.position="top", legend.title=element_blank()) +
+##       labs(title = paste0('Strength of effect of OTUs on ', gsub('tu0*', 'TU', i)),
+##         subtitle = 'Median with IQR shown')
+## 
+##   interaction_dist_plot <- interaction_smap %>% 
+##     filter(embed == 'multi') %>% 
+##     right_join(order, by = c('day', 'unique_id')) %>% 
+##     gather(interaction, strength, one_of(paste0('d', i, '_d', j))) %>% 
+##     mutate(interaction = gsub('^.*_d', '', interaction)) %>% 
+##     inner_join(filter(true_interactions, affected_otu == i), ) %>% 
+##     ggplot(aes(x = interaction, y = strength, fill = interaction)) + 
+##       geom_hline(yintercept = 0, linetype = 'dashed') + 
+##       geom_violin(alpha = 0.5) + 
+##       geom_boxplot(aes(y = actual_strength), color = 'red') + 
+##       theme_bw() +
+##       theme(legend.position='none') +
+##       labs(title = paste0('Strength of effect of OTUs on ', gsub('tu0*', 'TU', i)),
+##         subtitle = 'Median with IQR shown')
+##   
+## # dynamics_plot <- shared_file %>% 
+## #     select(cage, mouse, day, one_of(i, j)) %>% 
+## #     mutate(unique_id = paste(cage, mouse, sep = '_')) %>% 
+## #     right_join(order) %>% 
+## #     #mutate(time = 1:nrow(.)) %>% 
+## #     gather(bacteria, counts, one_of(i, j)) %>% 
+## #       ggplot(aes(x = epochs, y = counts, color = as.factor(cage), group = interaction(cage, mouse))) + 
+## #         geom_line(alpha = 0.4) + 
+## #         geom_point() + 
+## #         facet_grid(bacteria~., scales = 'free_y') +
+## #         theme_bw() + 
+## #         labs(x = 'Day', y = 'Abundance \n (C difficle = CFU, Otu = 16s counts)', 
+## #           subtitle = 'Temporal Dynamics - Colored by mouse', 
+## #           title = paste(i, 'is driven by', paste(j, collapse = ', '))) + 
+## #         theme_bw(base_size = 8) + 
+## #         theme(legend.position = 'none', panel.grid.minor = element_blank())
+## 
+##   ggsave(filename = paste0(save_dir, '/interactions_w_', i, '.jpg'), 
+##     plot = plot_grid(interaction_temporal_plot, interaction_dist_plot, nrow = 2, align = 'v'),
+##     width = 14, height = 14, device = 'jpeg')
+##   
+## 
+## #}
+## }
+## # output file with taxa, interaction direction, interaction strength
+## 
 
 
 #GenerateDdbDtg[data_] := Module[{dbLength, xs, ys, timeStamps,
