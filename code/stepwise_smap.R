@@ -38,7 +38,7 @@ otu_list <- unique(otu_df$taxa)
 #    mutate(taxa = gsub('_first', '', taxa))
 
 # if validation, import known interactions
-true_interactions <- read.table(paste0('data/process/validation/validation_interaction_matrix_', 
+true_interactions <- read.table(paste0('data/process/validation/validation_full_interaction_matrix_', 
   treatment_subset, '.txt')) %>% 
   mutate(affected_otu = otu_list) %>% 
   gather(affector_otu, actual_strength, -affected_otu) %>% 
@@ -190,7 +190,7 @@ smap_output <- map_dfr(otu_list, function(current_otu){
     smap_out <- map_dfr(stepwise_otu_list, function(j) run_smap(current_otu, j))
     # identify which of the new OTUs results in the best performance (lowest MAE)
     MSE_best <- smap_out %>% 
-    	filter(!affector_otu %in% active$affector_otu) %>%
+    	filter(!affector_otu %in% c(current_otu, active$affector_otu)) %>%
      	filter(median_mae == min(median_mae)) %>% 
       select(affector_otu, median_mae)
     # determine the relative increase in MAE
@@ -204,10 +204,18 @@ smap_output <- map_dfr(otu_list, function(current_otu){
         select(affector_otu, affected_otu, median_interaction, ixn_upper_qrtl, ixn_lower_qrtl)
       }
   }
-  return(full_join(rbind(data.frame(affector_otu = current_otu, affected_otu = current_otu, 
-        median_mae = MSE_prev[MSE_prev$affected_otu == current_otu, 'median_mae'], Q = 0, stringsAsFactors = F),
-      data.frame(affected_otu = current_otu, active, stringsAsFactors = F)),
-    best_interaction, by = c('affector_otu', 'affected_otu')))
+  if(length(active) > 0){
+      return(full_join(rbind(data.frame(affector_otu = current_otu, affected_otu = current_otu, 
+            median_mae = MSE_prev[MSE_prev$affected_otu == current_otu, 'median_mae'], Q = 0, stringsAsFactors = F),
+          data.frame(affected_otu = current_otu, active, stringsAsFactors = F)),
+        best_interaction, by = c('affector_otu', 'affected_otu')))
+    } else {
+      return(full_join(rbind(data.frame(affector_otu = current_otu, affected_otu = current_otu, 
+            median_mae = MSE_prev[MSE_prev$affected_otu == current_otu, 'median_mae'], Q = 0, stringsAsFactors = F),
+          data.frame(affected_otu = current_otu, affector_otu = 'NA', median_mae = NA, Q = NA, stringsAsFactors = F)),
+        best_interaction, by = c('affector_otu', 'affected_otu')))
+
+    }
 })
 
 smap_output <- smap_output  %>% 
