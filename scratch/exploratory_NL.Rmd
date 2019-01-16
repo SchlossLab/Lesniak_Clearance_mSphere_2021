@@ -290,19 +290,19 @@ all_plots[[8]][[2]]
 ## diversity vs colonization
 
 ###alpha diversity
-####communities colonized to higher levels have lower diversity (alpha)
-#### association between cfu and alpha (invsimpson and shannon - NS)
-#### cfu vs # of otus (NS)
-#### shared otus?
-###beta diversity
-####highly infected communities are most different than untreated
-#### separation between untreated mice and all the highly infected communities (>1e6)
-####communities that recover/elimnate cdifficile are more diverse
-#### difference in diversity between highly infected 
-####more change w/low diversity?
-####more change with high cfu?
+- Do communities colonized to higher levels have lower diversity (alpha)?
+- Is there an association between cfu and alpha (invsimpson and shannon - NS)?
+- Is there a correlation between cfu and # of otus (NS)?
+- Are there shared otus?
 
-####need to remove dependence of daily sampling?
+###beta diversity
+- Are highly infected communities are most different than untreated?
+- Is there separation between untreated mice and all the highly infected communities (>1e6)?
+- Are communities that recover/elimnate cdifficile are more diverse?
+- Is there difference in diversity between highly infected communities?
+- Is there more change w/low diversity? or more change with high cfu?
+
+- Need to keep in mind assumption of independent samples when using daily samples?
 
 
 ```{r diversity}
@@ -375,13 +375,14 @@ p <- abx_v_final_alpha %>%
     facet_grid(diversity ~ ., scales = 'free_y') + 
     geom_boxplot(width = 0.5, outlier.color = NA, 
       position = position_dodge(width = 0.9)) +
+    labs(x = 'Time Point of Diversity Metric', y = NULL) + 
     expand_limits(y = 0) + 
     theme_bw()
 ```
 
 ## Communities colonized to a lower level at the end of 10 days have recovered more from the initial antibiotic pertubation
 - Check for change from previous (draw line from pre_abx to post abx to end)
-- Check to make sure all make it to day 10 and how many don't
+- Check to make sure all make it to day 10 and how many dont
 - Check for cage/abx effects
 
 When looking at the alpha diversity of the infected vs uninfected, the community doesnt seem to be different, these communities seem to follow a similar trend regardless of infection. But when looking at the colonization level within the infected, it appears to be a bimodal distributution.
@@ -389,7 +390,9 @@ When looking at the alpha diversity of the infected vs uninfected, the community
 ```{r alpha of community before and after by cfu}
 # plot and color by CFU of cdifficile on that day
 p + geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.2), 
-      alpha = 0.5, aes(group = cdiff, color = log_CFU))
+      alpha = 0.5, aes(group = cdiff, color = log_CFU)) + 
+    labs(title = 'Alpha diversity of community comparing antibiotic treatment and colonization',
+      subtitle = 'Unchallenged (left bar) and C difficile Challenged (right bar)\nColored by CFU at time point')
 ```
 
 To investigate whether the bimodal distribution of the colonization level vs alpha diversity, we can look at how the communities are distributed prior to infection. If this difference in distribution is related to the level of colonization, we would expect the distribution of end point colonization levels to be random at the time points prior to the infections. When we color the point by end point colonization, it appears to be lower diversity in only the highly colonized mice
@@ -398,7 +401,9 @@ To investigate whether the bimodal distribution of the colonization level vs alp
 ```{r alpha of community before and after by end point cfu}
 # plot and color by CFU of cdifficile at the end point of that mouse
 p + geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.2), 
-      alpha = 0.5, aes(group = cdiff, color = log_final_CFU))
+      alpha = 0.5, aes(group = cdiff, color = log_final_CFU)) + 
+    labs(title = 'Alpha diversity of community comparing antibiotic treatment and colonization',
+      subtitle = 'Unchallenged (left bar) and C difficile Challenged (right bar)\nColored by CFU at end time point')
 ```
 
 So comparing the mice infected with C. difficile, is there a decrease in diversity in the mice that become highly colonized at the final time point?
@@ -427,7 +432,7 @@ abx_v_final_alpha %>%
     geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.2), 
       alpha = 0.5) + 
     expand_limits(y = 0) + 
-    theme_bw() + labs(title = 'Comparing Alpha diversity of communities infected with C. difficile by their endpoint colonization level', x = NA, y = 'Time Point of Diversity Metric', color = 'Endpoint \nColonization',
+    theme_bw() + labs(title = 'Comparing Alpha diversity of communities infected with C. difficile\nby their endpoint colonization level', y = NULL, x = 'Time Point of Diversity Metric', color = 'Endpoint \nColonization',
       subtitle = paste0('Low = Below level of Detection, High = Greater than 1e+0', 
         signif(mean(pull(filter(abx_v_final_alpha, cdiff == T), log_final_CFU)),1)
         ))
@@ -448,8 +453,8 @@ abx_v_final_alpha %>%
     geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.1), 
       alpha = 0.5, aes(color = hi_lo)) + 
     expand_limits(y = 0) + theme_bw() + theme(legend.position = 'bottom') + 
-    labs(title = 'Comparing Alpha diversity of communities infected with C. difficile by their endpoint colonization level', 
-      x = 'Antibiotic Treatment', y = 'Time Point of Diversity Metric', color = '',
+    labs(title = 'Comparing Alpha diversity of communities infected with \n C. difficile by their endpoint colonization level', 
+      x = 'Antibiotic Treatment', y = NULL, color = '',
       subtitle = paste0('Low = Below level of Detection, High = Greater than 1e+0', 
         signif(mean(pull(filter(abx_v_final_alpha, cdiff == T), log_final_CFU)),1)
         )) + 
@@ -464,7 +469,7 @@ abx_v_final_alpha %>%
 Since the high and low colonization seem to be grouped by antibiotic, is the difference due to antibiotic or cdiff?
 
 
-```{r alpha of endpoint by abx and colonization}
+```{r alpha of endpoint by abx and colonization, fig.width = 10, fig.height = 10}
 # plot and color by CFU of cdifficile on that day
 plot_by_abx_grp <- abx_v_final_alpha %>% 
   filter(time_point == 'end') %>% 
@@ -477,13 +482,13 @@ plot_by_abx_grp <- abx_v_final_alpha %>%
     geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.1), 
       alpha = 0.5, aes(color = hi_lo)) + 
     expand_limits(y = 0) + theme_bw() + theme(legend.position = 'bottom') + 
-    labs(title = 'Alpha diversity of communities by antibiotic grouped by colonization level', 
+    labs(title = 'Alpha diversity of communities\nby antibiotic grouped by colonization level', 
       x = 'C difficile Challenged', y = 'Time Point of Diversity Metric', color = '',
-      subtitle = paste0('Low = Below level of Detection, High = Greater than 1e+0', 
-        signif(mean(pull(filter(abx_v_final_alpha, cdiff == T), log_final_CFU)),1), '\n Split by antibiotic treatment high (Ampicillin, Cefaperazone, Metronidazole, Streptomycin, Vancomycin) \nand low (Ciprofloxacin and Clindamycin)'
+      subtitle = paste0('Low = Below level of Detection\nHigh = Greater than 1e+0', 
+        signif(mean(pull(filter(abx_v_final_alpha, cdiff == T), log_final_CFU)),1)
         )) + 
     scale_color_manual(breaks = c('FALSE', 'TRUE', 'High', 'Low'),
-      labels = c('No C difficile', 'C difficile Challenged', 'High Endpoint CFU', 'Low Endpoint CFU'),
+      labels = c('No CDI', 'CDI', 'High CFU', 'Low CFU'),
       values = c('gray', 'red', 'blue', 'black'))
 
 plot_by_colonization <- abx_v_final_alpha %>% 
@@ -496,13 +501,12 @@ plot_by_colonization <- abx_v_final_alpha %>%
     geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.2), 
       alpha = 0.5, aes(color = hi_lo)) + 
     expand_limits(y = 0) + theme_bw() + theme(legend.position = 'bottom') + 
-    labs(title = 'Alpha diversity of communities by their endpoint colonization level',
+    labs(title = 'Alpha diversity of communities\nby their endpoint colonization level',
       x = 'C difficile Challenge', y = 'Time Point of Diversity Metric', color = '',
-      subtitle = paste0('Low = Below level of Detection, High = Greater than 1e+0', 
-        signif(mean(pull(filter(abx_v_final_alpha, cdiff == T), log_final_CFU)),1), '\n\n'
+      subtitle = paste0('Low = Cipro and Clinda\nHigh = Amp, Cef, Metro, Strep, Vanco'
         ))+ 
     scale_color_manual(breaks = c('FALSE', 'TRUE', 'High', 'Low'),
-      labels = c('No C difficile', 'C difficile Challenged', 'High Endpoint CFU', 'Low Endpoint CFU'),
+      labels = c('No CDI', 'CDI', 'High CFU', 'Low CFU'),
       values = c('gray', 'red', 'blue', 'black'))
 
 plot_grid(plot_by_abx_grp, plot_by_colonization)
@@ -521,7 +525,7 @@ abx_v_final_alpha %>%
     geom_line(aes(group = sample), size = 0.2) + 
     geom_point() + 
     expand_limits(y = 0) + 
-    theme_bw() + labs(title = 'Alpha diversity of communities infected with C. difficile by their endpoint colonization level',
+    theme_bw() + labs(title = 'Alpha diversity of communities infected with C. difficile\nby their endpoint colonization level',
       x = '', y = 'Time Point of Diversity Metric', color = 'Endpoint \nColonization',
       subtitle = paste0('Low = Below level of Detection, High = Greater than 1e+0',
         signif(mean(pull(filter(abx_v_final_alpha, cdiff == T), log_final_CFU)),1)
@@ -671,14 +675,17 @@ sig_relabun_by_day_df <- rel_abun_df %>%
   
 
 
-sig_relabun_by_day_df %>%
-  ggplot(aes(x = otu, y = rel_abund, color = colonization)) + 
+sig_relabun_by_day_df %>% 
+  left_join(
+    get_taxa_labels(tax_file, 'genus', unique(.$otu)) %>% 
+      select(otu, tax_otu_label)) %>% 
+  ggplot(aes(x = tax_otu_label, y = rel_abund, color = colonization)) + 
     stat_summary(fun.data=median_hilow, position=position_dodge(0.2), fun.args=list(conf.int=0.5)) +
     labs(title = 'Comparison of Relative Abundance in Colonized/Uncolonized Samples',
       subtitle = '(Median and IQR shown)\nAll OTUs plotted are significant (p < 0.05) after BF multiple comparisons correction ',
-      y = 'Relative Abundance', x = 'OTU') + 
+      y = 'Relative Abundance', x = NULL) + 
     scale_color_manual(labels = c("Uncolonized (C. difficle CFU = 0)", "Colonized (C. difficle CFU >= 1e5)"), values = c("blue", "red")) +
-    scale_x_discrete(labels=unique(sig_relabun_by_day_df$otu_labels)) + 
+    #scale_x_discrete(labels=unique(sig_relabun_by_day_df$otu_labels)) + 
     theme_bw() + #coord_cartesian(ylim = c(0, 0.01)) + 
     theme(legend.justification=c(1,1), legend.position=c(0.95,0.95), 
       legend.title = element_blank(),   legend.box.background = element_rect(),
