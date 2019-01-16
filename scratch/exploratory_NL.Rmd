@@ -46,7 +46,8 @@ shared_file <- select(shared_file, -label, -numOtus, -one_of(cdiff_otus))
 ```{r cdiff counts v cfu}
 
 left_join(shared_cdiff, select(meta_file, group, CFU)) %>% 
-  ggplot(aes(x = log10(CFU+ 1), y = log10(c_difficile + 1))) + geom_point() + 
+  ggplot(aes(x = log10(CFU+ 1), y = log10(c_difficile + 1))) + geom_point() +
+     geom_smooth(method = 'lm') + 
     labs(x = 'CFU (log10)', y = 'Counts (log10)', title = 'C. difficile Counts vs CFU')
 
 
