@@ -7,7 +7,7 @@
 #    
 # get taxonomy labels from a vector of OTUs and the taxonomy file
 # 
-# taxa_level - genus, family, order, class, phylum, kingdom
+# taxa_level - genus, family, order, class, phylum, domain
 # otu_subset - vector with OTUs
 #    when NULL, defualts to all OTUs
 # taxa_file - taxonomy file location
@@ -18,9 +18,9 @@ library(dplyr)
 library(tidyr)
 
 get_taxa_labels <- function(taxa_file,  taxa_level='genus', otu_subset=NULL){
-  taxonomic_classification <- c("phylum", "class", "order", "family", "genus", "species")
+  taxonomic_classification <- c("domain", "phylum", "class", "order", "family", "genus")
   taxa_level_num <- which(taxonomic_classification == taxa_level)
-  taxa_df <- read.table(taxonomy_file, header = T, stringsAsFactors=FALSE) # read in taxonomy file
+  taxa_df <- read.table(taxa_file, header = T, stringsAsFactors=FALSE) # read in taxonomy file
   if(is.null(otu_subset)){ # create list of OTUs
     otu_list <- as.character(taxa_df$OTU) # if no OTUs supplied use all
   } else {
@@ -43,6 +43,6 @@ get_taxa_labels <- function(taxa_file,  taxa_level='genus', otu_subset=NULL){
       otu_label = paste0(gsub('tu0*', 'TU ', otu))) # create labels
     )
   } else { # error message if wrong taxa_level input
-    print('Error: taxa_class must be genus, family, order, class, phylum')
+    print('Error: taxa_class must be genus, family, order, class, phylum, or domain')
   }
 }
