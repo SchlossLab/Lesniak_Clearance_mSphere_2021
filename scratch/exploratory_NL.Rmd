@@ -888,7 +888,7 @@ cor_df <- meta_shared %>%
   filter(cdiff == T, day > 0)  
 
 
-cor_df %>% 
+corr_otu <- cor_df %>%
   gather(otu, abundance, contains('Otu')) %>% 
   group_by(otu) %>% 
   summarise(median_abundance = median(abundance),
@@ -896,26 +896,24 @@ cor_df %>%
     pvalue = cor.test(CFU, abundance, method = 'spearman')$p.value) %>% 
   mutate(pvalue_BH = p.adjust(as.numeric(pvalue), method = 'BH'),
     pvalue_bon = p.adjust(as.numeric(pvalue), method = 'bonferroni')) %>% 
-  filter(pvalue_bon <= 0.05) %>% 
-  arrange(pvalue_bon)  
+  filter(pvalue_bon <= 0.05, median_abundance > 0) %>% 
+  arrange(rho)
+
+corr_otu
 
 
-cor_df %>% 
-  ggplot(aes(y = CFU, x = Otu000010)) + 
-      geom_point() + 
+cor_df  %>% 
+  select(CFU, abx, one_of(corr_otu$otu)) %>% 
+  gather(otu, rel_abund, contains('Otu00')) %>% 
+  left_join(
+    get_taxa_labels(tax_file, 'genus', unique(.$otu)) %>% 
+      select(otu, tax_otu_label)) %>% 
+  ggplot(aes(y = CFU, x = rel_abund)) + 
+      geom_point(aes(color = abx)) + 
       scale_y_log10() + 
       geom_smooth(method = 'lm') +
       theme_bw() + 
-      labs(x = 'Otu000010', y = 'C.difficile CFU')
-
-
-cor_df %>% 
-  ggplot(aes(y = CFU, x = Otu000161)) + 
-      geom_point() + 
-      scale_y_log10() + 
-      geom_smooth(method = 'lm') +
-      theme_bw() + 
-      labs(x = 'Otu000161', y = 'C.difficile CFU')
-
+      facet_wrap(.~tax_otu_label, ncol = 3, scales = 'free_x') + 
+      labs(x = 'Relative Abundance', y = 'C.difficile CFU')
 
 ```
