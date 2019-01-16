@@ -28,7 +28,7 @@ entercoccus_otus <- as.character(tax_df$OTU[grep('Enterococcus', tax_df$Taxonomy
 numotus <- shared_file$numOtus[1]
 
 shared_cdiff <- apply(select(shared_file, one_of(cdiff_otus)), 1, sum)
-shared_cdiff <- data.frame(group = names(shared_cdiff), c_difficile = unname(shared_cdiff)) %>% 
+shared_cdiff <- data.frame(group = names(shared_cdiff), c_difficile = unname(shared_cdiff), stringsAsFactors = F) %>% 
   mutate(C.difficile = c_difficile/numotus)
 
 #left_join(shared_cdiff, select(meta_file, group, CFU)) %>% 
