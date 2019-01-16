@@ -853,6 +853,32 @@ CFU_intial_end %>%
     labs(title = 'Relationship between pre_abx vs final microbiota and final CFU',
       x = 'Theta yc', y = 'CFU (log10)')
 
+del_beta_preabx <- beta_div_df %>% 
+  mutate(preabx_sample = group) %>% 
+  separate(group, c('preabx_mouse', 'preabx_day'), sep = 'D') %>% 
+  gather(group, thetayc, -preabx_sample, -preabx_mouse, -preabx_day) %>% 
+  separate(group, c('sample_mouse', 'sample_day'), sep = 'D', remove = F) %>% 
+  mutate(thetayc = as.numeric(thetayc), preabx_day = as.numeric(preabx_day), sample_day = as.numeric(sample_day)) %>% 
+  filter(preabx_day < 0, preabx_mouse == sample_mouse) %>%  # need to filter intial day since mouse 106-1 is missing samples prior to day 2
+  group_by(preabx_mouse) %>% 
+  filter(preabx_day == min(preabx_day)) %>% 
+  ungroup %>% 
+  filter(sample_day > 0) %>% 
+  left_join(select(meta_file, -mouse, -day), by = 'group')
+
+#######select preAbx by column########del_beta_preabx %>% 
+#######select preAbx by column########  filter(cdiff == TRUE) %>% 
+#######select preAbx by column########  ggplot(aes(x = thetayc, y = CFU)) + 
+#######select preAbx by column########    scale_y_log10() + 
+#######select preAbx by column########    geom_point(aes(color = abx)) + 
+#######select preAbx by column########    geom_smooth(method = 'lm') +
+#######select preAbx by column########    theme_bw() + 
+#######select preAbx by column########    labs(x = 'Theta YC', y = 'C. difficile CFU (log10)', title = 'Beta diversity relative to preAbx VS C. difficile colonization\n')
+
+del_beta_preabx %>% 
+  filter(CFU == 0) %>% 
+  ggplot(aes(thetayc)) + 
+    geom_density(aes(color = abx))
 
 ```
 
