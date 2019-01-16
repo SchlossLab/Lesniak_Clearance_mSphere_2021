@@ -31,9 +31,9 @@ shared_cdiff <- apply(select(shared_file, one_of(cdiff_otus)), 1, sum)
 shared_cdiff <- data.frame(group = names(shared_cdiff), c_difficile = unname(shared_cdiff)) %>% 
   mutate(C.difficile = c_difficile/numotus)
 
-left_join(shared_cdiff, select(meta_file, group, CFU)) %>% 
-  ggplot(aes(x = log(CFU+ 1), y = log(c_difficile + 1))) + geom_point() + 
-    labs(x = 'CFU (log10)', y = 'Counts (log10)', title = 'C. difficile Counts vs CFU')
+#left_join(shared_cdiff, select(meta_file, group, CFU)) %>% 
+#  ggplot(aes(x = log(CFU+ 1), y = log(c_difficile + 1))) + geom_point() + 
+#    labs(x = 'CFU (log10)', y = 'Counts (log10)', title = 'C. difficile Counts vs CFU')
 
 shared_file <- select(shared_file, -label, -numOtus, -one_of(cdiff_otus))
 
