@@ -266,22 +266,23 @@ all_plots[[8]][[2]]
 
 ```{r eval=FALSE}
 
-
-hi_lo_no_delay_df %>% 
-  filter(day >= 0) %>%
-  ggplot(aes(x = day, y = CFU +1, color = dose)) + 
-        scale_y_log10() + 
-        scale_colour_gradient(low = '#FFCCCC', high = '#990000', limits=c(0, 10)) + 
-        facet_grid(abx ~., scales = 'free_y') + 
-        geom_jitter(width = 0.3, alpha = 0.2) + 
-    #    scale_color_manual(values = c('black', 'red'), breaks=c("FALSE", "TRUE"),
-    #                       labels=c("Persistent", "Severe")) +
-        stat_summary(fun.y=median, geom="line", aes(group = cage)) +
-        labs(x = 'Day', y = ' CFU (log10)', title = 'C. Difficile Colonization') +
-        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5)) + 
-        theme_bw() +
-        theme(legend.justification=c(1,0), legend.position=c(1,0.25), 
-              legend.title=element_blank())
+# plot by dose, but only looking at one dosage in current analysis
+#
+#hi_lo_no_delay_df %>% 
+#  filter(day >= 0) %>%
+#  ggplot(aes(x = day, y = CFU +1, color = dose)) + 
+#        scale_y_log10() + 
+#        scale_colour_gradient(low = '#FFCCCC', high = '#990000', limits=c(0, 10)) + 
+#        facet_grid(abx ~., scales = 'free_y') + 
+#        geom_jitter(width = 0.3, alpha = 0.2) + 
+#    #    scale_color_manual(values = c('black', 'red'), breaks=c("FALSE", "TRUE"),
+#    #                       labels=c("Persistent", "Severe")) +
+#        stat_summary(fun.y=median, geom="line", aes(group = cage)) +
+#        labs(x = 'Day', y = ' CFU (log10)', title = 'C. Difficile Colonization') +
+#        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5)) + 
+#        theme_bw() +
+#        theme(legend.justification=c(1,0), legend.position=c(1,0.25), 
+#              legend.title=element_blank())
 
 
 ```
@@ -411,7 +412,6 @@ abx_v_final_alpha %>%
   filter(cdiff == T, diversity == 'sobs', time_point == 'pre_abx')  %>% 
   with(., wilcox.test(g=hi_lo, x=value, p.adjust.method="BH"))
 
-q
 ```
 
 
@@ -692,62 +692,65 @@ sig_relabun_by_day_df %>%
 
 
 After talking with Pat (1/17/18)
-  Does end point look like pre_abx?
-    are most similar the recovered ones?
-  Split analysis by abx/dose/days recovered
-  Resistance more similar than colonized?
-  Start with high dose and 1 day recovery
-    then look at how modulating the dose/recovery affects 
-    train model with low recovery and test with high recovery
-  Show different context of day 0
-  compare differences in metro recovery 
-    how do susceptibility break points compare?
+- Does end point look like pre_abx?
+    - are most similar the recovered ones?
+- Split analysis by abx/dose/days recovered
+- Resistance more similar than colonized?
+- Start with high dose and 1 day recovery
+    - then look at how modulating the dose/recovery affects 
+    - train model with low recovery and test with high recovery
+- Show different context of day 0
+- compare differences in metro recovery 
+    - how do susceptibility break points compare?
 
-the metadata file has the following columns
-  group
-  CFU - ranges 0 to 8.1e8 with 601 NAs 
-    (most of NAs are on days when cdiff was not present, so can change to 0 expect for NAs after day 1)
-  cage
-  mouse
-  day - ranges -11 to 10
-  abx - 
-    amp    cef  cipro clinda  metro   none  strep   vanc 
-    405    379     83    190    339      3    362    312 
-  dose - 
-    0.1     0.3     0.5   0.625       1 10mg/kg       5    NA's 
-    304     253     653     112     339     273     136       3 
-        dose    abx     cages   mice
-        <NA>    none    1       1
-        0.5     amp     
-        10      cipro   
-        10      clinda  
-        0.1     cef     
-        0.3     cef
-        0.5     cef
-        1       metro
-        0.1     strep
-        0.5     strep
-        5       strep
-        0.1     vanc
-        0.3     vanc
-        0.625   vanc
-  cdiff - if sample was treated challenged with C. difficile
-    logical T(1770), F(303)
-  delayed - if sample was allowed extra days to recover from abx treatment
-    logical T(455), F(1618)
-  preAbx - if sample collected prior to abx treatment
-    logical T(154), F(1919)
-  recovDays - how many days after stopping abx (metro and amp for 5 day recovery)
-    range 1 to 5
+```{r notes about metafile edits}
+#the metadata file has the following columns
+#  group
+#  CFU - ranges 0 to 8.1e8 with 601 NAs 
+#    (most of NAs are on days when cdiff was not present, so can change to 0 expect for NAs after day 1)
+#  cage
+#  mouse
+#  day - ranges -11 to 10
+#  abx - 
+#    amp    cef  cipro clinda  metro   none  strep   vanc 
+#    405    379     83    190    339      3    362    312 
+#  dose - 
+#    0.1     0.3     0.5   0.625       1 10mg/kg       5    NA's 
+#    304     253     653     112     339     273     136       3 
+#        dose    abx     cages   mice
+#        <NA>    none    1       1
+#        0.5     amp     
+#        10      cipro   
+#        10      clinda  
+#        0.1     cef     
+#        0.3     cef
+#        0.5     cef
+#        1       metro
+#        0.1     strep
+#        0.5     strep
+#        5       strep
+#        0.1     vanc
+#        0.3     vanc
+#        0.625   vanc
+#  cdiff - if sample was treated challenged with C. difficile
+#    logical T(1770), F(303)
+#  delayed - if sample was allowed extra days to recover from abx treatment
+#    logical T(455), F(1618)
+#  preAbx - if sample collected prior to abx treatment
+#    logical T(154), F(1919)
+#  recovDays - how many days after stopping abx (metro and amp for 5 day recovery)
+#    range 1 to 5
+#
+#only one mouse not given abx
+#  but is listed as preAbx F for -5
+#    possible to denote mock abx treatment(?)
+#question about mouse 600-2D-6 (cef - delivered via water)
+#  should be pre-antibiotic but is listed as F
+#  all other mice in cage are preAbx on day -6, except this one
+#    since this abx was delivered via drinking water, it is likely clerical error, 
+#    need to write a check script to make sure all mice in each cage all are recorded to have the same treatment
+```
 
-only one mouse not given abx
-  but is listed as preAbx F for -5
-    possible to denote mock abx treatment(?)
-question about mouse 600-2D-6 (cef - delivered via water)
-  should be pre-antibiotic but is listed as F
-  all other mice in cage are preAbx on day -6, except this one
-    since this abx was delivered via drinking water, it is likely clerical error, 
-    need to write a check script to make sure all mice in each cage all are recorded to have the same treatment
 
 ```{r end vs pre_abx}
 
