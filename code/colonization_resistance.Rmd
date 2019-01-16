@@ -1,0 +1,78 @@
+---
+title: "Exploratory - C. difficile by Antibiotic"
+author: "Nicholas Lesniak"
+date: "1/16/2019"
+output: html_document
+---
+
+# C. difficile Challenge by Antibiotic Treatments
+
+* Ampicilin
+    + Antibiotic Recovery 
+    + bactericidal, beta lactam, inhibits cell wall (+/-)
+* Cefaperazone
+    + Dosages (0.1, 0.3, 0.5)
+    + bactericidal, beta lactam, inhibits cell wall (+/-)
+* Clindamycin
+    + bacteriostatic, ?, inhibits protein synthesis
+* Ciprofloxicin
+    +  ?, ?, inhibits DNA gyrase (+/-)
+* Metronidazole
+    + Antibiotic Recovery
+    + ?, nitroimidazole, inhibits nucleic acid synthesis (aerobic)
+* Streptomycin
+    + Dosages (0.1, 0.5, 5)
+    + bactericidal, ?, inhibits protein synthesis (+/-)
+* Vancomycin
+    + Dosages (0.1, 0.3, 0.625)
+    + bactericidal, tripeptide, inhibits cell wall (+)
+
+
+```{r setup environment, include=F}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+
+library(tidyverse)
+library(cowplot)
+
+meta_file   <- '../data/process/abx_cdiff_metadata_clean.txt'
+shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
+tax_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
+tax_function <- '../code/sum_otu_by_taxa.R'
+
+meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F)
+shared_file <- read.table(shared_file, sep = '\t', header = T, row.names = 'Group')
+source(tax_function)
+
+tax_df <- read.table(tax_file, sep = '\t', header = T)
+
+cdiff_otus <- as.character(tax_df$OTU[grep('Clostridium_XI', tax_df$Taxonomy)])
+entercoccus_otus <- as.character(tax_df$OTU[grep('Enterococcus', tax_df$Taxonomy)])
+
+numotus <- shared_file$numOtus[1]
+
+shared_cdiff <- apply(select(shared_file, one_of(cdiff_otus)), 1, sum)
+shared_cdiff <- data.frame(group = names(shared_cdiff), c_difficile = unname(shared_cdiff), stringsAsFactors = F) %>% 
+  mutate(C.difficile = c_difficile/numotus)
+
+#left_join(shared_cdiff, select(meta_file, group, CFU)) %>% 
+#  ggplot(aes(x = log(CFU+ 1), y = log(c_difficile + 1))) + geom_point() + 
+#    labs(x = 'CFU (log10)', y = 'Counts (log10)', title = 'C. difficile Counts vs CFU')
+
+shared_file <- select(shared_file, -label, -numOtus, -one_of(cdiff_otus))
+
+```
+
+
+## Comparing CFU vs Counts for detecting C. difficile
+
+
+```{r cdiff counts v cfu}
+
+left_join(shared_cdiff, select(meta_file, group, CFU)) %>% 
+  ggplot(aes(x = log10(CFU+ 1), y = log10(c_difficile + 1))) + geom_point() +
+     geom_smooth(method = 'lm') + 
+    labs(x = 'CFU (log10)', y = 'Counts (log10)', title = 'C. difficile Counts vs CFU')
+
+
+```
+
