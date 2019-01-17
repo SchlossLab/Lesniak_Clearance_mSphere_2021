@@ -7,25 +7,15 @@ output: html_document
 
 # C. difficile Challenge by Antibiotic Treatments
 
-* Ampicilin
-    + Antibiotic Recovery 
-    + bactericidal, beta lactam, inhibits cell wall (+/-)
-* Cefaperazone
-    + Dosages (0.1, 0.3, 0.5)
-    + bactericidal, beta lactam, inhibits cell wall (+/-)
-* Clindamycin
-    + bacteriostatic, ?, inhibits protein synthesis
-* Ciprofloxicin
-    +  ?, ?, inhibits DNA gyrase (+/-)
-* Metronidazole
-    + Antibiotic Recovery
-    + ?, nitroimidazole, inhibits nucleic acid synthesis (aerobic)
-* Streptomycin
-    + Dosages (0.1, 0.5, 5)
-    + bactericidal, ?, inhibits protein synthesis (+/-)
-* Vancomycin
-    + Dosages (0.1, 0.3, 0.625)
-    + bactericidal, tripeptide, inhibits cell wall (+)
+Antibiotic    | Treatment Variation    | Effect         |  Class          | Mode of action                           
+------------- | ---------------------- | -------------- | --------------- | -----------------------------------------
+Ampicilin     | Antibiotic Recovery    | bactericidal   | beta lactam     | inhibits cell wall (+/-)                 
+Cefaperazone  | Dose (0.1, 0.3, 0.5)   | bactericidal   | beta lactam     | inhibits cell wall (+/-)                 
+Clindamycin   | NA                     | bacteriostatic | lincosamide     | inhibits protein synthesis               
+Ciprofloxacin | NA                     | bactericidal   | fluoroquinolone | inhibits DNA gyrase (+/-)                
+Metronidazole | Antibiotic Recovery    | bactericidal   | nitroimidazole  | inhibits nucleic acid synthesis (aerobic)
+Streptomycin  | Dose (0.1, 0.5, 5)     | bactericidal   | aminoglycoside  | inhibits protein synthesis (+/-)         
+Vancomycin    | Dose (0.1, 0.3, 0.625) | bactericidal   | glycopeptide    | inhibits cell wall (+)                   
 
 From Exploratory.Rmd looking at all treatments together, 
 
