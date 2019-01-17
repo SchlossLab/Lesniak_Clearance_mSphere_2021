@@ -27,6 +27,19 @@ output: html_document
     + Dosages (0.1, 0.3, 0.625)
     + bactericidal, tripeptide, inhibits cell wall (+)
 
+From Exploratory.Rmd looking at all treatments together, 
+
+How does C. difficile change the community?
+
+How are resistant communities different than susceptible? (within antibiotic treatment)
+
+How do communities change? with differing colonization?
+
+What is different between persistent and clearing communities?
+
+
+If I want to ask how to restore colonization resistance to Clindamycin
+  what changes precede or co-occur with decreasing CFU?
 
 ```{r setup environment, include=F}
 knitr::opts_chunk$set(echo = F, warning = F, message = F)
