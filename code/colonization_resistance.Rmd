@@ -5,7 +5,50 @@ date: "1/16/2019"
 output: html_document
 ---
 
+```{r setup environment, include=F}
+# setup data in environment
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+
+library(tidyverse)
+library(cowplot)
+
+meta_file   <- '../data/process/abx_cdiff_metadata_clean.txt'
+shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
+taxonomy_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
+taxonomy_function <- '../code/sum_otu_by_taxa.R'
+
+meta_df   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F)
+shared_df <- read.table(shared_file, sep = '\t', header = T, row.names = 'Group')
+source(taxonomy_function)
+
+taxonomy_df <- read.table(taxonomy_file, sep = '\t', header = T)
+
+cdiff_otus <- as.character(taxonomy_df$OTU[grep('Clostridium_XI', taxonomy_df$Taxonomy)])
+entercoccus_otus <- as.character(taxonomy_df$OTU[grep('Enterococcus', taxonomy_df$Taxonomy)])
+
+numotus <- shared_df$numOtus[1]
+
+shared_cdiff_df <- apply(select(shared_df, one_of(cdiff_otus)), 1, sum)
+shared_cdiff_df <- data.frame(group = names(shared_cdiff_df), c_difficile = unname(shared_cdiff_df), stringsAsFactors = F) %>% 
+  mutate(C.difficile = c_difficile/numotus)
+
+shared_df <- select(shared_df, -label, -numOtus, -one_of(cdiff_otus))
+
+otu_presence_cutoff <- 0.05
+otu_presence <- ifelse(shared_df > 0, T, F) 
+OTUs_present <- colnames(shared_df[ , apply(otu_presence, 2, sum) > 
+                                        round(otu_presence_cutoff*nrow(shared_df))])
+#relative abundance of OTUs present in >5% of samples
+#rel_abund <- shared_file[ ,OTUs_present]/OTU_total*100
+counts <- apply(shared_df, 1, sum)
+rel_abund <- data.frame(apply(shared_df[ ,OTUs_present], 2, function(i){(i/counts)*100}))
+
+```
+
+
 # C. difficile Challenge by Antibiotic Treatments
+
+The following antibiotics were used:
 
 Antibiotic    | Treatment Variation    | Effect         |  Class          | Mode of action                           
 ------------- | ---------------------- | -------------- | --------------- | -----------------------------------------
@@ -17,65 +60,108 @@ Metronidazole | Antibiotic Recovery    | bactericidal   | nitroimidazole  | inhi
 Streptomycin  | Dose (0.1, 0.5, 5)     | bactericidal   | aminoglycoside  | inhibits protein synthesis (+/-)         
 Vancomycin    | Dose (0.1, 0.3, 0.625) | bactericidal   | glycopeptide    | inhibits cell wall (+)                   
 
+
+# How do communities change? with differing colonization?
+
+```{r community changes}
+
+# select samples for preAbx, pre-infection, end of experiment
+pre_post_end_df <- meta_df  %>% 
+  group_by(cage, mouse) %>% 
+  mutate(treatment = paste(abx, dose, delayed, cdiff, sep = '_'),
+    mouse_id = paste(cage, mouse, sep = '_'),
+    endpoint = max(day)) %>% 
+  group_by(treatment) %>% 
+  mutate(mouse_position = as.numeric(as.factor(mouse_id))) %>% 
+  ungroup %>% 
+  mutate(sample_timepoint = case_when(preAbx == T ~ 'initial',
+    day == 0 ~ 'antibiotic-treated',
+    day == endpoint ~ 'endpoint',
+    T ~ NA_character_)) %>% 
+  filter(!is.na(sample_timepoint)) %>% 
+  select(-recovDays, -preAbx, -endpoint) %>% 
+  left_join(
+    gather(sum_otu_by_taxa(taxonomy_file = taxonomy_file, otu_df = rel_abund, taxa_level = 'phylum'),
+      taxa, abundance, -group), 
+    by = 'group')
+
+pre_post_end_df %>% 
+  mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'antibiotic-treated', 'endpoint'))) %>% 
+  filter(treatment == pre_post_end_df$treatment[18]) %>% 
+  ggplot(aes(x = sample_timepoint, y = abundance, fill = taxa)) + 
+    geom_bar(stat = 'identity', position = position_dodge())
+
+test_df <- pre_post_end_df %>% 
+  filter(treatment == pre_post_end_df$treatment[c(18, 1)])
+
+for(i in unique(pre_post_end_df$abx)){
+  community_plot <- pre_post_end_df %>% 
+    filter(abx == i) %>% 
+    mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'antibiotic-treated', 'endpoint'))) %>% 
+    ggplot(aes(x = mouse_position, y = abundance, fill = taxa)) + 
+      geom_bar(stat="identity", position='stack', width = barwidth, color = "black", size = 0.1) + 
+      facet_grid(treatment ~ sample_timepoint) + 
+      theme_bw() + labs(x = NULL) + 
+      theme(legend.position = 'top', legend.title=element_blank(),
+        axis.text.x = element_blank(), axis.ticks.x = element_blank())
+  cdiff_plot <- pre_post_end_df %>% 
+    filter(abx == i, sample_timepoint == 'endpoint') %>% 
+    mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'antibiotic-treated', 'endpoint')), 
+      CFU = log10(CFU + 1)) %>% 
+    ggplot(aes(x = mouse_position, y = CFU)) + 
+      geom_bar(stat="identity", position='stack', width = barwidth) + 
+      facet_grid(treatment ~ .) + 
+      theme_bw() + labs(x = NULL, title = '\nC. difficile Colonization\nat endpoint\n\n') + 
+      theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+  ggsave(paste0('../results/figures/community_plots/community_level_pre_post_end_', i, '.jpg'),
+    plot_grid(community_plot, cdiff_plot, rel_widths = c(2, 1)),
+    width = 10, height = 10)
+}
+
+barwidth <- 1
+ggplot() + 
+    geom_bar(data = filter(test_df, sample_timepoint == 'initial'), 
+             mapping = aes(x = mouse_position, y = abundance, fill = taxa), 
+             stat="identity", 
+             position='stack', 
+             width = barwidth) + 
+    geom_text(data = filter(test_df, sample_timepoint == 'initial'), 
+             aes(x = id, y = pos, label = count )) + 
+    geom_bar(data = filter(test_df, sample_timepoint == 'antibiotic-treated'), 
+             mapping = aes(x = mouse_position + max(mouse_position) + 1, y = abundance, fill = taxa), 
+             stat="identity", 
+             position='stack', 
+             width = barwidth) + 
+    geom_bar(data = filter(test_df, sample_timepoint == 'endpoint'), 
+             mapping = aes(x = mouse_position + max(mouse_position) * 2 + 2, y = abundance, fill = taxa), 
+             stat="identity", 
+             position='stack' , 
+             width = barwidth) + 
+    facet_grid(treatment~.)
+#    geom_text(data = month_two, 
+#             aes(x = id + barwidth + 0.01, y = pos, label = count )) + 
+    labs(fill  = "type")
+
+```
+
+
 From Exploratory.Rmd looking at all treatments together, 
+
 
 How does C. difficile change the community?
 
 How are resistant communities different than susceptible? (within antibiotic treatment)
 
-How do communities change? with differing colonization?
+
 
 What is different between persistent and clearing communities?
 
 
-If I want to ask how to restore colonization resistance to Clindamycin
+How to restore colonization resistance to Clindamycin?
   what changes precede or co-occur with decreasing CFU?
 
-```{r setup environment, include=F}
-knitr::opts_chunk$set(echo = F, warning = F, message = F)
 
-library(tidyverse)
-library(cowplot)
-
-meta_file   <- '../data/process/abx_cdiff_metadata_clean.txt'
-shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
-tax_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
-tax_function <- '../code/sum_otu_by_taxa.R'
-
-meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F)
-shared_file <- read.table(shared_file, sep = '\t', header = T, row.names = 'Group')
-source(tax_function)
-
-tax_df <- read.table(tax_file, sep = '\t', header = T)
-
-cdiff_otus <- as.character(tax_df$OTU[grep('Clostridium_XI', tax_df$Taxonomy)])
-entercoccus_otus <- as.character(tax_df$OTU[grep('Enterococcus', tax_df$Taxonomy)])
-
-numotus <- shared_file$numOtus[1]
-
-shared_cdiff <- apply(select(shared_file, one_of(cdiff_otus)), 1, sum)
-shared_cdiff <- data.frame(group = names(shared_cdiff), c_difficile = unname(shared_cdiff), stringsAsFactors = F) %>% 
-  mutate(C.difficile = c_difficile/numotus)
-
-#left_join(shared_cdiff, select(meta_file, group, CFU)) %>% 
-#  ggplot(aes(x = log(CFU+ 1), y = log(c_difficile + 1))) + geom_point() + 
-#    labs(x = 'CFU (log10)', y = 'Counts (log10)', title = 'C. difficile Counts vs CFU')
-
-shared_file <- select(shared_file, -label, -numOtus, -one_of(cdiff_otus))
-
-```
 
 
 ## Comparing CFU vs Counts for detecting C. difficile
-
-
-```{r cdiff counts v cfu}
-
-left_join(shared_cdiff, select(meta_file, group, CFU)) %>% 
-  ggplot(aes(x = log10(CFU+ 1), y = log10(c_difficile + 1))) + geom_point() +
-     geom_smooth(method = 'lm') + 
-    labs(x = 'CFU (log10)', y = 'Counts (log10)', title = 'C. difficile Counts vs CFU')
-
-
-```
 
