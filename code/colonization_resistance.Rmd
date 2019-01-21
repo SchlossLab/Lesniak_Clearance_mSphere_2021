@@ -17,10 +17,24 @@ shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.uni
 taxonomy_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
 taxonomy_function <- '../code/sum_otu_by_taxa.R'
 
-meta_df   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F)
+meta_df <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
+  mutate(treatment = paste(abx, dose, delayed, cdiff, sep = '_'),
+    mouse_id = paste(cage, mouse, sep = '_')) 
 shared_df <- read.table(shared_file, sep = '\t', header = T, row.names = 'Group')
-source(taxonomy_function)
 
+# create position to group stacked bar plot by cage
+mouse_label_df <- meta_df %>% 
+  select(cage, mouse, treatment, mouse_id) %>% 
+  unique %>% 
+  group_by(treatment) %>% 
+  arrange(cage, mouse) %>% 
+  mutate(mouse_position = as.numeric(as.factor(mouse_id))) %>% 
+  ungroup %>% 
+  select(-cage, -mouse)
+
+meta_df <- left_join(meta_df, mouse_label_df, by = c('treatment', 'mouse_id'))
+
+source(taxonomy_function)
 taxonomy_df <- read.table(taxonomy_file, sep = '\t', header = T)
 
 cdiff_otus <- as.character(taxonomy_df$OTU[grep('Clostridium_XI', taxonomy_df$Taxonomy)])
@@ -68,16 +82,12 @@ Vancomycin    | Dose (0.1, 0.3, 0.625) | bactericidal   | glycopeptide    | inhi
 # select samples for preAbx, pre-infection, end of experiment
 pre_post_end_df <- meta_df  %>% 
   group_by(cage, mouse) %>% 
-  mutate(treatment = paste(abx, dose, delayed, cdiff, sep = '_'),
-    mouse_id = paste(cage, mouse, sep = '_'),
-    endpoint = max(day)) %>% 
-  group_by(treatment) %>% 
-  mutate(mouse_position = as.numeric(as.factor(mouse_id))) %>% 
+  mutate(endpoint = max(day),
+    sample_timepoint = case_when(preAbx == T ~ 'initial',
+      day == 0 ~ 'antibiotic-treated',
+      day == endpoint ~ 'endpoint',
+      T ~ NA_character_)) %>%
   ungroup %>% 
-  mutate(sample_timepoint = case_when(preAbx == T ~ 'initial',
-    day == 0 ~ 'antibiotic-treated',
-    day == endpoint ~ 'endpoint',
-    T ~ NA_character_)) %>% 
   filter(!is.na(sample_timepoint)) %>% 
   select(-recovDays, -preAbx, -endpoint) %>% 
   left_join(
