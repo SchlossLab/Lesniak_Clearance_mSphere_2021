@@ -37,6 +37,7 @@ meta_df <- left_join(meta_df, mouse_label_df, by = c('treatment', 'mouse_id'))
 
 source(taxonomy_function)
 taxonomy_df <- read.table(taxonomy_file, sep = '\t', header = T)
+taxonomy_labels <- get_taxa_labels(taxonomy_file)
 
 cdiff_otus <- as.character(taxonomy_df$OTU[grep('Clostridium_XI', taxonomy_df$Taxonomy)])
 entercoccus_otus <- as.character(taxonomy_df$OTU[grep('Enterococcus', taxonomy_df$Taxonomy)])
@@ -92,68 +93,69 @@ pre_post_end_df <- meta_df  %>%
       T ~ NA_character_)) %>%
   ungroup %>% 
   filter(!is.na(sample_timepoint)) %>% 
-  select(-recovDays, -preAbx, -endpoint) %>% 
-  left_join(
+  select(-recovDays, -preAbx, -endpoint)
+
+pre_post_end_phyla_df <- left_join(pre_post_end_df,
     gather(sum_otu_by_taxa(taxonomy_file = taxonomy_file, otu_df = rel_abund, taxa_level = 'phylum'),
       taxa, abundance, -group), 
-    by = 'group')
+    by = 'group') %>% 
+    mutate(dataset = 'phylum_level')
 
-pre_post_end_df %>% 
-  mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'antibiotic-treated', 'endpoint'))) %>% 
-  filter(treatment == pre_post_end_df$treatment[18]) %>% 
-  ggplot(aes(x = sample_timepoint, y = abundance, fill = taxa)) + 
-    geom_bar(stat = 'identity', position = position_dodge())
+top_otus_by_treatment <-  meta_df %>% 
+  left_join(mutate(rel_abund, group = rownames(rel_abund)), by = 'group') %>% 
+  gather(otu, abundance, contains('Otu00')) %>% 
+  group_by(treatment, otu) %>% 
+  summarise(median_abundance = mean(abundance, na.rm = T)) %>% 
+  group_by(treatment) %>% 
+  top_n(8, median_abundance) %>% 
+  select(treatment, otu)
 
-test_df <- pre_post_end_df %>% 
-  filter(treatment == pre_post_end_df$treatment[c(18, 1)])
+pre_post_end_otu_df <- left_join(pre_post_end_df,
+  mutate(rel_abund, group = rownames(rel_abund)), by = 'group') %>%   
+  gather(otu, abundance, contains('Otu00')) %>% 
+  right_join(top_otus_by_treatment, by = c('treatment', 'otu')) %>% 
+  left_join(select(taxonomy_labels, otu, tax_otu_label), by = 'otu') %>% 
+  mutate(taxa = gsub(' \\(', '\n(', tax_otu_label),
+    taxa = gsub('unclassified_', '', taxa)) %>% 
+  mutate(dataset = 'top_OTUs')
+barwidth <- 1
 
-for(i in unique(pre_post_end_df$abx)){
-  community_plot <- pre_post_end_df %>% 
-    filter(abx == i) %>% 
-    mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'antibiotic-treated', 'endpoint'))) %>% 
-    ggplot(aes(x = mouse_position, y = abundance, fill = taxa)) + 
-      geom_bar(stat="identity", position='stack', width = barwidth, color = "black", size = 0.1) + 
-      facet_grid(treatment ~ sample_timepoint) + 
-      theme_bw() + labs(x = NULL) + 
-      theme(legend.position = 'top', legend.title=element_blank(),
-        axis.text.x = element_blank(), axis.ticks.x = element_blank())
-  cdiff_plot <- pre_post_end_df %>% 
-    filter(abx == i, sample_timepoint == 'endpoint') %>% 
-    mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'antibiotic-treated', 'endpoint')), 
-      CFU = log10(CFU + 1)) %>% 
-    ggplot(aes(x = mouse_position, y = CFU)) + 
-      geom_bar(stat="identity", position='stack', width = barwidth) + 
-      facet_grid(treatment ~ .) + 
-      theme_bw() + labs(x = NULL, title = '\nC. difficile Colonization\nat endpoint\n\n') + 
-      theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
-  ggsave(paste0('../results/figures/community_plots/community_level_pre_post_end_', i, '.jpg'),
-    plot_grid(community_plot, cdiff_plot, rel_widths = c(2, 1)),
-    width = 10, height = 10)
+for(df in list(pre_post_end_phyla_df, pre_post_end_otu_df)){
+  for(antibiotic in unique(pre_post_end_phyla_df$abx)){
+
+    community_plot <- df %>% 
+      filter(abx == antibiotic) %>% 
+      mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'antibiotic-treated', 'endpoint'))) %>% 
+      ggplot(aes(x = mouse_position, y = abundance, fill = taxa)) + 
+        geom_bar(stat="identity", position='stack', width = barwidth, color = "black", size = 0.1) + 
+        facet_grid(treatment ~ sample_timepoint) + 
+        theme_bw() + labs(x = NULL) + 
+        theme(legend.position = 'top', legend.title=element_blank(),
+          axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+          legend.text=element_text(size=6))
+
+    cdiff_plot <- pre_post_end_df %>% 
+      filter(abx == antibiotic, sample_timepoint == 'endpoint') %>% 
+      mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'antibiotic-treated', 'endpoint')), 
+        CFU = log10(CFU + 1)) %>% 
+      ggplot(aes(x = mouse_position, y = CFU)) + 
+        geom_bar(stat="identity", position='stack', width = barwidth) + 
+        facet_grid(treatment ~ .) + 
+        theme_bw() + labs(x = NULL, y = 'CFU (log10)', title = '\nEndpoint C. difficile Colonization\n',
+          subtitle = '\nLabel = antibiotic_dose_delay_cdiff') + 
+        theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+    plot_header <- ggdraw() +
+     draw_label(paste0('Community overview at timepoint before antibiotic treatment, after ',
+      antibiotic, ' looking at the ', unique(df$dataset)), x = 0.05, hjust = 0)
+
+    ggsave(paste0('../results/figures/community_plots/', antibiotic, '_', unique(df$dataset), '.jpg'),
+      plot_grid(plot_header, plot_grid(community_plot, cdiff_plot, rel_widths = c(2, 1)), 
+        ncol = 1, rel_heights = c(0.1, 2)),
+      width = 10, height = 10)
+  }
 }
 
-barwidth <- 1
-ggplot() + 
-    geom_bar(data = filter(test_df, sample_timepoint == 'initial'), 
-             mapping = aes(x = mouse_position, y = abundance, fill = taxa), 
-             stat="identity", 
-             position='stack', 
-             width = barwidth) + 
-    geom_text(data = filter(test_df, sample_timepoint == 'initial'), 
-             aes(x = id, y = pos, label = count )) + 
-    geom_bar(data = filter(test_df, sample_timepoint == 'antibiotic-treated'), 
-             mapping = aes(x = mouse_position + max(mouse_position) + 1, y = abundance, fill = taxa), 
-             stat="identity", 
-             position='stack', 
-             width = barwidth) + 
-    geom_bar(data = filter(test_df, sample_timepoint == 'endpoint'), 
-             mapping = aes(x = mouse_position + max(mouse_position) * 2 + 2, y = abundance, fill = taxa), 
-             stat="identity", 
-             position='stack' , 
-             width = barwidth) + 
-    facet_grid(treatment~.)
-#    geom_text(data = month_two, 
-#             aes(x = id + barwidth + 0.01, y = pos, label = count )) + 
-    labs(fill  = "type")
 abx_plots <- paste0(list.files("../results/figures/community_plots", full.names = TRUE))
 names(abx_plots) <- str_replace_all(abx_plots, 
     c("\\.jpg" = "", 
@@ -164,6 +166,10 @@ bsselect(abx_plots, type = "img", selected = "strep_phylum_level", height = '75'
 
 ```
 
+
+```{r}
+  
+```
 
 From Exploratory.Rmd looking at all treatments together, 
 
