@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = F, warning = F, message = F)
 
 library(tidyverse)
 library(cowplot)
+library(bsselectR)
 
 meta_file   <- '../data/process/abx_cdiff_metadata_clean.txt'
 shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
@@ -76,6 +77,8 @@ Vancomycin    | Dose (0.1, 0.3, 0.625) | bactericidal   | glycopeptide    | inhi
 
 
 # How do communities change? with differing colonization?
+
+Select the level and antibiotic you would like to view
 
 ```{r community changes}
 
@@ -151,6 +154,13 @@ ggplot() +
 #    geom_text(data = month_two, 
 #             aes(x = id + barwidth + 0.01, y = pos, label = count )) + 
     labs(fill  = "type")
+abx_plots <- paste0(list.files("../results/figures/community_plots", full.names = TRUE))
+names(abx_plots) <- str_replace_all(abx_plots, 
+    c("\\.jpg" = "", 
+      "../results/figures/community_plots/" = ""))
+
+bsselect(abx_plots, type = "img", selected = "strep_phylum_level", height = '75', show_tick = TRUE)
+
 
 ```
 
