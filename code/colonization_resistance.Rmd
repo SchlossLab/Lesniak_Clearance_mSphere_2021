@@ -85,6 +85,7 @@ Select the level and antibiotic you would like to view
 
 # select samples for preAbx, pre-infection, end of experiment
 pre_post_end_df <- meta_df  %>% 
+  right_join(select(mutate(rel_abund, group = rownames(rel_abund)), group), by = 'group') %>% 
   group_by(cage, mouse) %>% 
   mutate(endpoint = max(day),
     sample_timepoint = case_when(preAbx == T ~ 'initial',
@@ -168,7 +169,7 @@ for(df in list(pre_post_end_phyla_df, pre_post_end_genus_df, pre_post_end_otu_df
         geom_bar(stat="identity", position='stack', width = barwidth) + 
         facet_grid(treatment ~ sample_timepoint) + 
         scale_y_log10() + 
-        theme_bw() + labs(x = NULL, y = 'CFU (log10)', title = '\nEndpoint C. difficile Colonization\n',
+        theme_bw() + labs(x = NULL, y = 'CFU (log10)', title = '\nEndpoint C. difficile Colonization',
           subtitle = '\nLabel = antibiotic_dose_delay_cdiff') + 
         theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
 
