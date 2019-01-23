@@ -95,11 +95,27 @@ pre_post_end_df <- meta_df  %>%
   filter(!is.na(sample_timepoint)) %>% 
   select(-recovDays, -preAbx, -endpoint)
 
-pre_post_end_phyla_df <- left_join(pre_post_end_df,
-    gather(sum_otu_by_taxa(taxonomy_file = taxonomy_file, otu_df = rel_abund, taxa_level = 'phylum'),
+pre_post_end_phyla_df <- pre_post_end_df %>% 
+    left_join(gather(
+        sum_otu_by_taxa(taxonomy_file = taxonomy_file, otu_df = rel_abund, 
+          taxa_level = 'phylum'),
       taxa, abundance, -group), 
     by = 'group') %>% 
     mutate(dataset = 'phylum_level')
+
+pre_post_end_genus_df <- pre_post_end_df %>% 
+  left_join(gather(
+      sum_otu_by_taxa(taxonomy_file = taxonomy_file, otu_df = rel_abund, 
+        taxa_level = 'genus'),
+      taxa, abundance, -group), 
+    by = 'group') %>% 
+  mutate(dataset = 'genus_level') %>% 
+  right_join(group_by(., treatment, taxa) %>% 
+    summarise(median_abundance = mean(abundance, na.rm = T)) %>% 
+    group_by(treatment) %>% 
+    top_n(8, median_abundance) %>% 
+    select(treatment, taxa), by  = c('treatment', 'taxa')) %>% 
+  mutate(taxa = gsub('unclassified_', '', taxa))
 
 top_otus_by_treatment <-  meta_df %>% 
   left_join(mutate(rel_abund, group = rownames(rel_abund)), by = 'group') %>% 
@@ -120,7 +136,7 @@ pre_post_end_otu_df <- left_join(pre_post_end_df,
   mutate(dataset = 'top_OTUs')
 barwidth <- 1
 
-for(df in list(pre_post_end_phyla_df, pre_post_end_otu_df)){
+for(df in list(pre_post_end_phyla_df, pre_post_end_genus_df, pre_post_end_otu_df)){
   for(antibiotic in unique(pre_post_end_phyla_df$abx)){
 
     community_plot <- df %>% 
