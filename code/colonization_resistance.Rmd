@@ -103,6 +103,14 @@ pre_post_end_phyla_df <- pre_post_end_df %>%
     by = 'group') %>% 
     mutate(dataset = 'phylum_level')
 
+initial_colonization_df <- meta_df %>% 
+  # to get level of colonization post C. difficile challenge, look of CFU on day 1 
+  # but there are some cases day 1 might be deceptive so extending to day 2 
+  # to see those that had delayed colonization
+  filter(day %in% c(1:4)) %>% 
+  group_by(cage, mouse) %>% 
+  summarize(initial_colonization = max(CFU))
+
 pre_post_end_genus_df <- pre_post_end_df %>% 
   left_join(gather(
       sum_otu_by_taxa(taxonomy_file = taxonomy_file, otu_df = rel_abund, 
@@ -152,11 +160,14 @@ for(df in list(pre_post_end_phyla_df, pre_post_end_genus_df, pre_post_end_otu_df
 
     cdiff_plot <- pre_post_end_df %>% 
       filter(abx == antibiotic, sample_timepoint == 'endpoint') %>% 
-      mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'antibiotic-treated', 'endpoint')), 
-        CFU = log10(CFU + 1)) %>% 
+      left_join(initial_colonization_df, by = c('mouse', 'cage')) %>% 
+      rename(endpoint = CFU) %>% 
+      gather(sample_timepoint, CFU, endpoint, initial_colonization) %>% 
+      mutate(sample_timepoint = factor(sample_timepoint, c('initial_colonization', 'endpoint'))) %>% 
       ggplot(aes(x = mouse_position, y = CFU)) + 
         geom_bar(stat="identity", position='stack', width = barwidth) + 
-        facet_grid(treatment ~ .) + 
+        facet_grid(treatment ~ sample_timepoint) + 
+        scale_y_log10() + 
         theme_bw() + labs(x = NULL, y = 'CFU (log10)', title = '\nEndpoint C. difficile Colonization\n',
           subtitle = '\nLabel = antibiotic_dose_delay_cdiff') + 
         theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
