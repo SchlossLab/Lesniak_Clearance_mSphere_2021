@@ -89,8 +89,9 @@ pre_post_end_df <- meta_df  %>%
   group_by(cage, mouse) %>% 
   mutate(endpoint = max(day),
     sample_timepoint = case_when(preAbx == T ~ 'initial',
-      day == 0 ~ 'antibiotic-treated',
+      day == 0 ~ 'day_0',
       day == endpoint ~ 'endpoint',
+      recovDays == 1 ~ 'pre-recovered',
       T ~ NA_character_)) %>%
   ungroup %>% 
   filter(!is.na(sample_timepoint)) %>% 
@@ -136,7 +137,7 @@ top_otus_by_treatment <-  meta_df %>%
   select(treatment, otu)
 
 pre_post_end_otu_df <- left_join(pre_post_end_df,
-  mutate(rel_abund, group = rownames(rel_abund)), by = 'group') %>%   
+    mutate(rel_abund, group = rownames(rel_abund)), by = 'group') %>%   
   gather(otu, abundance, contains('Otu00')) %>% 
   right_join(top_otus_by_treatment, by = c('treatment', 'otu')) %>% 
   left_join(select(taxonomy_labels, otu, tax_otu_label), by = 'otu') %>% 
@@ -150,7 +151,7 @@ for(df in list(pre_post_end_phyla_df, pre_post_end_genus_df, pre_post_end_otu_df
 
     community_plot <- df %>% 
       filter(abx == antibiotic) %>% 
-      mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'antibiotic-treated', 'endpoint'))) %>% 
+      mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'pre-recovered', 'day_0', 'endpoint'))) %>% 
       ggplot(aes(x = mouse_position, y = abundance, fill = taxa)) + 
         geom_bar(stat="identity", position='stack', width = barwidth, color = "black", size = 0.1) + 
         facet_grid(treatment ~ sample_timepoint) + 
