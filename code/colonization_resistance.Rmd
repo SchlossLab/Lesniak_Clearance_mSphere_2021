@@ -200,6 +200,37 @@ bsselect(abx_plots, type = "img", selected = "strep_phylum_level", height = '75'
   
 ```
 
+Descriptive Changes
+
+Ampicilin - 5 day recovery
+
+The antibiotic treatment seems to have a varied effect on the community changes
+At the phylum level, antibiotic treament resulted in varied community effects which seem to group by cage. This could be due to the environment of the experiment (other treatments occuring at the same time) or possibly amp has a more vaired effect on the bacterial community.
+  Inital antibiotic treatment lead to:
+    1. Complete dominace of Proteobacteria (~90%)
+    2. Partial dominance of Proteobacteria (~50%), 
+    3. Increase in Proteobacteria (~25%), Decrease in bacteroidetes (70-80% -> ~50%), increase in akkermansia (10%)
+  Recovery lead to different conditions
+    1. Complete dominant Proteobacteria, after 10 days, returned to pre-antibiotic Bacteroidetes:Firmicutes ratio
+    2. Partially dominant Proteobacteria conditions, after 10 days, became dominated by Firmicutes (~90%)
+      The other group of partially dominant proteobactia were challenged with C. difficile
+    3. Communities with slightly increased proteobacteria all we in the experimental group that recovered 5 days prior to C. difficile challenge. These communities recovered in 3 different ways
+      a. Decrease in proteobacteria with an increase in bacteroidetes and akkermansia
+      b. Domination of Firmicutes
+      c. Elimination of Akkermansia and a ratio of bacteroidetes:firmicutes:proteobacteria of 3:1:1
+  All communities were colonization
+    The recovery group were colonized at a slightly lower level ~2 logs lower and one cage was ~10^4 at the end
+    Communities changed during C. difficile infection
+      No recovery All were highly colonized ~10^8 by day 2 and ~10^7 at day 10
+        Bacteroides dominant community became ~1:1 Bacteroidetes:Firmicutes
+        Partially dominat proteobacteria communities became dominated by Akkermansia (~70%)
+      Recovered communites had three different outcomes
+        a. the bacteroides/akkermansia community had akkermansia increase further (~30%)
+        b. the firmicutes dominant communities became firmicutes/tenericutes/actinobacteria (7:2:1)
+        c. the bacteroidetes:firmicutes:proteobacteria became bacteroidetes:firmicutes (3:1)
+        the community of bacteroidetes/firmicutes/akkermansia had the lowest level of colonization (10^4)
+
+
 From Exploratory.Rmd looking at all treatments together, 
 
 
@@ -215,7 +246,7 @@ What is different between persistent and clearing communities?
 How to restore colonization resistance to Clindamycin?
   what changes precede or co-occur with decreasing CFU?
 
-
+How do clinda and metro differ? What’s different after antibiotics (subtracting proteo)? What’s different in unchallenged communities for recovery?
 
 
 ## Comparing CFU vs Counts for detecting C. difficile
