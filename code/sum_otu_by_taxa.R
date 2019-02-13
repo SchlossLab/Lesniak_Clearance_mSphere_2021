@@ -14,7 +14,7 @@
 #
 ###################
 
-levels <- c('Kingdom','Phylum','Class','Order','Family','Genus')
+levels <- c('Kingdom','Phylum','Class','Order','Family','Genus', 'OTU', 'tax_otu_label', 'otu_label')
 
 sum_otu_by_taxa <- function(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0){
   
@@ -27,18 +27,17 @@ sum_otu_by_taxa <- function(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0){
   print(paste0('Summing shared by ', taxa_level))
 
   output_dataframe <- otu_df %>% 
-    mutate(group = rownames(otu_df)) %>% 
-    gather(OTU, counts, contains('Otu0')) %>% 
-    inner_join(select(taxa_df, OTU, taxa = one_of(taxa_level)), by = 'OTU') %>% 
+    gather(OTU, abundance, contains('Otu0')) %>% 
+    inner_join(select(taxonomy_df, OTU, taxa = one_of(taxa_level)), by = 'OTU') %>% 
     group_by(group, taxa) %>%
-    summarize(total=sum(counts))
+    summarize(abundance = sum(abundance))
 
   if(top_n > 0){
     print(paste0('Returning the top ', top_n, ' groups, all others are summed in Other'))
 
     top_taxa <- output_dataframe %>% 
       group_by(taxa) %>% 
-      summarise(median_abundance = mean(total, na.rm = T)) %>% 
+      summarise(median_abundance = mean(abundance, na.rm = T)) %>% 
       top_n(top_n, median_abundance) %>% 
       select(taxa) %>% 
       mutate(top_taxa = taxa)
@@ -47,8 +46,8 @@ sum_otu_by_taxa <- function(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0){
       full_join(top_taxa, by = 'taxa') %>%  
       mutate(taxa = ifelse(is.na(top_taxa), 'Other', taxa)) %>% 
       group_by(group, taxa) %>% 
-      summarise(total = sum(total))
-      mutate(dataset = paste0('top_', top_n, '_by_', taxa_level) %>% 
+      summarise(abundance = sum(abundance)) %>% 
+      mutate(dataset = paste0('top_', top_n, '_by_', taxa_level)) %>% 
       ungroup 
 
     } else {
