@@ -44,4 +44,10 @@ if(any(taxonomy_df_edit$Genus == 'unclassified')){
 		spread(Level, Classification)
 }
 
+# edit output to have cleaned up OTU
+taxonomy_df_edit <- taxonomy_df_edit %>%  
+    mutate(tax_otu_label = paste0(Genus, ' (',  
+        gsub('tu0*', 'TU ', OTU),')'), # create labels 
+      otu_label = paste0(gsub('tu0*', 'TU ', OTU))) # create labels  
+
 write_tsv(taxonomy_df_edit, 'data/process/abx_cdiff_taxonomy_clean.tsv')
