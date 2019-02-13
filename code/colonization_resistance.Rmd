@@ -39,25 +39,40 @@ source(taxonomy_function)
 taxonomy_df <- read.table(taxonomy_file, sep = '\t', header = T)
 taxonomy_labels <- get_taxa_labels(taxonomy_file)
 
-cdiff_otus <- as.character(taxonomy_df$OTU[grep('Clostridium_XI', taxonomy_df$Taxonomy)])
-entercoccus_otus <- as.character(taxonomy_df$OTU[grep('Enterococcus', taxonomy_df$Taxonomy)])
+# based on previously published papers, most leave C difficile in 
+# I had been initially removing from when I was trying to predict C difficile 
+# but that does not seem to be necessary based on what I am doing and others 
+# have published
+#
+#cdiff_otus <- as.character(taxonomy_df$OTU[grep('Clostridium_XI', taxonomy_df$Taxonomy)])
+#entercoccus_otus <- as.character(taxonomy_df$OTU[grep('Enterococcus', taxonomy_df$Taxonomy)])
+#
+# remove C. difficile sequences
+# look at the distribution of C. difficile sequences
+#shared_cdiff_df <- select(shared_df, one_of(cdiff_otus))  %>% 
+#  mutate(group = rownames(shared_df)) %>% 
+#  gather(OTU, counts, contains('Otu00')) %>% 
+#  left_join(select(meta_df, day, abx, group, CFU))
+#shared_cdiff_df <- bind_rows(shared_cdiff_df, 
+#  summarise(group_by(shared_cdiff_df, day, abx, group, CFU), counts = sum(counts)) %>% 
+#    mutate(OTU = "Summed"))
+# prior to challenge, 3 or more cdifficile seq are detected in 84 samples
+# maximum count is 65 and median is 6
+# post infection, 586 samples have 3 or more sequences
+# maximum count is 1083 and median is 12
+# for most of the samples with Cdifficile are in the first 3 days post infection
+# of note a majority of the samples with higher counts are with cef treatment
+# cages 104, 105, and 600 had the most high counts of cdifficile sequences
 
-numotus <- shared_df$numOtus[1]
+# all samples have otus counts totalling 2000, 
+# but the C difficile counts and otus present below the cutoff with be removed
+# Jenior etal 2018 removed Cdiff OTU before calculating relative abundance using the genus Clostridium_XI)
+#
 
-shared_cdiff_df <- apply(select(shared_df, one_of(cdiff_otus)), 1, sum)
-shared_cdiff_df <- data.frame(group = names(shared_cdiff_df), c_difficile = unname(shared_cdiff_df), stringsAsFactors = F) %>% 
-  mutate(C.difficile = c_difficile/numotus)
+shared_df <- select(shared_df, -label, -numOtus)
 
-shared_df <- select(shared_df, -label, -numOtus, -one_of(cdiff_otus))
-
-otu_presence_cutoff <- 0.05
-otu_presence <- ifelse(shared_df > 0, T, F) 
-OTUs_present <- colnames(shared_df[ , apply(otu_presence, 2, sum) > 
-                                        round(otu_presence_cutoff*nrow(shared_df))])
-#relative abundance of OTUs present in >5% of samples
-#rel_abund <- shared_file[ ,OTUs_present]/OTU_total*100
-counts <- apply(shared_df, 1, sum)
-rel_abund <- data.frame(apply(shared_df[ ,OTUs_present], 2, function(i){(i/counts)*100}))
+sample_summed_counts <- apply(shared_df, 1, sum)
+rel_abund <- 100 * shared_df/sample_summed_counts
 
 ```
 
