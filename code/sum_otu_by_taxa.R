@@ -16,15 +16,16 @@
 
 levels <- c('Kingdom','Phylum','Class','Order','Family','Genus', 'OTU', 'tax_otu_label', 'otu_label')
 
-sum_otu_by_taxa <- function(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0){
+sum_otu_by_taxa <- function(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0, silent = T){
   
   if(!all(is.data.frame(taxonomy_df), is.data.frame(shared_df),
     taxa_level %in% levels)) {stop(paste0(
       'Check to make sure you have entered a data frame for taxonomy and shared 
       and you have selected a classification level - ',
       paste0(levels, collapse = ', ')))}
-
-  print(paste0('Summing shared by ', taxa_level))
+  if(silent == F){
+    print(paste0('Summing shared by ', taxa_level))
+  }
 
   output_dataframe <- otu_df %>% 
     gather(OTU, abundance, contains('Otu0')) %>% 
@@ -33,7 +34,9 @@ sum_otu_by_taxa <- function(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0){
     summarize(abundance = sum(abundance))
 
   if(top_n > 0){
-    print(paste0('Returning the top ', top_n, ' groups, all others are summed in Other'))
+    if(silent == F){
+      print(paste0('Returning the top ', top_n, ' groups, all others are summed in Other'))
+    }
 
     top_taxa <- output_dataframe %>% 
       group_by(taxa) %>% 
@@ -51,7 +54,9 @@ sum_otu_by_taxa <- function(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0){
       ungroup 
 
     } else {
-      print('Returning all groups')
+      if(silent == F){
+        print('Returning all groups')
+      }
     }
 
   return(output_dataframe)
