@@ -100,18 +100,18 @@ initial_colonization_df <- meta_df %>%
   summarize(initial_colonization = max(CFU))
 
 pre_post_end_genus_df <- pre_post_end_df %>% 
-  split(.$treatment) %>% 
+  split(.$abx) %>% 
   map_dfr(function(df) left_join(df, 
         sum_otu_by_taxa(taxonomy_df = taxonomy_df, otu_df = filter(rel_abund, group %in% df$group), 
-          taxa_level = 'Genus', top_n = 8),
+          taxa_level = 'Genus', top_n = 11),
       by = 'group'))  %>% 
   mutate(dataset = 'genus_level') 
 
 pre_post_end_otu_df <- pre_post_end_df %>% 
-  split(.$treatment) %>% 
+  split(.$abx) %>% 
   map_dfr(function(df) left_join(df, 
         sum_otu_by_taxa(taxonomy_df = taxonomy_df, otu_df = filter(rel_abund, group %in% df$group), 
-          taxa_level = 'tax_otu_label', top_n = 8),
+          taxa_level = 'tax_otu_label', top_n = 11),
       by = 'group'))  %>% 
   mutate(dataset = 'OTU_level',
     taxa = gsub(' \\(', '\n(', taxa),
