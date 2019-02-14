@@ -6,12 +6,13 @@ output: html_document
 ---
 
 ```{r setup environment, include=F}
+# render with Rscript -e 'library(rmarkdown); rmarkdown::render("colonization_resistance.Rmd")'
 # setup data in environment
 knitr::opts_chunk$set(echo = F, warning = F, message = F)
 
 library(tidyverse)
 library(cowplot)
-library(hues)
+library(RColorBrewer)
 library(bsselectR)
 
 meta_file   <- '../data/process/abx_cdiff_metadata_clean.txt'
@@ -121,12 +122,6 @@ barwidth <- 1
 for(df in list(pre_post_end_phyla_df, pre_post_end_genus_df, pre_post_end_otu_df)){
   for(antibiotic in unique(pre_post_end_phyla_df$abx)){
     
-    colors <- unname(iwanthue(df %>% 
-            filter(abx == antibiotic) %>% 
-            pull(taxa) %>% 
-            unique %>% 
-            length))
-    
     community_plot <- df %>% 
       filter(abx == antibiotic) %>% 
       mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'pre-recovered', 'day_0', 'endpoint')),
@@ -138,7 +133,7 @@ for(df in list(pre_post_end_phyla_df, pre_post_end_genus_df, pre_post_end_otu_df
         theme(legend.position = 'top', legend.title=element_blank(),
           axis.text.x = element_blank(), axis.ticks.x = element_blank(),
           legend.text=element_text(size=6)) + 
-        scale_fill_manual(values = colors)
+        scale_fill_brewer(palette = 'Paired')
 
     cdiff_plot <- pre_post_end_df %>% 
       filter(abx == antibiotic, sample_timepoint == 'endpoint') %>% 
