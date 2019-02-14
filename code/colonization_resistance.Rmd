@@ -184,54 +184,54 @@ bsselect(abx_plots, type = "img", selected = "strep_phylum_level", height = '75'
 
 ## Ampicilin - 5 day recovery
 
-The antibiotic treatment seems to have a varied effect on the community changes
-At the phylum level, antibiotic treament resulted in varied community effects which seem to group by cage. This could be due to the environment of the experiment (other treatments occuring at the same time) or possibly amp has a more vaired effect on the bacterial community.
-  Inital antibiotic treatment lead to:
-    1. Complete dominace of Proteobacteria (~90%)
+- The antibiotic treatment seems to have a varied effect on the community changes
+- At the phylum level, antibiotic treatment resulted in varied community effects which seem to group by cage. This could be due to the environment of the experiment (other treatments occurring at the same time) or possibly amp has a more varied effect on the bacterial community.
+  - Initial antibiotic treatment lead to:
+    1. Complete dominance of Proteobacteria (~90%)
     2. Partial dominance of Proteobacteria (~50%), 
     3. Increase in Proteobacteria (~25%), Decrease in bacteroidetes (70-80% -> ~50%), increase in akkermansia (10%)
-  Recovery lead to different conditions
+  - Recovery lead to different conditions
     1. Complete dominant Proteobacteria, after 10 days, returned to pre-antibiotic Bacteroidetes:Firmicutes ratio
     2. Partially dominant Proteobacteria conditions, after 10 days, became dominated by Firmicutes (~90%)
       The other group of partially dominant proteobactia were challenged with C. difficile
     3. Communities with slightly increased proteobacteria all we in the experimental group that recovered 5 days prior to C. difficile challenge. These communities recovered in 3 different ways
-      a. Decrease in proteobacteria with an increase in bacteroidetes and akkermansia
-      b. Domination of Firmicutes
-      c. Elimination of Akkermansia and a ratio of bacteroidetes:firmicutes:proteobacteria of 3:1:1
-  All communities were colonization
-    The recovery group were colonized at a slightly lower level ~2 logs lower and one cage was ~10^4 at the end
-    Communities changed during C. difficile infection
-      No recovery All were highly colonized ~10^8 by day 2 and ~10^7 at day 10
-        Bacteroides dominant community became ~1:1 Bacteroidetes:Firmicutes
-        Partially dominat proteobacteria communities became dominated by Akkermansia (~70%)
-      Recovered communites had three different outcomes
-        a. the bacteroides/akkermansia community had akkermansia increase further (~30%)
-        b. the firmicutes dominant communities became firmicutes/tenericutes/actinobacteria (7:2:1)
-        c. the bacteroidetes:firmicutes:proteobacteria became bacteroidetes:firmicutes (3:1)
-        the community of bacteroidetes/firmicutes/akkermansia had the lowest level of colonization (10^4)
+      - a. Decrease in proteobacteria with an increase in bacteroidetes and akkermansia
+      - b. Domination of Firmicutes
+      - c. Elimination of Akkermansia and a ratio of bacteroidetes:firmicutes:proteobacteria of 3:1:1
+  - All communities were colonization
+    - The recovery group were colonized at a slightly lower level ~2 logs lower and one cage was ~10^4 at the end
+    - Communities changed during C. difficile infection
+      - No recovery All were highly colonized ~10^8 by day 2 and ~10^7 at day 10
+        - Bacteroides dominant community became ~1:1 Bacteroidetes:Firmicutes
+        - Partially dominant proteobacteria communities became dominated by Akkermansia (~70%)
+      - Recovered communities had three different outcomes
+        - a. the bacteroides/akkermansia community had akkermansia increase further (~30%)
+        - b. the firmicutes dominant communities became firmicutes/tenericutes/actinobacteria (7:2:1)
+        - c. the bacteroidetes:firmicutes:proteobacteria became bacteroidetes:firmicutes (3:1)
+        - the community of bacteroidetes/firmicutes/akkermansia had the lowest level of colonization (10^4)
 
 ## Cefaperazone - 3 dosages (0.1, 0.3, 0.5)
 
-The antibiotic treamtent seems to have fairly consistent results
-At the phylum level
-  low doses do not seem to greatly affect the community, initially Bacteroidetes dominant (B:F is ~8:1), leading to a increase in Akkermansia
-  higher doses of Cef cause a reduction in Bacteroidetes and increases in either Firmicutes, Proteobacteria or Verrucomicrobia
-  For the low dose (0.1)
-    only 2 of 6 are infected (10^2) at day 1, and 0 at day 10
-    Theres an increase in Verrucomicrobia at the time of infection. 
-  For the mid dose (0.3), 
-    9 of 13 are infected (all at 10^8 except one at 10^4 which is grouped in the uninfected mice) at day 1
-    4 of 13 are infected at endpoint at 10^6
-    the mice uninfected had the least changed communities, a slight increase in Verrucomicrobia at day 0 and back to inital at the endpoint
-    the mice that clear have a large increase in Firmiutes in half the mice at day 0, but by the endpooint all look like day 0 cef 0.1 (increased Verrucomicrobia, and some proteobacteria)
-    the mice that remain infected have an near even distribution of bacteroidetes, firmicutes, Proteobacteria, and Verrucomicrobia
-      this mice also have more varied endpoint communities, one remains like day 0, one becomes Verrucomicrobia dominant, and the others are half bacteroidetes half firmicutes
-  For the high dose (0.5)
-    all mice (6) are infected at 10^8 on day 1 and 10^6 at endpoint
-    the community shifts to Firmicutes dominant with nearly equal portions of bacteroidetes and proteobacteria making up the remaining minority
-    the endpint colonization communities either stay firmicutes dominant or return to a bacteriodetes dominant with Verrucomicrobia (20%)
-At the genus level, we explore the differences between communties that look similar at the phylum level but result in different endpoint colonization
-  For the mice that clear the infection (9 mice with 0.3 dose)
+- The antibiotic treatment seems to have fairly consistent results
+- At the phylum level
+  - low doses do not seem to greatly affect the community, initially Bacteroidetes dominant (B:F is ~8:1), leading to a increase in Akkermansia
+  - higher doses of Cef cause a reduction in Bacteroidetes and increases in either Firmicutes, Proteobacteria or Verrucomicrobia
+  - For the low dose (0.1)
+    - only 2 of 6 are infected (10^2) at day 1, and 0 at day 10
+    - Theres an increase in Verrucomicrobia at the time of infection. 
+  - For the mid dose (0.3), 
+    - 9 of 13 are infected (all at 10^8 except one at 10^4 which is grouped in the uninfected mice) at day 1
+    - 4 of 13 are infected at endpoint at 10^6
+    - the mice uninfected had the least changed communities, a slight increase in Verrucomicrobia at day 0 and back to initiallyal at the endpoint
+    - the mice that clear have a large increase in Firmicutes in half the mice at day 0, but by the endpoint all look like day 0 cef 0.1 (increased Verrucomicrobia, and some proteobacteria)
+    - the mice that remain infected have an near even distribution of bacteroidetes, firmicutes, Proteobacteria, and Verrucomicrobia
+      - this mice also have more varied endpoint communities, one remains like day 0, one becomes Verrucomicrobia dominant, and the others are half bacteroidetes half firmicutes
+  - For the high dose (0.5)
+    - all mice (6) are infected at 10^8 on day 1 and 10^6 at endpoint
+    - the community shifts to Firmicutes dominant with nearly equal portions of bacteroidetes and proteobacteria making up the remaining minority
+    - the endpoint colonization communities either stay firmicutes dominant or return to a bacteriodetes dominant with Verrucomicrobia (20%)
+- At the genus level, we explore the differences between communities that look similar at the phylum level but result in different endpoint colonization
+  - For the mice that clear the infection (9 mice with 0.3 dose)
 
 
 
