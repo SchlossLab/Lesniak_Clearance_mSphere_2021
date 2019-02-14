@@ -84,10 +84,9 @@ pre_post_end_df <- meta_df  %>%
   select(-recovDays, -preAbx, -endpoint)
 
 pre_post_end_phyla_df <- pre_post_end_df %>% 
-    left_join(gather(
-        sum_otu_by_taxa(taxonomy_df = taxonomy_df, otu_df = rel_abund, 
+    left_join(
+      sum_otu_by_taxa(taxonomy_df = taxonomy_df, otu_df = rel_abund, 
           taxa_level = 'Phylum'),
-      taxa, abundance, -group), 
     by = 'group') %>% 
     mutate(dataset = 'phylum_level')
 
