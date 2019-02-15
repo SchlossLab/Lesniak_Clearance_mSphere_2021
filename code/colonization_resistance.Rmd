@@ -87,7 +87,7 @@ pre_post_end_df <- meta_df  %>%
 pre_post_end_phyla_df <- pre_post_end_df %>% 
     left_join(
       sum_otu_by_taxa(taxonomy_df = taxonomy_df, otu_df = rel_abund, 
-          taxa_level = 'Phylum'),
+          taxa_level = 'Phylum', top_n = 6),
     by = 'group') %>% 
     mutate(dataset = 'phylum_level')
 
@@ -117,19 +117,19 @@ pre_post_end_otu_df <- pre_post_end_df %>%
     taxa = gsub(' \\(', '\n(', taxa),
     taxa = gsub('_unclassified\n\\(', '\n(Unclassified, ', taxa))
 
-pre_post_end_otu_df_by_each <- pre_post_end_df %>% 
-  split(.$group) %>% 
-  map_dfr(function(df) left_join(df, 
-        sum_otu_by_taxa(taxonomy_df = taxonomy_df, otu_df = filter(rel_abund, group %in% df$group), 
-          taxa_level = 'tax_otu_label', top_n = 5),
-      by = 'group'))  %>% 
-  mutate(dataset = 'OTU_level',
-    taxa = gsub(' \\(', '\n(', taxa),
-    taxa = gsub('_unclassified\n\\(', '\n(Unclassified, ', taxa))
+#pre_post_end_otu_df_by_each <- pre_post_end_df %>% 
+#  split(.$group) %>% 
+#  map_dfr(function(df) left_join(df, 
+#        sum_otu_by_taxa(taxonomy_df = taxonomy_df, otu_df = filter(rel_abund, group %in% df$group), 
+#          taxa_level = 'tax_otu_label', top_n = 5),
+#      by = 'group'))  %>% 
+#  mutate(dataset = 'OTU_level',
+#    taxa = gsub(' \\(', '\n(', taxa),
+#    taxa = gsub('_unclassified\n\\(', '\n(Unclassified, ', taxa))
 
 
 barwidth <- 1
-df <- pre_post_end_otu_df_by_each;antibiotic <- 'amp'
+#df <- pre_post_end_otu_df_by_each;antibiotic <- 'amp'
 for(df in list(pre_post_end_phyla_df, pre_post_end_genus_df, pre_post_end_otu_df)){
   for(antibiotic in unique(pre_post_end_phyla_df$abx)){
     
