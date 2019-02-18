@@ -188,6 +188,8 @@ bsselect(abx_plots, type = "img", selected = "strep_phylum_level", height = '75'
 
 # Descriptive Changes
 
+***
+
 ## Ampicilin - 5 day recovery
 
 - The antibiotic treatment seems to have a varied effect on the community changes
@@ -215,6 +217,12 @@ bsselect(abx_plots, type = "img", selected = "strep_phylum_level", height = '75'
         - b. the firmicutes dominant communities became firmicutes/tenericutes/actinobacteria (7:2:1)
         - c. the bacteroidetes:firmicutes:proteobacteria became bacteroidetes:firmicutes (3:1)
         - the community of bacteroidetes/firmicutes/akkermansia had the lowest level of colonization (10^4)
+
+#### Questions
+  - Is there a way to explain/predict the way a community responds to Ampicilin?
+  - What are the commonalities between all the infected communities?
+
+***
 
 ## Cefaperazone - 3 dosages (0.1, 0.3, 0.5)
 
@@ -246,15 +254,20 @@ bsselect(abx_plots, type = "img", selected = "strep_phylum_level", height = '75'
     - Although one cage for 0.5 dose looked very different as well, since we do not have day 0 community data, we cannot determine if the community was different before infection or the infection drove the difference
     - interestingly when looking at the OTU level it seems that the top OTUs do not seem to be changing much for the cef (0.1 and 0.3) that resist colonization, and those that remain colonized do not.
 
-###  What are the key differences in the groups that recieved 0.3 Cef and does this fit with the observations of 0.1 and 0.5?
+#### Questions
+  - What are the key differences in the groups that recieved 0.3 Cef and does this fit with the observations of 0.1 and 0.5?
+
+***
 
 ## Ciprofloxacin - Only one dose and unchallenged
 
 - No significant changes are identified post antibiotic and C diff did not colonize
 
+***
+
 ## Clindamycin - Only one dose and unchallenged
 
--At the phylum level
+- At the phylum level
   - For the unchallenged mice
     - One cage does not seem to be affected by the antibiotic (cage 5)
     - In all other cages Clindamycin leads to a shift from a bacteroidetes dominant community (B:F 8:1) to a proteobacteria dominant community (proteobacteria ranges from 60-95% with the remaining filled by Firmicutes)
@@ -265,9 +278,12 @@ bsselect(abx_plots, type = "img", selected = "strep_phylum_level", height = '75'
     - although the community is not exactly what it started as, Bacteroides has grown to equal proportions as Porphymonadaceae
     - interestingly when looking at the OTU level it seems that Porphymonadaceae initally consists of ~7 even OTUs whereas only 1-3 seem to recover
 
-### Since one of the dominant recovering OTUs (Porphymonadaceae OTU 3) is is also one of the dominant members of the final community in cef (dose 0.3 cage 105)  what is the difference in the community surrounding this OTU, leading to a different outcome?
-### Are the other Porphymonadaceae OTUs present in the final community, just not at high abundances?
-### WHat is the temporal relationship between Porphymonadaceae/Esherichia/C. difficile?
+#### Questions
+  - Since one of the dominant recovering OTUs (Porphymonadaceae OTU 3) is is also one of the dominant members of the final community in cef (dose 0.3 cage 105)  what is the difference in the community surrounding this OTU, leading to a different outcome?
+  - Are the other Porphymonadaceae OTUs present in the final community, just not at high abundances?
+  - WHat is the temporal relationship between Porphymonadaceae/Esherichia/C. difficile?
+
+***
 
 ## Metronidazole - 5 Day Recovery
 
@@ -292,7 +308,10 @@ bsselect(abx_plots, type = "img", selected = "strep_phylum_level", height = '75'
       - Cage 108 became made of Porphymonadaceae (35%), Bacteroides (15%), Akkermansia (15%), Barnsiella (10%)
       - interestingly, Akkermansia was present at roughly 20% in the mouse not initiallty colonized, however akkermansia disappered in that mouse. Furthermore, akkermansia was present at the endpoint in the other cage colonized at endpoint but also present in the cage whcih resisted and cleared colonization
 
-### What are the differences between the Metronidazole recovered communities that could explain the differences in colonization?
+#### Questions
+  - What are the differences between the Metronidazole recovered communities that could explain the differences in colonization?
+
+***
 
 ## Streptomycin - 3 Doses (0.1, 0.5, 5)
 
@@ -312,9 +331,12 @@ bsselect(abx_plots, type = "img", selected = "strep_phylum_level", height = '75'
     - With the unchallenged mice and cage 627, there is an expansion of bacteroides and to a lesser degree barnsiella, reducing Porphymonadaceae. At endpoint Bacteroides reduces and most Porphymonadaceae OTUs recover except some of the lesser abundant Porphymonadaceae otus and Alistipes does not recover
     - With the mice in cage 47, there is an expansion of akkermansia and bacteroidales and a reduction in a few of the lower abundant Porphymonadaceae OTUs while the other Porphymonadaceae remain. At the endpoint some of the lower abundant Porphymonadaceae OTUs recover and bacteroidales decreases
 
-### What differentiates the uncolonized cage from the colonized cages with the low Streptomycin treatment?
-### What differentiates the cages that cleared with the mid Streptomycin treatment?
-### What differentiates the colonized cages (low Streptomycin) from untreated?
+#### Questions
+  - What differentiates the uncolonized cage from the colonized cages with the low Streptomycin treatment?
+  - What differentiates the cages that cleared with the mid Streptomycin treatment?
+  - What differentiates the colonized cages (low Streptomycin) from untreated?
+
+***
 
 ## Vancomycin - 3 Doses (0.1, 0.3, 0.625)
 
@@ -333,29 +355,32 @@ bsselect(abx_plots, type = "img", selected = "strep_phylum_level", height = '75'
   - Mid/high Vancomycin (0.3/0.625) leads to a large expansion of akkermansia, elimination of Porphymonadaceae with no return overtime,  the rest of the community is made up of Esherichia/shigella, lactobacillus, and in a few enterobacteriaceae. At the end point akkermansia remains dominant (in all but one), with the remaining made up of bacteroides or lactobacillus with lactobacillus/turicibacter
     - Communities are made up of a few OTUs, akkermansia/enterobacteriaceae/lactobacillus/Esherichia/bacteroidetes which make up ~ 75% of communites (with the exception of one mouse, cage 7)
 
+#### Questions
+  - What differentiates the reduction in colonization in cage 740 (dose 0.3) and the others?
+  - What differentiates the communites that remain colonized and the ones able to reduce/clear colonization?
 
-### What differentiates the reduction in colonization in cage 740 (dose 0.3) and the others?
-### What differentiates the communites that remain colonized and the ones able to reduce/clear colonization?
 
+***
 
 ## Comparing the possible effect of C. difficile on the community
 
 - Ampicilin (dose 0.5)
-  - Ampicilin treatment lead to very different communities so comparing the communites that looked similar on day 0, there loked fairly different at the endpoint
-  - Day 0 community was made of Esherichia/shigella and others (~40%)
-  - For unchallenged, this community shifted to turicibacter/lactobacillus/Lachnospiraceae/other
-  - For C. difficile challenged, this community shifted to akkermansia dominated (>65%), with the remainder consisting of Porphymonadaceae/turicibacter/lactobacillus/Lachnospiraceae/other
+    - Ampicilin treatment lead to very different communities so comparing the communites that looked similar on day 0, there looked fairly different at the endpoint
+    - Day 0 community was made of Esherichia/shigella and others (~40%)
+    - For unchallenged, this community shifted to turicibacter/lactobacillus/Lachnospiraceae/other
+    - For C. difficile challenged, this community shifted to akkermansia dominated (>65%), with the remainder consisting of Porphymonadaceae/turicibacter/lactobacillus/Lachnospiraceae/other
 - Cefaperazone (dose 0.5)
-  - At the genus level, in one cage of challegned mice, there is similar variation to the unchallenged community but there also is another cage with much different communities (dominated by akkermansia/bacteroidetes which are not observed in the other groups)
+    - At the genus level, in one cage of challegned mice, there is similar variation to the unchallenged community but there also is another cage with much different communities (dominated by akkermansia/bacteroidetes which are not observed in the other groups)
 - Clindamycin (dose 10)
-  - At the genus level, at endpoint colonized communities have slightly higher Porphymonadaceae and reduced lactobacillus
+    - At the genus level, at endpoint colonized communities have slightly higher Porphymonadaceae and reduced lactobacillus
 - Metronidazole (dose 1)
-  - At the genus level, there doesnt appear to be any differences, although one cage challenged has Porphymonadaceae not present in the unchallenged (but that is not consistent amongst challenged cages)
+    - At the genus level, there doesnt appear to be any differences, although one cage challenged has Porphymonadaceae not present in the unchallenged (but that is not consistent amongst challenged cages)
 - Streptomycin (dose 5)
-  - At the genus level, colonized communities have higher levels of barnsiella and reduced bacteroides
+    - At the genus level, colonized communities have higher levels of barnsiella and reduced bacteroides
 - Vancomycin (dose 0.625)
-  - At the genus level, colonized communities have reduced Akkermansia and more variable proportions of Esherichia/Lachnospiraceae/Lactobacillus
+    - At the genus level, colonized communities have reduced Akkermansia and more variable proportions of Esherichia/Lachnospiraceae/Lactobacillus
 
+***
 
 From Exploratory.Rmd looking at all treatments together, 
 
@@ -373,6 +398,4 @@ How to restore colonization resistance to Clindamycin?
 
 How do clinda and metro differ? What’s different after antibiotics (subtracting proteo)? What’s different in unchallenged communities for recovery?
 
-
-## Comparing CFU vs Counts for detecting C. difficile
 
