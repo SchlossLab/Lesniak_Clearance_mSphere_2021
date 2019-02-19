@@ -40,37 +40,37 @@ rm(samples_w_OTU, OTUs_above_threshold, OTU_threshold, shared_df_raw)
 colonized_mice <- meta_df %>% 
   group_by(mouse_id) %>% 
   summarise(max_cfu = max(CFU)) %>% 
-  mutate(colonized = ifelse(max_cfu > 10^4, 'colonized', 'resistent'))
+  mutate(outcome = ifelse(max_cfu > 10^4, 'colonized', 'resistent'))
 
 colonized_df <- meta_df %>% 
   left_join(colonized_mice, by = 'mouse_id') %>% 
-  filter(cdiff == T, day == 0) %>% 
-  select(group, colonized)
+  filter(cdiff == T, day == 0, 
+    group %in% shared_df$Group) %>%
+  select(group, outcome)
 
 write_tsv(path = 'data/mothur/colonized.shared', 
   x = filter(shared_df, Group %in% colonized_df$group))
-write_tsv(path = 'data/mothur/colonized.design', x = colonized_df,
-  col_names = F)
+write_tsv(path = 'data/mothur/colonized.design', x = colonized_df)
 
 cleared_mice <- meta_df %>% 
   right_join(
-    filter(colonized_mice, colonized == T),
+    filter(colonized_mice, colonized == 'colonized'),
     by = 'mouse_id') %>% 
   filter(day > 0) %>% 
   group_by(mouse_id) %>% 
   summarise(min_cfu = min(CFU)) %>% 
-  mutate(cleared = ifelse(min_cfu < 10^3, 'cleared','persistent'))
-  
+  mutate(outcome = ifelse(min_cfu < 10^3, 'cleared','persistent'))
+
 cleared_df <- meta_df %>% 
   left_join(colonized_mice, by = 'mouse_id') %>% 
   left_join(cleared_mice, by = 'mouse_id') %>% 
-  filter(cdiff == T, colonized == T, day == 0) %>% 
-  select(group, cleared) 
+  filter(cdiff == T, colonized == 'colonized', day == 0, 
+    group %in% shared_df$Group) %>% 
+  select(group, outcome) 
 
 write_tsv(path = 'data/mothur/cleared.shared', 
   x = filter(shared_df, Group %in% cleared_df$group))
-write_tsv(path = 'data/mothur/cleared.design', x = cleared_df,
-  col_names = F)
+write_tsv(path = 'data/mothur/cleared.design', x = cleared_df)
 
 # run lefse
 mothur_dir <- 
