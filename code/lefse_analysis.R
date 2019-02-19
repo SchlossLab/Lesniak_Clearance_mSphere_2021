@@ -17,7 +17,8 @@ OTU_threshold <- 6
 
 meta_df <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
   mutate(treatment = paste(abx, dose, delayed, cdiff, sep = '_'),
-    mouse_id = paste(cage, mouse, sep = '_')) 
+    mouse_id = paste(cage, mouse, sep = '_'),
+    group = gsub('-', '_', group)) 
 shared_df_raw <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F)
 
 source(taxonomy_function)
@@ -26,19 +27,20 @@ rm(meta_file, shared_file, taxonomy_file, taxonomy_function)
 
 shared_df <- select(shared_df_raw, -label, -numOtus, -Group)
 rownames(shared_df) <- shared_df_raw$Group
-shared_df_raw[1:5,1:5]
+
 # remove OTUs present in fewer than specified threshold
 samples_w_OTU <- apply(shared_df, 2, function(x) sum(x > 3))
 OTUs_above_threshold <- names(samples_w_OTU[samples_w_OTU >= OTU_threshold])
 shared_df <- select(shared_df_raw, label, Group, numOtus, 
-  one_of(OTUs_above_threshold))
+  one_of(OTUs_above_threshold)) %>% 
+  mutate(Group = gsub('-', '_', Group))
 rm(samples_w_OTU, OTUs_above_threshold, OTU_threshold, shared_df_raw)
 
 # create category of colonize (max CFU > 10^4) and cleared (min of colonized < 10^4)
 colonized_mice <- meta_df %>% 
   group_by(mouse_id) %>% 
   summarise(max_cfu = max(CFU)) %>% 
-  mutate(colonized = max_cfu > 10^4) 
+  mutate(colonized = ifelse(max_cfu > 10^4, 'colonized', 'resistent'))
 
 colonized_df <- meta_df %>% 
   left_join(colonized_mice, by = 'mouse_id') %>% 
@@ -47,7 +49,8 @@ colonized_df <- meta_df %>%
 
 write_tsv(path = 'data/mothur/colonized.shared', 
   x = filter(shared_df, Group %in% colonized_df$group))
-write_tsv(path = 'data/mothur/colonized.design', x = colonized_df)
+write_tsv(path = 'data/mothur/colonized.design', x = colonized_df,
+  col_names = F)
 
 cleared_mice <- meta_df %>% 
   right_join(
@@ -56,7 +59,7 @@ cleared_mice <- meta_df %>%
   filter(day > 0) %>% 
   group_by(mouse_id) %>% 
   summarise(min_cfu = min(CFU)) %>% 
-  mutate(cleared = min_cfu < 10^3)
+  mutate(cleared = ifelse(min_cfu < 10^3, 'cleared','persistent'))
   
 cleared_df <- meta_df %>% 
   left_join(colonized_mice, by = 'mouse_id') %>% 
@@ -66,11 +69,17 @@ cleared_df <- meta_df %>%
 
 write_tsv(path = 'data/mothur/cleared.shared', 
   x = filter(shared_df, Group %in% cleared_df$group))
-write_tsv(path = 'data/mothur/cleared.design', x = cleared_df)
+write_tsv(path = 'data/mothur/cleared.design', x = cleared_df,
+  col_names = F)
 
 # run lefse
+mothur_dir <- 
 
-system()
+system('/Applications/mothur/mothur "#set.dir(output=data/mothur);
+  make.lefse(shared=colonized.shared, design=colonized.design);
+  make.lefse(shared=colonized.shared, design=colonized.design);
+  colonized.Group.lefse
+  lefse(shared=cleared.shared, design=cleared.design);')
 
 # plot lefse results
 
