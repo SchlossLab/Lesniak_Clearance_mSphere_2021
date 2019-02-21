@@ -72,14 +72,14 @@ write_tsv(path = 'data/mothur/cleared.shared',
   x = filter(shared_df, Group %in% cleared_df$group))
 write_tsv(path = 'data/mothur/cleared.design', x = cleared_df)
 
-# run lefse
-mothur_dir <- 
 
-system('/Applications/mothur/mothur "#set.dir(output=data/mothur);
-  make.lefse(shared=colonized.shared, design=colonized.design);
-  make.lefse(shared=colonized.shared, design=colonized.design);
-  colonized.Group.lefse
-  lefse(shared=cleared.shared, design=cleared.design);')
+# run lefse
+
+system('/mothur/mothur "#set.dir(input=data/mothur, output=data/mothur);
+  lefse(shared=colonized.shared, design=colonized.design);
+  metastats(shared=colonized.shared, design=colonized.design);
+  lefse(shared=cleared.shared, design=cleared.design);
+  metastats(shared=cleared.shared, design=cleared.design);"')
 
 # plot lefse results
 
