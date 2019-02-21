@@ -83,5 +83,27 @@ system('/mothur/mothur "#set.dir(input=data/mothur, output=data/mothur);
 
 # plot lefse results
 
-lefse_df <- read_tsv()
+lefse_df <- read_tsv('data/mothur/colonized.0.03.lefse_summary')
+lefse_df <- lefse_df  %>% 
+  top_n(20, LDA) %>% 
+  arrange(desc(LDA)) 
+
+library(ggforce)
+
+colonized_df %>% 
+  left_join(shared_df, by = c('group' = 'Group')) %>% 
+  select(group, colonization, one_of(lefse_df$OTU)) %>%  
+  gather(OTU, abundance, contains('Otu00')) %>% 
+  left_join(select(taxonomy_df, OTU, tax_otu_label), by = 'OTU') %>% 
+  left_join(lefse_df, by = 'OTU') %>% 
+  ggplot(aes(x = colonization, y = abundance, color = colonization)) + 
+    geom_sina() +
+    stat_summary(fun.y = 'median', color = 'black', geom = 'point') +
+    facet_wrap(tax_otu_label~., scales = 'free_y') + 
+    theme_bw()
+  head
+  
+
+
+
 
