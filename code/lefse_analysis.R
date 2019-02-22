@@ -34,6 +34,14 @@ OTUs_above_threshold <- names(samples_w_OTU[samples_w_OTU >= OTU_threshold])
 shared_df <- select(shared_df_raw, label, Group, numOtus, 
   one_of(OTUs_above_threshold)) %>% 
   mutate(Group = gsub('-', '_', Group), numOtus = length(OTUs_above_threshold))
+
+# calculate relative abundances
+relative_abundance_df <- select(shared_df, -label, -Group, -numOtus)
+abundance <- apply(relative_abundance_df, 1, sum)
+relative_abundance_df <- data.frame(100 * relative_abundance_df / abundance) %>% 
+  mutate(group = shared_df$Group)
+
+
 rm(samples_w_OTU, OTUs_above_threshold, OTU_threshold, shared_df_raw)
 
 # create category of colonize (max CFU > 10^4) and cleared (min of colonized < 10^4)
