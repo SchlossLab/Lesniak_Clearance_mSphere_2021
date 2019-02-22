@@ -1,5 +1,6 @@
 
 library(tidyverse)
+library(Hmisc)
 #library(cowplot)
 #library(RColorBrewer)
 #library(bsselectR)
@@ -93,25 +94,24 @@ system('/mothur/mothur "#set.dir(input=data/mothur, output=data/mothur);
 
 lefse_df <- read_tsv('data/mothur/colonized.0.03.lefse_summary')
 lefse_df <- lefse_df  %>% 
-  top_n(20, LDA) %>% 
+  top_n(10, LDA) %>% 
   arrange(desc(LDA)) 
 
-library(ggforce)
-
 colonized_df %>% 
-  left_join(shared_df, by = c('group' = 'Group')) %>% 
+  left_join(relative_abundance_df, by = 'group') %>% 
   select(group, colonization, one_of(lefse_df$OTU)) %>%  
   gather(OTU, abundance, contains('Otu00')) %>% 
   left_join(select(taxonomy_df, OTU, tax_otu_label), by = 'OTU') %>% 
   left_join(lefse_df, by = 'OTU') %>% 
-  ggplot(aes(x = colonization, y = abundance, color = colonization)) + 
-    geom_sina() +
-    stat_summary(fun.y = 'median', color = 'black', geom = 'point') +
-    facet_wrap(tax_otu_label~., scales = 'free_y') + 
-    theme_bw()
-  head
-  
-
-
-
-
+  mutate(tax_otu_label = gsub('unclassified', 'UC', tax_otu_label),
+    tax_otu_label = paste0(tax_otu_label, '\n p = ', pValue)) %>% 
+  ggplot(aes(x = tax_otu_label, y = (abundance + 0.01), color = colonization)) + 
+    geom_jitter(position = position_jitterdodge(dodge.width = 0.9), alpha = 0.25) + 
+    #geom_boxplot(fill = NA, outlier.color = NA, coef = 0, # whisker length = coef * IQR
+    #  position = position_dodge(width = 0.9)) + 
+    stat_summary(fun.data = 'median_hilow', geom = 'crossbar', aes(group = colonization),
+      fun.args = (conf.int=0.5), position = position_dodge(width = 0.9)) +
+    theme_bw() + labs(x = NULL, y = 'Abundance (counts)', title = 'LEfSe on all colonization') + 
+    scale_y_log10(breaks=c(0.01, 0.1, 1, 10, 100),
+        labels=c("0","0.1","1","10","100")) +
+    coord_flip()
