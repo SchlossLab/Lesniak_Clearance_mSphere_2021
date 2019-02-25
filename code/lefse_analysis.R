@@ -12,6 +12,7 @@ meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 taxonomy_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
 taxonomy_function <- 'code/sum_otu_by_taxa.R'
+save_dir <- 'results/figures/lefse/'
 
 # number of samples OTU must be in to be counted
 OTU_threshold <- 6
@@ -55,11 +56,7 @@ colonized_df <- meta_df %>%
   left_join(colonized_mice, by = 'mouse_id') %>% 
   filter(cdiff == T, day == 0, 
     group %in% shared_df$Group) %>%
-  select(group, colonization)
-
-write_tsv(path = 'data/mothur/colonized.shared', 
-  x = filter(shared_df, Group %in% colonized_df$group))
-write_tsv(path = 'data/mothur/colonized.design', x = colonized_df)
+  select(group, class = colonization)
 
 cleared_mice <- meta_df %>% 
   right_join(
@@ -75,47 +72,61 @@ cleared_df <- meta_df %>%
   left_join(cleared_mice, by = 'mouse_id') %>% 
   filter(cdiff == T, colonization == T, day == 0, 
     group %in% shared_df$Group) %>% 
-  select(group, clearance) 
+  select(group, class = clearance) 
 
-write_tsv(path = 'data/mothur/cleared.shared', 
-  x = filter(shared_df, Group %in% cleared_df$group))
-write_tsv(path = 'data/mothur/cleared.design', x = cleared_df)
+# make sure directory for figures exists
+ifelse(!dir.exists(save_dir), 
+  dir.create(save_dir), 
+  print(paste0(save_dir, ' directory ready')))
 
+plot_lefse <- function(input_dataframe_name){
+  i <- input_dataframe_name
+  current_df <- get(i)
 
-# run lefse
+  # write files to be used in mothur for lefse analysis
+  write_tsv(path = paste0('data/mothur/', i, '.shared'), 
+    x = filter(shared_df, Group %in% current_df$group))
+  write_tsv(path = paste0('data/mothur/', i, '.design'), x = current_df)
 
-system('/mothur/mothur "#set.dir(input=data/mothur, output=data/mothur);
-  lefse(shared=colonized.shared, design=colonized.design);
-  metastats(shared=colonized.shared, design=colonized.design);
-  lefse(shared=cleared.shared, design=cleared.design);
-  metastats(shared=cleared.shared, design=cleared.design);"')
+  # run lefse
+  system(paste0('/mothur/mothur "#set.dir(input=data/mothur, output=data/mothur);
+    lefse(shared=', i, '.shared, design=', i, '.design);"'))
 
-# plot lefse results
+  # plot lefse results
+  lefse_df <- read_tsv(paste0('data/mothur/', i, '.0.03.lefse_summary'))
 
-lefse_df <- read_tsv('data/mothur/colonized.0.03.lefse_summary')
-lefse_df <- lefse_df  %>% 
-  top_n(10, LDA) %>% 
-  arrange(desc(LDA)) 
+  lefse_df <- lefse_df  %>% 
+    top_n(10, LDA) %>% 
+    arrange(desc(LDA)) 
+  if(nrow(lefse_df) > 0){
+    plot_df <- current_df %>% 
+      left_join(relative_abundance_df, by = 'group') %>% 
+      select(group, class, one_of(lefse_df$OTU)) %>%  
+      gather(OTU, abundance, contains('Otu00')) %>% 
+      left_join(select(taxonomy_df, OTU, tax_otu_label), by = 'OTU') %>% 
+      left_join(lefse_df, by = 'OTU') %>% 
+      mutate(tax_otu_label = gsub('unclassified', 'UC', tax_otu_label),
+        tax_otu_label = paste0(tax_otu_label, '\n p = ', pValue))
 
-plot_df <- colonized_df %>% 
-  left_join(relative_abundance_df, by = 'group') %>% 
-  select(group, colonization, one_of(lefse_df$OTU)) %>%  
-  gather(OTU, abundance, contains('Otu00')) %>% 
-  left_join(select(taxonomy_df, OTU, tax_otu_label), by = 'OTU') %>% 
-  left_join(lefse_df, by = 'OTU') %>% 
-  mutate(tax_otu_label = gsub('unclassified', 'UC', tax_otu_label),
-    tax_otu_label = paste0(tax_otu_label, '\n p = ', pValue))
+    lefse_plot <- ggplot(data = plot_df, 
+        aes(x = tax_otu_label, y = (abundance + 0.01), color = class)) + 
+      geom_jitter(position = position_jitterdodge(dodge.width = 0.9), alpha = 0.25) + 
+      #geom_boxplot(fill = NA, outlier.color = NA, coef = 0, # whisker length = coef * IQR
+      #  position = position_dodge(width = 0.9)) + 
+      stat_summary(fun.data = 'median_hilow', geom = 'crossbar', aes(group = class),
+        fun.args = (conf.int=0.5), position = position_dodge(width = 0.9)) +
+      theme_bw() + labs(x = NULL, y = 'Abundance (counts)', title = paste0('LEfSe on ', i)) + 
+      scale_y_log10(breaks=c(0.01, 0.1, 1, 10, 100),
+          labels=c("0","0.1","1","10","100")) +
+      geom_vline(xintercept=seq(1.5, length(unique(plot_df$tax_otu_label))-0.5, 1), 
+               linetype = 'dashed', lwd=0.5, colour="black") + 
+      theme(panel.grid.major.y = element_blank(), panel.grid.minor = element_blank()) + 
+      coord_flip()
 
-ggplot(data = plot_df, aes(x = tax_otu_label, y = (abundance + 0.01), color = colonization)) + 
-  geom_jitter(position = position_jitterdodge(dodge.width = 0.9), alpha = 0.25) + 
-  #geom_boxplot(fill = NA, outlier.color = NA, coef = 0, # whisker length = coef * IQR
-  #  position = position_dodge(width = 0.9)) + 
-  stat_summary(fun.data = 'median_hilow', geom = 'crossbar', aes(group = colonization),
-    fun.args = (conf.int=0.5), position = position_dodge(width = 0.9)) +
-  theme_bw() + labs(x = NULL, y = 'Abundance (counts)', title = 'LEfSe on all colonization') + 
-  scale_y_log10(breaks=c(0.01, 0.1, 1, 10, 100),
-      labels=c("0","0.1","1","10","100")) +
-  geom_vline(xintercept=seq(1.5, length(unique(plot_df$tax_otu_label))-0.5, 1), 
-           linetype = 'dashed', lwd=0.5, colour="black") + 
-  theme(panel.grid.major.y = element_blank(), panel.grid.minor = element_blank()) + 
-  coord_flip()
+    ggsave(paste0(save_dir, 'lefse_plot_', i, '.jpg'), lefse_plot, width = 9, height = 12)
+  }
+}
+
+for(i in c('cleared_df', 'colonized_df')){
+    plot_lefse(i)
+  }
