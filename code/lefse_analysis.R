@@ -51,13 +51,6 @@ colonized_mice <- meta_df %>%
   group_by(mouse_id) %>% 
   summarise(max_cfu = max(CFU)) %>% 
   mutate(colonization = ifelse(max_cfu > 10^4, T, F))
-
-colonized_df <- meta_df %>% 
-  left_join(colonized_mice, by = 'mouse_id') %>% 
-  filter(cdiff == T, day == 0, 
-    group %in% shared_df$Group) %>%
-  select(group, class = colonization)
-
 cleared_mice <- meta_df %>% 
   right_join(
     filter(colonized_mice, colonization == T),
@@ -66,19 +59,17 @@ cleared_mice <- meta_df %>%
   group_by(mouse_id) %>% 
   summarise(min_cfu = min(CFU)) %>% 
   mutate(clearance = ifelse(min_cfu < 10^3, T, F))
-
-cleared_df <- meta_df %>% 
+# merge meta data frame with columns indicating colonization/clearance
+meta_df <- meta_df %>% 
   left_join(colonized_mice, by = 'mouse_id') %>% 
-  left_join(cleared_mice, by = 'mouse_id') %>% 
-  filter(cdiff == T, colonization == T, day == 0, 
-    group %in% shared_df$Group) %>% 
-  select(group, class = clearance) 
+  left_join(cleared_mice, by = 'mouse_id')
 
 # make sure directory for figures exists
 ifelse(!dir.exists(save_dir), 
   dir.create(save_dir), 
   print(paste0(save_dir, ' directory ready')))
 
+# function to run lefse on subset dataframe and produce plot of data
 plot_lefse <- function(input_dataframe_name){
   i <- input_dataframe_name
   current_df <- get(i)
@@ -109,7 +100,7 @@ plot_lefse <- function(input_dataframe_name){
         tax_otu_label = paste0(tax_otu_label, '\n p = ', pValue))
 
     lefse_plot <- ggplot(data = plot_df, 
-        aes(x = tax_otu_label, y = (abundance + 0.01), color = class)) + 
+        aes(x = tax_otu_label, y = (abundance + 0.01), color = as.factor(class))) + 
       geom_jitter(position = position_jitterdodge(dodge.width = 0.9), alpha = 0.25) + 
       #geom_boxplot(fill = NA, outlier.color = NA, coef = 0, # whisker length = coef * IQR
       #  position = position_dodge(width = 0.9)) + 
@@ -124,9 +115,76 @@ plot_lefse <- function(input_dataframe_name){
       coord_flip()
 
     ggsave(paste0(save_dir, 'lefse_plot_', i, '.jpg'), lefse_plot, width = 9, height = 12)
+  } else {
+    print('No significant LDA')
   }
 }
 
-for(i in c('cleared_df', 'colonized_df')){
+# create subsets dataframes with category of interests
+# as a whole, what OTUs best explain colonization
+colonized_df <- meta_df %>% 
+  filter(cdiff == T, day == 0, 
+    group %in% shared_df$Group) %>%
+  select(group, class = colonization)
+# as a whole, what OTUs best explain clearance
+cleared_df <- meta_df %>% 
+  filter(cdiff == T, colonization == T, day == 0, 
+    group %in% shared_df$Group) %>% 
+  select(group, class = clearance) 
+# [1] "No significant LDA"
+
+
+# for Cef 0.3, what OTUs best explain colonization
+cef_0.3_colonization_df <- meta_df %>% 
+  filter(cdiff == T, day == 0, abx == 'cef', dose == '0.3') %>% 
+  select(group, class = colonization)
+# for Cef 0.3, what OTUs best explain clearance
+cef_0.3_clearance_df <- meta_df %>% 
+  filter(cdiff == T, day == 0, abx == 'cef', dose == '0.3', colonization == TRUE) %>% 
+  select(group, class = clearance)
+
+# for metro delayed 1, what OTUs best explain colonization
+metro_delayed_colonization_df <- meta_df %>% 
+  filter(cdiff == T, day == 0, abx == 'metro', dose == '1', delayed == TRUE) %>% 
+  select(group, class = colonization)
+# cannot ask for "metro delayed 1, what OTUs best explain clearance" because all infected cleared
+# for metro delayed 1, what OTUs best explain recovery
+metro_delayed_recovery_df <- meta_df %>% 
+  filter(cdiff == T, abx == 'metro', dose == '1', delayed == TRUE, day %in% c(-5, 0)) %>% 
+  mutate(class = case_when(day == -5 ~ 'prerecovery',
+      day ==0 ~ 'postrecovery',
+      T ~ 'NA')) %>% 
+  select(group, class)
+# necessary to further breakdown by outcome of recovered community?
+
+# for strep 0.5, what OTUs best explain clearance
+strep_0.5_clearance_df <- meta_df %>% 
+  filter(cdiff == T, day == 0, abx == 'strep', dose == '0.5', colonization == TRUE) %>% 
+  select(group, class = clearance)
+#  [1] "No significant LDA"
+
+# for strep 0.1/0.5, what OTUs best explain the difference in antibiotic effect?
+strep_0.1_0.5_comparison_df <- meta_df %>% 
+  filter(cdiff == T, day == 0, abx == 'strep', dose %in% c('0.1', '0.5')) %>% 
+  select(group, class = dose)
+
+# for vanc 0.1, what OTUs best explain clearance
+vanc_0.1_clearance_df <- meta_df %>% 
+  filter(cdiff == T, day == 0, abx == 'vanc', dose == '0.1', colonization == TRUE) %>% 
+  select(group, class = clearance)
+
+# repeat looking at genus level?
+# compare community at end point for clearance?
+# what explains the variation in abx effect?
+
+
+
+# run plotting function using the name of the subsetted dataframe
+# expecting two columns, 1 with group - sample names, 1 with class - grouping category
+for(i in c('cleared_df', 'colonized_df', 'cef_0.3_colonization_df', 'cef_0.3_clearance_df', 
+    'metro_delayed_colonization_df', 'metro_delayed_recovery_df', 'strep_0.5_clearance_df',
+    'strep_0.1_0.5_comparison_df', 'vanc_0.1_clearance_df')){
     plot_lefse(i)
   }
+
+plot_lefse('strep_0.1_0.5_comparison_df')
