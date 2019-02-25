@@ -97,21 +97,25 @@ lefse_df <- lefse_df  %>%
   top_n(10, LDA) %>% 
   arrange(desc(LDA)) 
 
-colonized_df %>% 
+plot_df <- colonized_df %>% 
   left_join(relative_abundance_df, by = 'group') %>% 
   select(group, colonization, one_of(lefse_df$OTU)) %>%  
   gather(OTU, abundance, contains('Otu00')) %>% 
   left_join(select(taxonomy_df, OTU, tax_otu_label), by = 'OTU') %>% 
   left_join(lefse_df, by = 'OTU') %>% 
   mutate(tax_otu_label = gsub('unclassified', 'UC', tax_otu_label),
-    tax_otu_label = paste0(tax_otu_label, '\n p = ', pValue)) %>% 
-  ggplot(aes(x = tax_otu_label, y = (abundance + 0.01), color = colonization)) + 
-    geom_jitter(position = position_jitterdodge(dodge.width = 0.9), alpha = 0.25) + 
-    #geom_boxplot(fill = NA, outlier.color = NA, coef = 0, # whisker length = coef * IQR
-    #  position = position_dodge(width = 0.9)) + 
-    stat_summary(fun.data = 'median_hilow', geom = 'crossbar', aes(group = colonization),
-      fun.args = (conf.int=0.5), position = position_dodge(width = 0.9)) +
-    theme_bw() + labs(x = NULL, y = 'Abundance (counts)', title = 'LEfSe on all colonization') + 
-    scale_y_log10(breaks=c(0.01, 0.1, 1, 10, 100),
-        labels=c("0","0.1","1","10","100")) +
-    coord_flip()
+    tax_otu_label = paste0(tax_otu_label, '\n p = ', pValue))
+
+ggplot(data = plot_df, aes(x = tax_otu_label, y = (abundance + 0.01), color = colonization)) + 
+  geom_jitter(position = position_jitterdodge(dodge.width = 0.9), alpha = 0.25) + 
+  #geom_boxplot(fill = NA, outlier.color = NA, coef = 0, # whisker length = coef * IQR
+  #  position = position_dodge(width = 0.9)) + 
+  stat_summary(fun.data = 'median_hilow', geom = 'crossbar', aes(group = colonization),
+    fun.args = (conf.int=0.5), position = position_dodge(width = 0.9)) +
+  theme_bw() + labs(x = NULL, y = 'Abundance (counts)', title = 'LEfSe on all colonization') + 
+  scale_y_log10(breaks=c(0.01, 0.1, 1, 10, 100),
+      labels=c("0","0.1","1","10","100")) +
+  geom_vline(xintercept=seq(1.5, length(unique(plot_df$tax_otu_label))-0.5, 1), 
+           linetype = 'dashed', lwd=0.5, colour="black") + 
+  theme(panel.grid.major.y = element_blank(), panel.grid.minor = element_blank()) + 
+  coord_flip()
