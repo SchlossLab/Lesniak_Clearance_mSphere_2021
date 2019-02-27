@@ -80,7 +80,7 @@ plot_lefse <- function(input_dataframe_name){
   write_tsv(path = paste0('data/mothur/', i, '.design'), x = current_df)
 
   # run lefse
-  system(paste0('/mothur/mothur "#set.dir(input=data/mothur, output=data/mothur);
+  system(paste0('/Applications/mothur/mothur "#set.dir(input=data/mothur, output=data/mothur);
     lefse(shared=', i, '.shared, design=', i, '.design);"'))
 
   # plot lefse results
@@ -118,6 +118,7 @@ plot_lefse <- function(input_dataframe_name){
   } else {
     print('No significant LDA')
   }
+  return(mutate(lefse_df, analysis = i))
 }
 
 # create subsets dataframes with category of interests
@@ -162,6 +163,9 @@ strep_0.5_clearance_df <- meta_df %>%
   filter(cdiff == T, day == 0, abx == 'strep', dose == '0.5', colonization == TRUE) %>% 
   select(group, class = clearance)
 #  [1] "No significant LDA"
+strep_0.5_clearance_at_end_df <- meta_df %>% 
+  filter(cdiff == T, day == 9, abx == 'strep', dose == '0.5', colonization == TRUE) %>% 
+  select(group, class = clearance)
 
 # for strep 0.1/0.5, what OTUs best explain the difference in antibiotic effect?
 strep_0.1_0.5_comparison_df <- meta_df %>% 
@@ -181,10 +185,85 @@ vanc_0.1_clearance_df <- meta_df %>%
 
 # run plotting function using the name of the subsetted dataframe
 # expecting two columns, 1 with group - sample names, 1 with class - grouping category
+output <- c()
 for(i in c('cleared_df', 'colonized_df', 'cef_0.3_colonization_df', 'cef_0.3_clearance_df', 
     'metro_delayed_colonization_df', 'metro_delayed_recovery_df', 'strep_0.5_clearance_df',
-    'strep_0.1_0.5_comparison_df', 'vanc_0.1_clearance_df')){
-    plot_lefse(i)
+    'strep_0.1_0.5_comparison_df', 'strep_0.5_clearance_at_end_df', 'vanc_0.1_clearance_df')){
+    output <- rbind(output, plot_lefse(i))
   }
+plot_lefse('')
 
-plot_lefse('strep_0.1_0.5_comparison_df')
+################################################################################
+significant_OTUs <- output %>% 
+  filter(analysis == 'strep_0.5_clearance_at_end_df') %>% 
+  pull(OTU) 
+
+meta_df %>% 
+  filter(treatment == 'strep_0.5_FALSE_TRUE') %>% 
+  inner_join(select(relative_abundance_df, group, 
+      one_of(significant_OTUs))) %>% 
+  mutate(Cdiff = log10(CFU)) %>% 
+  select(mouse_id, day, Cdiff, one_of(significant_OTUs)) %>% 
+  gather(OTU, abundance, Cdiff, one_of(significant_OTUs)) %>% 
+  left_join(select(taxonomy_df, OTU, tax_otu_label), by = 'OTU') %>% 
+  mutate(tax_otu_label = ifelse(is.na(tax_otu_label), 'C_difficile', tax_otu_label),
+    tax_otu_label = gsub('unclassified', 'UC\n', tax_otu_label)) %>% 
+  ggplot(aes(x = day, y = abundance, group = mouse_id, color = mouse_id)) + 
+    geom_point() + geom_line() +
+    facet_grid(tax_otu_label~., scales = 'free_y')
+
+################################################################################
+significant_OTUs <- output %>% 
+  filter(analysis == 'cef_0.3_clearance_df') %>% 
+  pull(OTU) 
+
+meta_df %>% 
+  filter(treatment == 'cef_0.3_FALSE_TRUE') %>% 
+  inner_join(select(relative_abundance_df, group, 
+      one_of(significant_OTUs))) %>% 
+  mutate(Cdiff = log10(CFU)) %>% 
+  select(mouse_id, day, cage, Cdiff, one_of(significant_OTUs)) %>% 
+  gather(OTU, abundance, Cdiff, one_of(significant_OTUs)) %>% 
+  left_join(select(taxonomy_df, OTU, tax_otu_label), by = 'OTU') %>% 
+  mutate(tax_otu_label = ifelse(is.na(tax_otu_label), 'C_difficile', tax_otu_label),
+    tax_otu_label = gsub('unclassified', 'UC', tax_otu_label),
+    tax_otu_label = gsub('\\(', '\n\\(', tax_otu_label)) %>% 
+  ggplot(aes(x = day, y = abundance, group = mouse_id, color = as.factor(cage))) + 
+    geom_point() + geom_line() +
+    facet_grid(tax_otu_label~., scales = 'free_y') +
+     theme(strip.text.y = element_text(angle = 0))
+
+# Cef 0.3 has a interesting outcome, one set of cages 104 and 105 have a lot of increases in bacteria not obeserved in the other cages with the same treatment and they are highly colonized and do not clear. Where as the other two cages do not have these same increases and lead to either colonization and clearance or no colonization.
+# cages 104/105 cages are more similar to those with cef 0.5 treatment
+cages_104_105 <- meta_df %>% 
+  filter(cage %in% c(104, 105),
+    day == 0) %>% 
+  select(group, mouse_id) %>% 
+  left_join(relative_abundance_df) %>% 
+  gather(OTU, abundance, contains('Otu00')) 
+OTUs <- cages_104_105 %>% 
+  group_by(OTU) %>% 
+  summarise(abundance = mean(abundance)) %>% 
+  top_n(12, abundance) %>% 
+  left_join(select(taxonomy_df, OTU, tax_otu_label), by = 'OTU') %>% 
+  select(OTU, tax_otu_label)
+# since these two cages seem to be affected differently, theres an increase in Other
+# what makes up Other, are there dominant OTUs in Other?
+cages_104_105 %>% 
+  inner_join(OTUs, by = 'OTU') %>% 
+  ggplot(aes(x = mouse_id, y = abundance, fill = tax_otu_label)) +
+    geom_bar(stat="identity", position='stack', width = 1, color = "black", size = 0.1) + 
+    theme_bw() + labs(x = NULL) + 
+    theme(legend.position = 'top', legend.title=element_blank(),
+      axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+      legend.text=element_text(size=6)) + 
+    scale_fill_brewer(palette = 'Paired')
+# doesnt look like any dominant OTUs in Other
+#  to eliminate question about dominant in other
+#   heat map relative abundances
+#   split other bar into individual bars but colored the same
+
+# notes for next steps
+#  restore diverse porphyormonadaceae?
+#   https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3839982/
+#   https://www.frontiersin.org/articles/10.3389/fcimb.2019.00006/full
