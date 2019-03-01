@@ -127,24 +127,47 @@ pre_post_end_otu_df <- pre_post_end_df %>%
 #    taxa = gsub(' \\(', '\n(', taxa),
 #    taxa = gsub('_unclassified\n\\(', '\n(Unclassified, ', taxa))
 
+all_days_otu_df <- meta_df %>% 
+  split(.$abx) %>% 
+  map_dfr(function(df) left_join(df, 
+        sum_otu_by_taxa(taxonomy_df = taxonomy_df, otu_df = filter(rel_abund, group %in% df$group), 
+          taxa_level = 'tax_otu_label', top_n = 11),
+      by = 'group'))  %>% 
+  mutate(dataset = 'OTU_level',
+    taxa = gsub(' \\(', '\n(', taxa),
+    taxa = gsub('_unclassified\n\\(', '\n(Unclassified, ', taxa))
+
 
 barwidth <- 1
 #df <- pre_post_end_otu_df_by_each;antibiotic <- 'amp'
 for(df in list(pre_post_end_phyla_df, pre_post_end_genus_df, pre_post_end_otu_df)){
   for(antibiotic in unique(pre_post_end_phyla_df$abx)){
-    
-    community_plot <- df %>% 
+  #
+  #pre_post_end_plot <- df %>% 
+  #  filter(abx == antibiotic) %>% 
+  #  mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'pre-recovered', 'day_0', 'endpoint')),
+  #    taxa = factor(taxa, c('Other', unique(df$taxa)[unique(df$taxa)!='Other']))) %>% 
+  #  ggplot(aes(x = mouse_position, y = abundance, fill = taxa)) + 
+  #    geom_bar(stat="identity", position='stack', width = barwidth, color = "black", size = 0.1) + 
+  #    facet_grid(treatment ~ sample_timepoint) + 
+  #    theme_bw() + labs(x = NULL) + 
+  #    theme(legend.position = 'top', legend.title=element_blank(),
+  #      axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+  #      legend.text=element_text(size=6)) + 
+  #    scale_fill_brewer(palette = 'Paired')
+
+    daily_plot <- all_days_otu_df %>% 
       filter(abx == antibiotic) %>% 
-      mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'pre-recovered', 'day_0', 'endpoint')),
-        taxa = factor(taxa, c('Other', unique(df$taxa)[unique(df$taxa)!='Other']))) %>% 
+      mutate(taxa = factor(taxa, c('Other', unique(all_days_otu_df$taxa)[unique(all_days_otu_df$taxa)!='Other']))) %>% 
       ggplot(aes(x = mouse_position, y = abundance, fill = taxa)) + 
         geom_bar(stat="identity", position='stack', width = barwidth, color = "black", size = 0.1) + 
-        facet_grid(treatment ~ sample_timepoint) + 
+        facet_grid(treatment ~ day) + 
         theme_bw() + labs(x = NULL) + 
         theme(legend.position = 'top', legend.title=element_blank(),
           axis.text.x = element_blank(), axis.ticks.x = element_blank(),
           legend.text=element_text(size=6)) + 
         scale_fill_brewer(palette = 'Paired')
+
 
     cdiff_plot <- pre_post_end_df %>% 
       filter(abx == antibiotic, sample_timepoint == 'endpoint') %>% 
@@ -164,10 +187,14 @@ for(df in list(pre_post_end_phyla_df, pre_post_end_genus_df, pre_post_end_otu_df
      draw_label(paste0('Community overview at timepoint before antibiotic treatment, after ',
       antibiotic, ' looking at the ', unique(df$dataset)), x = 0.05, hjust = 0)
 
-    ggsave(paste0('../results/figures/community_plots/', antibiotic, '_', unique(df$dataset), '.jpg'),
-      plot_grid(plot_header, plot_grid(community_plot, cdiff_plot, rel_widths = c(2, 1)), 
+#   ggsave(paste0('../results/figures/community_plots/', antibiotic, '_', unique(df$dataset), '.jpg'),
+#     plot_grid(plot_header, plot_grid(pre_post_end_plot, cdiff_plot, rel_widths = c(2, 1)), 
+#       ncol = 1, rel_heights = c(0.1, 2)),
+#     width = 10, height = 10)
+    ggsave(paste0('../results/figures/daily_plots/', antibiotic, '_', unique(df$dataset), '.jpg'),
+      plot_grid(plot_header, plot_grid(daily_plot, cdiff_plot, rel_widths = c(5, 1)), 
         ncol = 1, rel_heights = c(0.1, 2)),
-      width = 10, height = 10)
+      width = 20, height = 10)
   }
 }
 
