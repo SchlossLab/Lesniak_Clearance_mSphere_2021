@@ -475,19 +475,21 @@ compare_community_colonization <- function(selected_treatment, taxonomic_level, 
 	    theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
 
 	plot_header <- ggdraw() +
-	 draw_label(paste0('Daily Community overview ', treatment, ' looking at the ', 
+	 draw_label(paste0('Daily Community overview ', selected_treatment, ' looking at the ', 
 	    taxonomic_level), x = 0.05, hjust = 0)
 
-    ggsave(paste0('../results/figures/daily_plots/colonization_dynamics', treatment, '_', taxonomic_level, '.jpg'),
+    ggsave(paste0('../results/figures/daily_plots/colonization_dynamics', selected_treatment, '_', taxonomic_level, '.jpg'),
       plot_grid(plot_header, plot_grid(community_plot, cdiff_plot, ncol = 1), 
         ncol = 1, rel_heights = c(0.1, 2)),
       width = 20, height = 10)
   }
 
-compare_community_colonization(selected_treatment = 'clinda_10_FALSE_TRUE', 
-	taxonomic_level = 'tax_otu_label', n_taxa = 6)
+the_list <- meta_df %>% 
+	filter(cdiff == T) %>% 
+	pull(treatment) %>% 
+	unique
 
-for(trt in unique(meta_df$treatment)){
+for(trt in the_list){
 	for(tax in 1:6){
 		level <- c('Phylum','Class','Order','Family','Genus', 'tax_otu_label')[tax]
 		num <- c(6,8,8,10,11,11)[tax]
