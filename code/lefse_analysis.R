@@ -9,6 +9,7 @@ shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique
 taxonomy_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
 taxonomy_function <- 'code/sum_otu_by_taxa.R'
 save_dir <- 'results/figures/lefse/'
+mothur <- '/mothur/mothur'
 
 # number of samples OTU must be in to be counted
 OTU_threshold <- 6
@@ -76,7 +77,7 @@ plot_lefse <- function(input_dataframe_name){
   write_tsv(path = paste0('data/mothur/', i, '.design'), x = current_df)
 
   # run lefse
-  system(paste0('/Applications/mothur/mothur "#set.dir(input=data/mothur, output=data/mothur);
+  system(paste0(mothur, ' "#set.dir(input=data/mothur, output=data/mothur);
     lefse(shared=', i, '.shared, design=', i, '.design);"'))
 
   # plot lefse results
