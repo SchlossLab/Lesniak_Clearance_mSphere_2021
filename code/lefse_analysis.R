@@ -255,14 +255,16 @@ cages_104_105 <- meta_df %>%
 OTUs <- cages_104_105 %>% 
   group_by(OTU) %>% 
   summarise(abundance = mean(abundance)) %>% 
-  top_n(12, abundance) %>% 
+  top_n(11, abundance) %>% 
   left_join(select(taxonomy_df, OTU, tax_otu_label), by = 'OTU') %>% 
   select(OTU, tax_otu_label)
 # since these two cages seem to be affected differently, theres an increase in Other
 # what makes up Other, are there dominant OTUs in Other?
 cages_104_105 %>% 
-  inner_join(OTUs, by = 'OTU') %>% 
-  ggplot(aes(x = mouse_id, y = abundance, fill = tax_otu_label)) +
+  full_join(OTUs, by = 'OTU') %>% 
+  mutate(tax_otu_label = ifelse(is.na(tax_otu_label), 'Other', tax_otu_label)) %>% 
+  mutate(tax_otu_label = factor(tax_otu_label, c('Other', OTUs$tax_otu_label[OTUs$tax_otu_label!='Other']))) %>% 
+  ggplot(aes(x = mouse_id, y = abundance, fill = tax_otu_label, group = interaction(tax_otu_label,OTU))) +
     geom_bar(stat="identity", position='stack', width = 1, color = "black", size = 0.1) + 
     theme_bw() + labs(x = NULL) + 
     theme(legend.position = 'top', legend.title=element_blank(),
