@@ -1,9 +1,5 @@
-
-library(tidyverse)
 library(Hmisc)
-#library(cowplot)
-#library(RColorBrewer)
-#library(bsselectR)
+library(tidyverse)
 
 
 # create data frame for lefse 
