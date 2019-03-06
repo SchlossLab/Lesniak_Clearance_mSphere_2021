@@ -67,14 +67,28 @@ ifelse(!dir.exists(save_dir),
   print(paste0(save_dir, ' directory ready')))
 
 # function to run lefse on subset dataframe and produce plot of data
+# input_dataframe_name <- 'cef_0.3_clearance_df' # for testing
 plot_lefse <- function(input_dataframe_name){
   i <- input_dataframe_name
   current_df <- get(i)
+  current_shared <- shared_df %>% 
+    filter(Group %in% current_df$group)
+
+  # remove otus that either have 0 or only present in 2 or fewer samples
+  present_otus <- current_shared %>% 
+    select(-label, -Group, -numOtus) %>% 
+    map_dbl(~ sum(. > 0)) %>% 
+    which(x = (. > 2)) %>% 
+    names
+  current_shared <- current_shared %>% 
+    select(label, Group, numOtus, one_of(present_otus)) %>% 
+    mutate(numOtus = length(present_otus))
 
   # write files to be used in mothur for lefse analysis
   write_tsv(path = paste0('data/mothur/', i, '.shared'), 
-    x = filter(shared_df, Group %in% current_df$group))
-  write_tsv(path = paste0('data/mothur/', i, '.design'), x = current_df)
+    x = filter(current_shared, Group %in% current_df$group))
+  write_tsv(path = paste0('data/mothur/', i, '.design'), 
+    x = filter(current_df, group %in% current_shared$Group))
 
   # run lefse
   system(paste0(mothur, ' "#set.dir(input=data/mothur, output=data/mothur);
@@ -188,7 +202,7 @@ for(i in c('cleared_df', 'colonized_df', 'cef_0.3_colonization_df', 'cef_0.3_cle
     'strep_0.1_0.5_comparison_df', 'strep_0.5_clearance_at_end_df', 'vanc_0.1_clearance_df')){
     output <- rbind(output, plot_lefse(i))
   }
-plot_lefse('')
+#plot_lefse('cef_0.3_clearance_df')
 
 ################################################################################
 significant_OTUs <- output %>% 
