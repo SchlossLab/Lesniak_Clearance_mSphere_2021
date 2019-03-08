@@ -144,6 +144,34 @@ cleared_df <- meta_df %>%
     group %in% shared_df$Group) %>% 
   select(group, class = clearance) 
 # [1] "No significant LDA"
+cdiff_trend_df 
+
+meta_df %>% 
+  filter(colonization == T, day > 0) %>%
+  select(CFU, day, mouse_id) %>% 
+  spread(mouse_id, CFU) %>% matrix
+  {lm.fit(.[,1], .[,-1])}
+    
+  #ggplot(aes(x = day, y = log10(CFU + 1))) + geom_point() + coord_cartesian(ylim = c(0,9)) %>% 
+    lm.fit(day, CFU) %>% 
+    summary(.)['coefficients'] %>% 
+    str
+    group %in% shared_df$Group) %>% 
+  select(group, class = clearance) 
+
+
+
+day1 <- c(1,3,1)
+day2 <- c(2,2,1)
+day3 <- c(3,1,5)
+dat <- data.frame(day1,day2,day3)
+
+
+fits <- lm.fit(cbind(1, seq_len(nrow(dat))), t(dat))
+t(coef(fits))
+
+
+
 
 
 # for Cef 0.3, what OTUs best explain colonization
