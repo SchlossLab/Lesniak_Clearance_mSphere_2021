@@ -17,7 +17,8 @@ OTU_threshold <- 6
 meta_df <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
   mutate(treatment = paste(abx, dose, delayed, cdiff, sep = '_'),
     mouse_id = paste(cage, mouse, sep = '_'),
-    group = gsub('-', '_', group)) 
+    group = gsub('-', '_', group),
+    day = as.numeric(day)) 
 shared_df_raw <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F)
 
 source(taxonomy_function)
@@ -144,12 +145,79 @@ cleared_df <- meta_df %>%
     group %in% shared_df$Group) %>% 
   select(group, class = clearance) 
 # [1] "No significant LDA"
-cdiff_trend_df 
 
+delta_df <- meta_df %>% 
+  filter(cdiff == T, colonization == T, 
+    group %in% shared_df$Group) %>% 
+  group_by(mouse_id) %>% 
+  arrange(mouse_id , day) %>% 
+  mutate(delta_cfu = c(NA, diff(log10(CFU + 1)))) %>% 
+  select(group, mouse_id, day, CFU, delta_cfu) %>% 
+  left_join(
+    select(shared_df, -numOtus, -label), 
+    by = c('group' = 'Group')) %>% 
+  mutate_at(vars(contains("Otu0")), function(x) c(NA, diff(x))) %>% 
+  filter(day > 0) %>% 
+  gather(OTU, delta_abundance, contains('Otu0'))  %>% 
+  ungroup
+
+good_otus <- delta_df %>%
+  group_by(mouse_id, OTU) %>% 
+  summarise(sum_delta_abdnc = sum(abs(delta_abundance))) %>% 
+  filter(sum_delta_abdnc != 0) %>% 
+  select(mouse_id, OTU) %>% 
+  ungroup
+
+delta_corr_otus <- delta_df %>% 
+  right_join(good_otus, by = c('mouse_id', 'OTU')) %>% 
+  group_by(OTU) %>% 
+  nest() %>% 
+  # calculate the Spearman correlation value and its P-value for each OTU against
+  mutate(comparison = map(data, ~cor.test(.$delta_cfu, .$delta_abundance, 
+      method = 'spearman')),
+    summaries = map(comparison, broom::glance)) %>% 
+  unnest(summaries) %>% 
+  select(OTU, estimate, p.value) %>% 
+  # identify the significant correlations after applying a correction for multiple
+  # comparisons
+  mutate(p_adjust = p.adjust(p.value, method="BH") < 0.05) %>% 
+  filter(p_adjust == TRUE)
+
+abundance_corr_otu <- meta_df %>% 
+  filter(cdiff == T, colonization == T, 
+    group %in% shared_df$Group) %>% 
+  select(group, mouse_id, day, CFU) %>% 
+  mutate(CFU = log10(CFU + 1)) %>% 
+  left_join(
+    select(shared_df, -numOtus, -label), 
+    by = c('group' = 'Group')) %>% 
+  filter(day > 0) %>% 
+  gather(OTU, abundance, contains('Otu0'))  %>% 
+  group_by(OTU) %>% 
+  nest() %>% 
+  # calculate the Spearman correlation value and its P-value for each OTU against
+  mutate(comparison = map(data, ~cor.test(.$CFU, .$abundance, 
+      method = 'spearman')),
+    summaries = map(comparison, broom::glance)) %>% 
+  unnest(summaries) %>% 
+  select(OTU, estimate, p.value) %>% 
+  # identify the significant correlations after applying a correction for multiple
+  # comparisons
+  mutate(p_adjust = p.adjust(p.value, method="BH") < 0.05) %>% 
+  filter(p_adjust == TRUE) %>% 
+  mutate(est_mag = abs(estimate)) %>% 
+  arrange(desc(est_mag))
+
+delta_corr_otus
+
+
+
+
+#trend_df <- 
 meta_df %>% 
   filter(colonization == T, day > 0) %>%
   select(CFU, day, mouse_id) %>% 
-  spread(mouse_id, CFU) %>% matrix
+  spread(mouse_id, CFU) %>% 
   {lm.fit(.[,1], .[,-1])}
     
   #ggplot(aes(x = day, y = log10(CFU + 1))) + geom_point() + coord_cartesian(ylim = c(0,9)) %>% 
