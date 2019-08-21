@@ -137,8 +137,6 @@ all_days_otu_df <- meta_df %>%
     taxa = gsub(' \\(', '\n(', taxa),
     taxa = gsub('_unclassified\n\\(', '\n(Unclassified, ', taxa))
 
-
-barwidth <- 1
 #df <- pre_post_end_otu_df_by_each;antibiotic <- 'amp'
 for(df in list(pre_post_end_phyla_df, pre_post_end_genus_df, pre_post_end_otu_df)){
   for(antibiotic in unique(pre_post_end_phyla_df$abx)){
@@ -148,7 +146,7 @@ for(df in list(pre_post_end_phyla_df, pre_post_end_genus_df, pre_post_end_otu_df
   #  mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'pre-recovered', 'day_0', 'endpoint')),
   #    taxa = factor(taxa, c('Other', unique(df$taxa)[unique(df$taxa)!='Other']))) %>% 
   #  ggplot(aes(x = mouse_position, y = abundance, fill = taxa)) + 
-  #    geom_bar(stat="identity", position='stack', width = barwidth, color = "black", size = 0.1) + 
+  #    geom_bar(stat="identity", position='stack', width = 1, color = "black", size = 0.1) + 
   #    facet_grid(treatment ~ sample_timepoint) + 
   #    theme_bw() + labs(x = NULL) + 
   #    theme(legend.position = 'top', legend.title=element_blank(),
@@ -160,7 +158,7 @@ for(df in list(pre_post_end_phyla_df, pre_post_end_genus_df, pre_post_end_otu_df
       filter(abx == antibiotic) %>% 
       mutate(taxa = factor(taxa, c('Other', unique(all_days_otu_df$taxa)[unique(all_days_otu_df$taxa)!='Other']))) %>% 
       ggplot(aes(x = mouse_position, y = abundance, fill = taxa)) + 
-        geom_bar(stat="identity", position='stack', width = barwidth, color = "black", size = 0.1) + 
+        geom_bar(stat="identity", position='stack', width = 1, color = "black", size = 0.1) + 
         facet_grid(treatment ~ day) + 
         theme_bw() + labs(x = NULL) + 
         theme(legend.position = 'top', legend.title=element_blank(),
@@ -176,7 +174,7 @@ for(df in list(pre_post_end_phyla_df, pre_post_end_genus_df, pre_post_end_otu_df
       gather(sample_timepoint, CFU, endpoint, initial_colonization) %>% 
       mutate(sample_timepoint = factor(sample_timepoint, c('initial_colonization', 'endpoint'))) %>% 
       ggplot(aes(x = mouse_position, y = CFU)) + 
-        geom_bar(stat="identity", position='stack', width = barwidth) + 
+        geom_bar(stat="identity", position='stack', width = 1) + 
         facet_grid(treatment ~ sample_timepoint) + 
         scale_y_log10() + 
         theme_bw() + labs(x = NULL, y = 'CFU (log10)', title = '\nEndpoint C. difficile Colonization',
@@ -458,7 +456,7 @@ compare_community_colonization <- function(selected_treatment, taxonomic_level, 
 	community_plot <- treatment_df %>% 
 	  mutate(taxa = factor(taxa, c('Other', unique(treatment_df$taxa)[unique(treatment_df$taxa)!='Other']))) %>% 
 	  ggplot(aes(x = mouse_position, y = abundance, fill = taxa)) + 
-	    geom_bar(stat="identity", position='stack', width = barwidth, color = "black", size = 0.1) + 
+	    geom_bar(stat="identity", position='stack', width = 1, color = "black", size = 0.1) + 
 	    facet_grid(treatment ~ day) + 
 	    theme_bw() + labs(x = NULL) + 
 	    theme(legend.position = 'top', legend.title=element_blank(),
@@ -467,8 +465,10 @@ compare_community_colonization <- function(selected_treatment, taxonomic_level, 
 	    scale_fill_brewer(palette = 'Paired')
 
 	cdiff_plot <- treatment_df %>% 
+	  group_by(mouse_position, treatment, day, mouse_id) %>% 
+	  summarise(CFU = median(CFU) + 1) %>% 
 	  ggplot(aes(x = mouse_position, y = CFU)) + 
-	    geom_bar(stat="identity", position='stack', width = barwidth) + 
+	    geom_bar(stat="identity", width = 1) + 
 	    facet_grid(treatment ~ day) + 
 	    scale_y_log10() + 
 	    theme_bw() + labs(x = NULL, y = 'C. difficile CFU (log10)') + 
@@ -483,6 +483,7 @@ compare_community_colonization <- function(selected_treatment, taxonomic_level, 
         ncol = 1, rel_heights = c(0.1, 2)),
       width = 20, height = 10)
   }
+#compare_community_colonization(selected_treatment = 'cef_0.3_FALSE_TRUE', taxonomic_level = 'Phylum', n_taxa = 6)
 
 the_list <- meta_df %>% 
 	filter(cdiff == T) %>% 
