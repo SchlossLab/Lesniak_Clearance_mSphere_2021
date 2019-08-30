@@ -22,24 +22,20 @@ source(tax_function)
 
 tax_df <- read.table(tax_file, sep = '\t', header = T)
 
-cdiff_otus <- as.character(tax_df$OTU[grep('Clostridium_XI', tax_df$Taxonomy)])
-entercoccus_otus <- as.character(tax_df$OTU[grep('Enterococcus', tax_df$Taxonomy)])
-
-numotus <- shared_file$numOtus[1]
-
-shared_cdiff <- apply(select(shared_file, one_of(cdiff_otus)), 1, sum)
-shared_cdiff <- data.frame(group = names(shared_cdiff), c_difficile = unname(shared_cdiff), stringsAsFactors = F) %>% 
-  mutate(C.difficile = c_difficile/numotus)
-
-shared_file <- select(shared_file, -label, -numOtus, -one_of(cdiff_otus))
+shared_file <- select(shared_file, -label, -numOtus)
 
 ```
+
+
 
 
 What is the difference between the mice that clear the colonization and those that do not within the same treatment? antibiotic? Are those differences shared across antibiotics?
 What changes lead to clearance?
 What changes associate with decreases in CFU?
 Does abundance, z-score, or change in abundance predict change in CFU?
+	Model - RF/SVM/Logistic L2
+	Prediction - Overall colonization trend, change in CFU, Endpoint cleared (T/F) or level (High/Mid/Low/None)
+	Features - Temporal object, prior day level, change in abundance, summary of temporal abundance (mean/median/SD/min/max/trend), abundance metric (~RMS/area of movement)
 What is the network interactions of each antibiotic?
 	network via spieceasi
 
@@ -47,9 +43,12 @@ Akkermansia seems to bloom in response to C. difficile colonization
 -  Compare level of Akkermansia in samples with C. difficile and those without
 -  Compare level of Akkermansia in samples challenged with C. difficile to the unchallenged samples
 
+Are there any cases with similar communities but different coloniation dynamics? 
+
 What is the difference between uncolonized and colonized within the same treatments? Are those differences shared across treatments?
 	Are they similar to features associated with clearance?
 
 
 ```{r analysis}
+
 ```
