@@ -16,7 +16,8 @@ shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.uni
 tax_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
 tax_function <- '../code/sum_otu_by_taxa.R'
 
-meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F)
+meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
+	mutate(mouse_id = paste(cage, mouse, sep = '_'))
 shared_file <- read.table(shared_file, sep = '\t', header = T, row.names = 'Group')
 source(tax_function)
 
@@ -24,12 +25,39 @@ tax_df <- read.table(tax_file, sep = '\t', header = T)
 
 shared_file <- select(shared_file, -label, -numOtus)
 
+cleared <- meta_file %>% 
+	group_by(mouse_id) %>% 
+	summarise(last_sample = max(day)) %>% 
+	left_join(meta_file) %>% 
+	filter(day == last_sample) %>% 
+	select(mouse_id, end_point_cfu = CFU) %>% 
+	mutate(cleared = ifelse(end_point_cfu > 0, F, T))
+
+clearing <- meta_file %>% 
+	group_by(mouse_id) %>% 
+	arrange(mouse_id, day) %>% 
+	mutate(delta_cfu = CFU) %>% 
+	mutate_at(vars(delta_cfu) , funs(. - lag(.))) %>% 
+	ungroup
+
+meta_file %>% 
+	left_join(cleared) %>% 	
+	ggplot(aes(x = day, y = log10(CFU + 70), color = cleared, group = mouse_id)) + 
+		geom_line(alpha = 0.3) + 
+		theme(legend.position="none")
+clearing %>% 
+	filter(day >= 0) %>% 
+	ggplot(aes(x = day, y = sign(delta_cfu) * log10(abs(delta_cfu) + 70), color = mouse_id)) + 
+		geom_line(alpha = 0.3) + 
+		theme(legend.position="none")
+
 ```
 
 
 
 
 What is the difference between the mice that clear the colonization and those that do not within the same treatment? antibiotic? Are those differences shared across antibiotics?
+# create groups of cleared vs not
 What changes lead to clearance?
 What changes associate with decreases in CFU?
 Does abundance, z-score, or change in abundance predict change in CFU?
