@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = F, warning = F, message = F)
 
 library(tidyverse)
 library(cowplot)
-
+# file names relative to code directory for Rmd
 meta_file   <- '../data/process/abx_cdiff_metadata_clean.txt'
 shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 tax_file <- '../data/process/abx_cdiff_taxonomy_clean.tsv'
@@ -18,17 +18,24 @@ sum_tax_function <- '../code/sum_otu_by_taxa.R'
 
 meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
 	mutate(mouse_id = paste(cage, mouse, sep = '_'))
-shared_file <- read.table(shared_file, sep = '\t', header = T, row.names = 'Group')
-
+shared_file <- read.table(shared_file, sep = '\t', header = T) %>% 
+	select(-label, -numOtus)
 tax_df <- read.table(tax_file, sep = '\t', header = T, stringsAsFactors = F)
 source(sum_taxa_function) # function to create taxanomic labels for OTUs
 
-shared_file <- select(shared_file, -label, -numOtus)
 
-cleared <- meta_file %>% 
+# create a dataframe with the change in C. difficile CFU by day
+differenced_cfu <- meta_file %>% 
+	group_by(mouse_id) %>% 
+	arrange(mouse_id, day) %>% 
+	mutate(delta_cfu = CFU - lag(CFU)) %>% 
+	ungroup %>% 
+	mutate(delta_trend = ifelse(sign(delta_cfu) == -1, -1, 1))
+# categorize mice based on the colonization levels at the end of the experiment
+clearance <- differenced_cfu %>% 
 	group_by(mouse_id) %>% 
 	summarise(last_sample = max(day)) %>% 
-	left_join(meta_file) %>% 
+	left_join(differenced_cfu) %>% 
 	filter(day == last_sample) %>% 
 	select(mouse_id, end_point_cfu = CFU) %>% 
 	mutate(cleared = ifelse(end_point_cfu > 0, F, T))
