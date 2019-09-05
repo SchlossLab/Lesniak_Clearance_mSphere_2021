@@ -37,21 +37,27 @@ clearance <- differenced_cfu %>%
 	summarise(last_sample = max(day)) %>% 
 	left_join(differenced_cfu) %>% 
 	filter(day == last_sample) %>% 
-	select(mouse_id, end_point_cfu = CFU) %>% 
-	mutate(cleared = ifelse(end_point_cfu > 0, F, T))
-
-clearing <- meta_file %>% 
-	group_by(mouse_id) %>% 
-	arrange(mouse_id, day) %>% 
-	mutate(delta_cfu = CFU) %>% 
-	mutate_at(vars(delta_cfu) , funs(. - lag(.))) %>% 
-	ungroup
-
+	select(mouse_id, end_point_cfu = CFU, delta_trend, delta_cfu) %>% 
+	mutate(clearance = case_when(end_point_cfu == 0 ~ 'cleared', 
+		delta_trend < 0 & end_point_cfu < 100000 ~ 'clearing', # 10^5 separates the mice 
+		T ~ 'colonized'))
+# plot the colonization of the different colonization categories
 meta_file %>% 
-	left_join(cleared) %>% 	
-	ggplot(aes(x = day, y = log10(CFU + 70), color = cleared, group = mouse_id)) + 
+	left_join(clearance) %>% 	
+	ggplot(aes(x = day, y = log10(CFU + 70), color = clearance, group = mouse_id)) + 
 		geom_line(alpha = 0.3) + 
+		facet_wrap(clearance ~ .) + 
 		theme(legend.position="none")
+# plot to confirm that we are not missing any mice with negatively trending C. difficile
+meta_file %>% 
+	left_join(clearance) %>% 	
+	filter(clearance == 'colonized') %>% 
+	mutate(Decreasing = ifelse(day %in% c(7:10) & delta_trend < 0, T, F)) %>% 
+	ggplot(aes(x = day, y = log10(CFU + 70), color = Decreasing, group = mouse_id)) + 
+		geom_line(alpha = 0.3) 
+```
+
+
 clearing %>% 
 	filter(day >= 0) %>% 
 	ggplot(aes(x = day, y = sign(delta_cfu) * log10(abs(delta_cfu) + 70), color = mouse_id)) + 
