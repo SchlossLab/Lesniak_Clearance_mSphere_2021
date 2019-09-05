@@ -102,47 +102,67 @@ meta_file %>%
 #  5         0        0         8
 
 # whats the difference between the communities within antibiotic
-d0_shared_clearance <- meta_file %>% 
-	left_join(clearance, by = c('mouse_id')) %>% 
-	filter(day == 0, cdiff == T, abx == 'cef') %>% 
-	select(group, clearance) %>% 
-	inner_join(shared_file, by = c('group' = 'Group'))
+test_otus_d0 <- function(antibiotic){
+	d0_shared_clearance <- meta_file %>% 
+		left_join(clearance, by = c('mouse_id')) %>% 
+		filter(day == 0, cdiff == T, abx %in% antibiotic, clearance != 'clearing') %>% 
+		select(group, clearance) %>% 
+		inner_join(shared_file, by = c('group' = 'Group'))
 
-d0_otus <- d0_shared_clearance %>% 
-	select(-group, -clearance) %>% 
-	mutate_all(function(x) x > 0) %>% 
-	apply(., 2, sum) %>% 
-	.[. > 0.1*nrow(d0_shared_clearance)] %>% 
-	names
-	
-sig_otus <- d0_shared_clearance %>% 
-	select(one_of(d0_otus)) %>% 
-	mutate_all(function(otu) {
-		x <- otu[d0_shared_clearance$clearance == 'cleared']
-		y <- otu[d0_shared_clearance$clearance == 'colonized']
-		wilcox.test(x, y)$p.value}) %>% 
-	unique %>% 
-	gather(OTU, pvalue) %>% 
-	filter(pvalue < 0.05/length(d0_otus))
+	d0_otus <- d0_shared_clearance %>% 
+		select(-group, -clearance) %>% 
+		mutate_all(function(x) x > 0) %>% 
+		apply(., 2, sum) %>% 
+		.[. > 0.1*nrow(d0_shared_clearance)] %>% 
+		names
+		
+	sig_otus <- d0_shared_clearance %>% 
+		select(one_of(d0_otus)) %>% 
+		mutate_all(function(otu) {
+			x <- otu[d0_shared_clearance$clearance == 'cleared']
+			y <- otu[d0_shared_clearance$clearance == 'colonized']
+			wilcox.test(x, y)$p.value}) %>% 
+		unique %>% 
+		gather(OTU, pvalue)
 
-d0_shared_clearance %>% 
-	select(group, clearance, one_of(sig_otus$OTU)) %>% 
-	gather(OTU, abundance, contains('Otu')) %>% 
-	left_join(tax_df, by = c('OTU')) %>% 
-	left_join(sig_cef, by = c('OTU')) %>% 
-	mutate(tax_pval = paste(tax_otu_label, '( p =', pvalue, ')')) %>% 
+	if(nrow(filter(sig_otus, pvalue < 0.05/length(d0_otus))) < 1){
+			sig_otus <- sig_otus %>% 
+				top_n(-10, pvalue)
+		} else {	
+			sig_otus <- sig_otus %>% 
+				filter(pvalue < 0.05/length(d0_otus))
+		}
+		
+	d0_shared_clearance <- d0_shared_clearance %>% 
+		select(group, clearance, one_of(sig_otus$OTU)) %>% 
+		gather(OTU, abundance, contains('Otu')) %>% 
+		left_join(tax_df, by = c('OTU')) %>% 
+		left_join(sig_otus, by = c('OTU')) 
+
+	return(data.frame(d0_shared_clearance, antibiotic = paste(antibiotic, collapse = '_'), stringsAsFactors = F)) 
+}
+
+test_output_df <- map_dfr(list('cef', 'metro', 'strep', c('cef', 'metro', 'strep'), 
+		c("clinda", "vanc", "cipro", "amp", "cef", "metro", "strep")), ~ test_otus_d0(.x))
+
+test_output_df %>% 
+	filter(antibiotic == 'cef') %>% 
+	mutate(tax_pval = paste0(tax_otu_label, '\n(p=', 
+		formatC(pvalue, format = "e", digits = 2), ')')) %>% 
 	ggplot(aes(x = clearance, y = abundance, color = clearance)) + 
 		geom_jitter() + 
-		facet_wrap(. ~ tax_pval) +
-		labs(x = NULL, y = 'Abundance', title = 'Differentially abundant') + 
+		facet_wrap(. ~ tax_pval, scales = 'free_y') +
+		labs(x = NULL, y = 'Abundance', title = paste('Differentially abundant OTUs in', paste(antibiotic, collapse = ' '))) + 
 		theme(legend.position = 'none')
 
-
-
-
+test_output_df %>% 
+	select(antibiotic, tax_otu_label, pvalue) %>% 
+	unique %>% 
+	pull(tax_otu_label) %>% 
+	table
+	
 
 ```
-
 
 
 
