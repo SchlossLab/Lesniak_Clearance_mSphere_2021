@@ -58,19 +58,94 @@ meta_file %>%
 ```
 
 
+What is the difference between the mice that clear the colonization and those that do not within the same treatment? antibiotic? Are those differences shared across antibiotics?
+
+```{r community difference}
 clearing %>% 
-	filter(day >= 0) %>% 
-	ggplot(aes(x = day, y = sign(delta_cfu) * log10(abs(delta_cfu) + 70), color = mouse_id)) + 
-		geom_line(alpha = 0.3) + 
+	left_join(cleared) %>% 	
+	filter(day >= 0, cdiff == T) %>% 
+	ggplot(aes(x = day, y = (delta_trend * log10(abs(delta_cfu) + 70)), color = cleared, group = mouse_id)) + 
+		geom_line(alpha = 0.3) + facet_grid(abx ~.) + 
 		theme(legend.position="none")
+# how many mice fall into each category per antibiotic
+meta_file %>% 
+	left_join(clearance, by = c('mouse_id')) %>% 
+	filter(cdiff == T) %>% 
+	select(mouse_id, clearance, abx) %>% 
+	unique %>% 
+	select(-mouse_id) %>% 
+	table
+#clearance   amp cef cipro clinda metro none strep vanc
+#  cleared     0  15     5     11    11    1    13    1
+#  clearing    4   1     0      0     1    0     2    3
+#  colonized  19   9     0      0     9    0    12   19
+meta_file %>% 
+	left_join(clearance, by = c('mouse_id')) %>% 
+	filter(day == 0, cdiff == T, abx == 'strep') %>% 
+	select(dose, clearance) %>% 
+	table
+# cef
+#dose  cleared clearing colonized
+#  0.1       6        0         0
+#  0.3       9        0         4
+#  0.5       0        1         5
+#
+# metro
+# delayed cleared clearing colonized
+#  FALSE       1        1         5
+#  TRUE       10        0         4
+#
+# strep
+# dose  cleared clearing colonized
+#  0.1      10        0         0
+#  0.5       3        2         4
+#  5         0        0         8
+
+# whats the difference between the communities within antibiotic
+d0_shared_clearance <- meta_file %>% 
+	left_join(clearance, by = c('mouse_id')) %>% 
+	filter(day == 0, cdiff == T, abx == 'cef') %>% 
+	select(group, clearance) %>% 
+	inner_join(shared_file, by = c('group' = 'Group'))
+
+d0_otus <- d0_shared_clearance %>% 
+	select(-group, -clearance) %>% 
+	mutate_all(function(x) x > 0) %>% 
+	apply(., 2, sum) %>% 
+	.[. > 0.1*nrow(d0_shared_clearance)] %>% 
+	names
+	
+sig_otus <- d0_shared_clearance %>% 
+	select(one_of(d0_otus)) %>% 
+	mutate_all(function(otu) {
+		x <- otu[d0_shared_clearance$clearance == 'cleared']
+		y <- otu[d0_shared_clearance$clearance == 'colonized']
+		wilcox.test(x, y)$p.value}) %>% 
+	unique %>% 
+	gather(OTU, pvalue) %>% 
+	filter(pvalue < 0.05/length(d0_otus))
+
+d0_shared_clearance %>% 
+	select(group, clearance, one_of(sig_otus$OTU)) %>% 
+	gather(OTU, abundance, contains('Otu')) %>% 
+	left_join(tax_df, by = c('OTU')) %>% 
+	left_join(sig_cef, by = c('OTU')) %>% 
+	mutate(tax_pval = paste(tax_otu_label, '( p =', pvalue, ')')) %>% 
+	ggplot(aes(x = clearance, y = abundance, color = clearance)) + 
+		geom_jitter() + 
+		facet_wrap(. ~ tax_pval) +
+		labs(x = NULL, y = 'Abundance', title = 'Differentially abundant') + 
+		theme(legend.position = 'none')
+
+
+
+
 
 ```
 
 
 
 
-What is the difference between the mice that clear the colonization and those that do not within the same treatment? antibiotic? Are those differences shared across antibiotics?
-# create groups of cleared vs not
 What changes lead to clearance?
 What changes associate with decreases in CFU?
 Does abundance, z-score, or change in abundance predict change in CFU?
