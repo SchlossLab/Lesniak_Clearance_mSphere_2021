@@ -13,15 +13,15 @@ library(cowplot)
 
 meta_file   <- '../data/process/abx_cdiff_metadata_clean.txt'
 shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
-tax_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
-tax_function <- '../code/sum_otu_by_taxa.R'
+tax_file <- '../data/process/abx_cdiff_taxonomy_clean.tsv'
+sum_tax_function <- '../code/sum_otu_by_taxa.R'
 
 meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
 	mutate(mouse_id = paste(cage, mouse, sep = '_'))
 shared_file <- read.table(shared_file, sep = '\t', header = T, row.names = 'Group')
-source(tax_function)
 
-tax_df <- read.table(tax_file, sep = '\t', header = T)
+tax_df <- read.table(tax_file, sep = '\t', header = T, stringsAsFactors = F)
+source(sum_taxa_function) # function to create taxanomic labels for OTUs
 
 shared_file <- select(shared_file, -label, -numOtus)
 
