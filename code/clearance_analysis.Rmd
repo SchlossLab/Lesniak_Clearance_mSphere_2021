@@ -10,6 +10,9 @@ knitr::opts_chunk$set(echo = F, warning = F, message = F)
 
 library(tidyverse)
 library(cowplot)
+library(ggforce)
+library(ggalt)
+
 # file names relative to code directory for Rmd
 meta_file   <- '../data/process/abx_cdiff_metadata_clean.txt'
 shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
@@ -159,31 +162,81 @@ test_otus <- function(antibiotic, time_point){
 
 treatment_list <- list('cef', 'metro', 'strep', c('cef', 'metro', 'strep'), 
 		c("clinda", "vanc", "cipro", "amp", "cef", "metro", "strep"))
+
 d0_test_output_df <- map_dfr(treatment_list, ~ test_otus(.x, 0))
 end_test_output_df <- map_dfr(treatment_list, ~ test_otus(.x, 'last_sample'))
 
-differential_abundance_plot <- function(df, treatment_group){
+treatment_group <- treatment_list[[3]]
+time_point <- 0
+differential_abundance_plot <- function(df, treatment_group, time_point){
 	df %>% 
-		filter(antibiotic == treatment_group) %>% 
+		filter(antibiotic == treatment_group, time_point == time_point) %>% 
 		mutate(tax_pval = paste0(tax_otu_label, '\n(p=', 
-			formatC(pvalue, format = "e", digits = 2), ')')) %>% 
-		ggplot(aes(x = clearance, y = abundance, color = clearance)) + 
-			geom_jitter() + 
-			facet_wrap(. ~ tax_pval, scales = 'free_y') +
+				formatC(pvalue, format = "e", digits = 2), ')')) %>% 
+		right_join(., group_by(., OTU) %>% 
+				summarise(order = mean(abundance)),
+			by = c('OTU')) %>% 
+		ggplot(aes(x = reorder(tax_otu_label, -order), y = ((1 + abundance)/20), 
+				color = clearance)) + 
+			geom_sina(alpha = 0.3) +
+			theme_bw() + 
+			coord_flip() + 
+			scale_y_log10() + 
 			labs(x = NULL, y = 'Abundance', title = paste0('Differentially abundant OTUs for ', 
 				paste(treatment_group, collapse = ' '), ', for samples on ', 
 				unique(df$time_point), ' day')) + 
-			theme(legend.position = 'none')
+			theme(legend.title = 'none')
+
+test_output_df %>% 
+		filter(antibiotic == treatment_group, time_point == time_point) %>% 
+		mutate(tax_pval = paste0(tax_otu_label, '\n(p=', 
+				formatC(pvalue, format = "e", digits = 2), ')')) %>% 
+		right_join(., group_by(., OTU) %>% 
+				summarise(order = mean(abundance)),
+			by = c('OTU')) %>% 
+		right_join(., group_by(., OTU, clearance) %>% 
+				summarise(median_abundance = median(abundance)/20),
+			by = c('OTU', 'clearance')) %>% 
+		select(-group, -abundance) %>% distinct %>% 
+		spread(clearance, median_abundance) %>% 
+		ggplot(aes(y = reorder(tax_otu_label, -order), x = cleared, xend =colonized)) + 
+			geom_dumbbell(colour_x="#edae52", 
+                      colour_xend = "#9fb059",
+                      size_x = 3, size_xend = 3) + 
+			scale_x_log10() + 
+			theme_bw() 
+			labs(y = NULL, x = 'Abundance', title = paste0('Differentially abundant OTUs for ', 
+				paste(treatment_group, collapse = ' '), ', for samples on ', 
+				unique(df$time_point), ' day')) + 
+			theme(legend.title = 'none')
+
+
+
+
 }
 
 differential_abundance_plot(d0_test_output_df, 'cef')
+differential_abundance_plot(d0_test_output_df, 'metro')
+differential_abundance_plot(d0_test_output_df, 'strep')
+differential_abundance_plot(d0_test_output_df, paste(treatment_list[[4]], collapse = '_'))
+differential_abundance_plot(d0_test_output_df, paste(treatment_list[[5]], collapse = '_'))
 differential_abundance_plot(end_test_output_df, 'cef')
+differential_abundance_plot(end_test_output_df, 'metro')
+differential_abundance_plot(end_test_output_df, 'strep')
+differential_abundance_plot(end_test_output_df, paste(treatment_list[[4]], collapse = '_'))
+differential_abundance_plot(end_test_output_df, paste(treatment_list[[5]], collapse = '_'))
+
+
+test_output_df <- rbind(d0_test_output_df, end_test_output_df)
 
 test_output_df %>% 
-	select(antibiotic, tax_otu_label, pvalue) %>% 
+	select(antibiotic, tax_otu_label, pvalue, time_point) %>% 
 	unique %>% 
-	pull(tax_otu_label) %>% 
-	table
+	count(tax_otu_label) %>% 
+	filter(n > 1) %>% 
+	arrange(desc(n))
+install.packages('VennDiagram')
+library(VennDiagram)
 
 
 ```
