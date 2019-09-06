@@ -18,7 +18,7 @@ sum_tax_function <- '../code/sum_otu_by_taxa.R'
 
 meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
 	mutate(mouse_id = paste(cage, mouse, sep = '_'))
-shared_file <- read.table(shared_file, sep = '\t', header = T) %>% 
+shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
 	select(-label, -numOtus)
 tax_df <- read.table(tax_file, sep = '\t', header = T, stringsAsFactors = F)
 source(sum_taxa_function) # function to create taxanomic labels for OTUs
@@ -68,22 +68,22 @@ clearing %>%
 		geom_line(alpha = 0.3) + facet_grid(abx ~.) + 
 		theme(legend.position="none")
 # how many mice fall into each category per antibiotic
-meta_file %>% 
-	left_join(clearance, by = c('mouse_id')) %>% 
-	filter(cdiff == T) %>% 
-	select(mouse_id, clearance, abx) %>% 
-	unique %>% 
-	select(-mouse_id) %>% 
-	table
+#meta_file %>% 
+#	left_join(clearance, by = c('mouse_id')) %>% 
+#	filter(cdiff == T) %>% 
+#	select(mouse_id, clearance, abx) %>% 
+#	unique %>% 
+#	select(-mouse_id) %>% 
+#	table
 #clearance   amp cef cipro clinda metro none strep vanc
 #  cleared     0  15     5     11    11    1    13    1
 #  clearing    4   1     0      0     1    0     2    3
 #  colonized  19   9     0      0     9    0    12   19
-meta_file %>% 
-	left_join(clearance, by = c('mouse_id')) %>% 
-	filter(day == 0, cdiff == T, abx == 'strep') %>% 
-	select(dose, clearance) %>% 
-	table
+#meta_file %>% 
+#	left_join(clearance, by = c('mouse_id')) %>% 
+#	filter(day == 0, cdiff == T, abx == 'strep') %>% 
+#	select(dose, clearance) %>% 
+#	table
 # cef
 #dose  cleared clearing colonized
 #  0.1       6        0         0
