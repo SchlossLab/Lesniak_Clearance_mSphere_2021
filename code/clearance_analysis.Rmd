@@ -237,6 +237,122 @@ library(VennDiagram)
 
 What changes lead to clearance?
 What changes associate with decreases in CFU?
+
+```{r}
+
+####
+#  test difference between day 0 and last day for mice that clear
+####
+
+
+test_otus <- function(antibiotic){
+	tmp_shared_cleared <- meta_file %>% 
+		left_join(clearance, by = c('mouse_id')) %>% 
+			filter(day == 0 | day == last_sample, 
+				abx != 'none',
+				cdiff == T,
+				clearance == 'cleared', 
+				abx %in% antibiotic) %>% 
+		select(group, day) %>% 
+		inner_join(rel_abund, by = c('group'))
+
+	# select otus with median relative abundance > 1%
+	tmp_otus <- tmp_shared_cleared %>% 
+		select(-group, -day) %>% 
+		gather(OTU, abundance) %>% 
+		group_by(OTU) %>% 
+		summarise(median_abundance = median(abundance)) %>% 
+		filter(median_abundance > 0.5) %>% 
+		pull(OTU)
+
+    warn_orig <- options("warn")$warn
+	options("warn"= -1)
+
+	sig_otus <- tmp_shared_cleared %>% 
+		select(one_of(tmp_otus)) %>% 
+		mutate_all(function(otu) {
+			x <- otu[tmp_shared_cleared$day  == 0]
+			y <- otu[tmp_shared_cleared$day > 5]
+			wilcox.test(x, y)$p.value}) %>% 
+		unique %>% 
+		gather(OTU, pvalue) %>% 
+		mutate(pvalue = p.adjust(pvalue, method = 'BH')) %>% 
+		filter(pvalue < 0.05)
+
+	options('warn' = warn_orig)
+
+	if(nrow(sig_otus) < 1){
+			print(paste('No significant OTUs for comparison -', paste(antibiotic, collapse = '_')))
+			return(data.frame(antibiotic = paste(antibiotic, collapse = '_'),
+				stringsAsFactors = F)) 
+		} else {
+			tmp_shared_cleared <- tmp_shared_cleared %>% 
+				select(group, day, one_of(sig_otus$OTU)) %>% 
+				gather(OTU, abundance, contains('Otu')) %>% 
+				left_join(tax_df, by = c('OTU')) %>% 
+				left_join(sig_otus, by = c('OTU')) 
+
+			return(data.frame(tmp_shared_cleared, antibiotic = paste(antibiotic, collapse = '_'),
+				stringsAsFactors = F)) 
+		}
+}
+
+test_change_cleared_df <- map_dfr(treatment_list, ~ test_otus(.x))
+
+differential_abundance_plot <- function(df, treatment_group){
+	lod_df <- data.frame(x = 0.75, y = min_rel_abund)
+	temp_df <- df %>% 
+		filter(antibiotic == treatment_group) %>% 
+		mutate(tax_pval = paste0(tax_otu_label, '\n(p=', 
+				formatC(pvalue, format = "e", digits = 2), ')'),
+			time_point = ifelse(day ==0, 'Initial', 'End')) 
+	temp_df %>% 
+		right_join(., group_by(., OTU) %>% 
+				summarise(order = mean(abundance)),
+			by = c('OTU')) %>% 
+		right_join(., group_by(., OTU, time_point) %>% 
+				summarise(median_abundance = (median(abundance)) + 0.04),
+			by = c('OTU', 'time_point')) %>% 
+		select(-group, -abundance, -day) %>% distinct %>% 
+		spread(time_point, median_abundance) %>% 
+		full_join(select(temp_df, abundance, time_point, tax_otu_label)) %>% 
+		filter(!is.na(time_point)) %>% 
+		ggplot(aes(x = reorder(tax_pval, -order), color = time_point)) + 
+			geom_hline(data = lod_df, aes(yintercept = y), size = 0.5, 
+				linetype = 'solid', color = 'black') + 
+			geom_hline(data = lod_df, aes(yintercept = y), size = 1, 
+				linetype = 'dashed', color = 'white') + 
+			geom_point(aes(y = (abundance) + 0.04), 
+				position = position_dodge(width = 0.5), alpha = 0.2) + 
+			geom_segment(aes(y = Initial, yend = End, 
+				xend = reorder(tax_pval, -order)), color = 'black') + 
+			geom_point(aes(y = Initial), color = 'cyan4', size = 3) + 
+			geom_point(aes(y = End), color = 'red3', size = 3) +
+			scale_y_log10() + coord_flip() + 
+			theme_bw() +  
+			labs(x = NULL, y = 'Relative Abundance (%)', title = paste0('Differentially abundant OTUs over time of clearing C. difficile for ', 
+				paste(treatment_group, collapse = ' '))) + 
+			theme(legend.position = c(0.9, 0.95), 
+				legend.background = element_rect(color = "black"),
+				legend.title = element_blank()) + 
+			geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", 
+			 	fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE)
+}
+
+differential_abundance_plot(test_change_cleared_df, 'strep')
+differential_abundance_plot(test_change_cleared_df, 'cef')
+differential_abundance_plot(test_change_cleared_df, 'metro')
+differential_abundance_plot(test_change_cleared_df, treatment_list[[4]])
+differential_abundance_plot(test_change_cleared_df, treatment_list[[5]])
+
+####
+# test for association between changes in cfu and changes in otus
+####
+
+
+```
+
+
 Does abundance, z-score, or change in abundance predict change in CFU?
 	Model - RF/SVM/Logistic L2
 	Prediction - Overall colonization trend, change in CFU, Endpoint cleared (T/F) or level (High/Mid/Low/None)
