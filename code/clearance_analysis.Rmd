@@ -17,13 +17,18 @@ shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.uni
 tax_file <- '../data/process/abx_cdiff_taxonomy_clean.tsv'
 sum_tax_function <- '../code/sum_otu_by_taxa.R'
 
+# read in data
 meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
 	mutate(mouse_id = paste(cage, mouse, sep = '_'))
-shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
+shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F, row.names = "Group") %>% 
 	select(-label, -numOtus)
 tax_df <- read.table(tax_file, sep = '\t', header = T, stringsAsFactors = F)
 source(sum_taxa_function) # function to create taxanomic labels for OTUs
 
+# get relative abundances
+n_seqs <- unique(apply(shared_file, 1, sum))
+rel_abund <- data.frame(group = row.names(shared_file), 100*shared_file/n_seqs)
+min_rel_abund <- 100 * 1/n_seqs
 
 # create a dataframe with the change in C. difficile CFU by day
 differenced_cfu <- meta_file %>% 
@@ -102,7 +107,9 @@ clearing %>%
 #  0.5       3        2         4
 #  5         0        0         8
 
+#### 
 # whats the difference between the communities within antibiotic
+####
 test_otus <- function(antibiotic, time_point){
 	if(is.numeric(time_point)){
 			subset_df <- meta_file %>% 
@@ -174,8 +181,8 @@ end_test_output_df <- map_dfr(treatment_list, ~ test_otus(.x, 'last_sample'))
 
 test_output_df <- rbind(d0_test_output_df, end_test_output_df)
 
-	lod_df <- data.frame(x = 1.5, y = 1/20)
 differential_abundance_plot <- function(df, treatment_group, time){
+	lod_df <- data.frame(x = 0.75, y = min_rel_abund)
 	temp_df <- df %>% 
 		filter(antibiotic == treatment_group, time_point == time) %>% 
 		mutate(tax_pval = paste0(tax_otu_label, '\n(p=', 
@@ -185,7 +192,7 @@ differential_abundance_plot <- function(df, treatment_group, time){
 				summarise(order = mean(abundance)),
 			by = c('OTU')) %>% 
 		right_join(., group_by(., OTU, clearance) %>% 
-				summarise(median_abundance = (median(abundance)/20) + 0.04),
+				summarise(median_abundance = (median(abundance)) + 0.04),
 			by = c('OTU', 'clearance')) %>% 
 		select(-group, -abundance) %>% distinct %>% 
 		spread(clearance, median_abundance) %>% 
@@ -196,7 +203,7 @@ differential_abundance_plot <- function(df, treatment_group, time){
 				linetype = 'solid', color = 'black') + 
 			geom_hline(data = lod_df, aes(yintercept = y), size = 1, 
 				linetype = 'dashed', color = 'white') + 
-			geom_point(aes(y = (abundance/20) + 0.04), 
+			geom_point(aes(y = (abundance) + 0.04), 
 				position = position_dodge(width = 0.5), alpha = 0.2) + 
 			geom_segment(aes(y = colonized, yend = cleared, 
 				xend = reorder(tax_pval, -order)), color = 'black') + 
@@ -206,22 +213,21 @@ differential_abundance_plot <- function(df, treatment_group, time){
 			theme_bw() +  
 			labs(x = NULL, y = 'Relative Abundance (%)', title = paste0('Differentially abundant OTUs for ', 
 				paste(treatment_group, collapse = ' '), ', for samples on ', 
-			theme(legend.position = c(0.9, 0.9), 
 				time, ' day')) + 
+			theme(legend.position = c(0.9, 0.95), 
 				legend.background = element_rect(color = "black"),
 				legend.title = element_blank()) + 
 			geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", 
 				fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE) 
-			
 }
 
 differential_abundance_plot(test_output_df, 'cef', 0)
+differential_abundance_plot(test_output_df, 'cef', 'last_sample')
 differential_abundance_plot(test_output_df, 'metro', 0)
+differential_abundance_plot(test_output_df, 'metro', 'last_sample')
 differential_abundance_plot(test_output_df, 'strep', 0)
 differential_abundance_plot(test_output_df, paste(treatment_list[[4]], collapse = '_'), 0)
 differential_abundance_plot(test_output_df, paste(treatment_list[[5]], collapse = '_'), 0)
-differential_abundance_plot(test_output_df, 'cef', 'last_sample')
-differential_abundance_plot(test_output_df, 'metro', 'last_sample')
 differential_abundance_plot(test_output_df, 'strep', 'last_sample')
 differential_abundance_plot(test_output_df, paste(treatment_list[[4]], collapse = '_'), 'last_sample')
 differential_abundance_plot(test_output_df, paste(treatment_list[[5]], collapse = '_'), 'last_sample')
