@@ -157,7 +157,7 @@ test_otus <- function(antibiotic, time_point){
 	options('warn' = warn_orig)
 
 	if(nrow(sig_otus) < 1){
-			print(paste('No significant OTUs for comparison -', antibiotic, 
+			print(paste('No significant OTUs for comparison -', paste(antibiotic, collapse = '_'), 
 				'time point -', time_point))
 			return(data.frame(antibiotic = paste(antibiotic, collapse = '_'),
 				time_point = as.character(time_point), stringsAsFactors = F)) 
