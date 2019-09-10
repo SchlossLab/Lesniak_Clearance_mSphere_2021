@@ -10,8 +10,6 @@ knitr::opts_chunk$set(echo = F, warning = F, message = F)
 
 library(tidyverse)
 library(cowplot)
-library(ggforce)
-library(ggalt)
 
 # file names relative to code directory for Rmd
 meta_file   <- '../data/process/abx_cdiff_metadata_clean.txt'
@@ -166,68 +164,62 @@ treatment_list <- list('cef', 'metro', 'strep', c('cef', 'metro', 'strep'),
 d0_test_output_df <- map_dfr(treatment_list, ~ test_otus(.x, 0))
 end_test_output_df <- map_dfr(treatment_list, ~ test_otus(.x, 'last_sample'))
 
-treatment_group <- treatment_list[[3]]
-time_point <- 0
-differential_abundance_plot <- function(df, treatment_group, time_point){
-	df %>% 
-		filter(antibiotic == treatment_group, time_point == time_point) %>% 
-		mutate(tax_pval = paste0(tax_otu_label, '\n(p=', 
-				formatC(pvalue, format = "e", digits = 2), ')')) %>% 
-		right_join(., group_by(., OTU) %>% 
-				summarise(order = mean(abundance)),
-			by = c('OTU')) %>% 
-		ggplot(aes(x = reorder(tax_otu_label, -order), y = ((1 + abundance)/20), 
-				color = clearance)) + 
-			geom_sina(alpha = 0.3) +
-			theme_bw() + 
-			coord_flip() + 
-			scale_y_log10() + 
-			labs(x = NULL, y = 'Abundance', title = paste0('Differentially abundant OTUs for ', 
-				paste(treatment_group, collapse = ' '), ', for samples on ', 
-				unique(df$time_point), ' day')) + 
-			theme(legend.title = 'none')
+test_output_df <- rbind(d0_test_output_df, end_test_output_df)
 
-test_output_df %>% 
+differential_abundance_plot <- function(df, treatment_group, time_point){
+	lod_df <- data.frame(x = 1.5, y = 1/20)
+	temp_df <- df %>% 
 		filter(antibiotic == treatment_group, time_point == time_point) %>% 
 		mutate(tax_pval = paste0(tax_otu_label, '\n(p=', 
-				formatC(pvalue, format = "e", digits = 2), ')')) %>% 
+				formatC(pvalue, format = "e", digits = 2), ')')) 
+	temp_df %>% 
 		right_join(., group_by(., OTU) %>% 
 				summarise(order = mean(abundance)),
 			by = c('OTU')) %>% 
 		right_join(., group_by(., OTU, clearance) %>% 
-				summarise(median_abundance = median(abundance)/20),
+				summarise(median_abundance = (median(abundance)/20) + 0.04),
 			by = c('OTU', 'clearance')) %>% 
 		select(-group, -abundance) %>% distinct %>% 
 		spread(clearance, median_abundance) %>% 
-		ggplot(aes(y = reorder(tax_otu_label, -order), x = cleared, xend =colonized)) + 
-			geom_dumbbell(colour_x="#edae52", 
-                      colour_xend = "#9fb059",
-                      size_x = 3, size_xend = 3) + 
-			scale_x_log10() + 
-			theme_bw() 
-			labs(y = NULL, x = 'Abundance', title = paste0('Differentially abundant OTUs for ', 
+		full_join(select(temp_df, abundance, clearance, tax_otu_label)) %>% 
+		filter(!is.na(clearance)) %>% 
+		ggplot(aes(x = reorder(tax_pval, -order), color = clearance)) + 
+			geom_hline(data = lod_df, aes(yintercept = y), size = 0.5, 
+				linetype = 'solid', color = 'black') + 
+			geom_hline(data = lod_df, aes(yintercept = y), size = 1, 
+				linetype = 'dashed', color = 'white') + 
+			geom_point(aes(y = (abundance/20) + 0.04), 
+				position = position_dodge(width = 0.5), alpha = 0.2) + 
+			geom_segment(aes(y = colonized, yend = cleared, 
+				xend = reorder(tax_pval, -order)), color = 'black') + 
+			geom_point(aes(y = colonized), color = 'cyan4', size = 3) + 
+			geom_point(aes(y = cleared), color = 'red3', size = 3) +
+			scale_y_log10() + coord_flip() + 
+			theme_bw() +  
+			labs(x = NULL, y = 'Relative Abundance (%)', title = paste0('Differentially abundant OTUs for ', 
 				paste(treatment_group, collapse = ' '), ', for samples on ', 
-				unique(df$time_point), ' day')) + 
-			theme(legend.title = 'none')
-
-
-
-
+				time_point, ' day')) + 
+			theme(legend.position = c(0.9, 0.9), 
+				legend.background = element_rect(color = "black"),
+				legend.title = element_blank()) + 
+			geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", 
+				fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE) 
+			
 }
 
-differential_abundance_plot(d0_test_output_df, 'cef')
-differential_abundance_plot(d0_test_output_df, 'metro')
-differential_abundance_plot(d0_test_output_df, 'strep')
-differential_abundance_plot(d0_test_output_df, paste(treatment_list[[4]], collapse = '_'))
-differential_abundance_plot(d0_test_output_df, paste(treatment_list[[5]], collapse = '_'))
-differential_abundance_plot(end_test_output_df, 'cef')
-differential_abundance_plot(end_test_output_df, 'metro')
-differential_abundance_plot(end_test_output_df, 'strep')
-differential_abundance_plot(end_test_output_df, paste(treatment_list[[4]], collapse = '_'))
-differential_abundance_plot(end_test_output_df, paste(treatment_list[[5]], collapse = '_'))
+differential_abundance_plot(test_output_df, 'cef', 0)
+differential_abundance_plot(test_output_df, 'metro', 0)
+differential_abundance_plot(test_output_df, 'strep', 0)
+differential_abundance_plot(test_output_df, paste(treatment_list[[4]], collapse = '_'), 0)
+differential_abundance_plot(test_output_df, paste(treatment_list[[5]], collapse = '_'), 0)
+differential_abundance_plot(test_output_df, 'cef', 'last_sample')
+differential_abundance_plot(test_output_df, 'metro', 'last_sample')
+differential_abundance_plot(test_output_df, 'strep', 'last_sample')
+differential_abundance_plot(test_output_df, paste(treatment_list[[4]], collapse = '_'), 'last_sample')
+differential_abundance_plot(test_output_df, paste(treatment_list[[5]], collapse = '_'), 'last_sample')
 
 
-test_output_df <- rbind(d0_test_output_df, end_test_output_df)
+
 
 test_output_df %>% 
 	select(antibiotic, tax_otu_label, pvalue, time_point) %>% 
