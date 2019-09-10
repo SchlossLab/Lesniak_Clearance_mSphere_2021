@@ -174,10 +174,10 @@ end_test_output_df <- map_dfr(treatment_list, ~ test_otus(.x, 'last_sample'))
 
 test_output_df <- rbind(d0_test_output_df, end_test_output_df)
 
-differential_abundance_plot <- function(df, treatment_group, time_point){
 	lod_df <- data.frame(x = 1.5, y = 1/20)
+differential_abundance_plot <- function(df, treatment_group, time){
 	temp_df <- df %>% 
-		filter(antibiotic == treatment_group, time_point == time_point) %>% 
+		filter(antibiotic == treatment_group, time_point == time) %>% 
 		mutate(tax_pval = paste0(tax_otu_label, '\n(p=', 
 				formatC(pvalue, format = "e", digits = 2), ')')) 
 	temp_df %>% 
@@ -206,8 +206,8 @@ differential_abundance_plot <- function(df, treatment_group, time_point){
 			theme_bw() +  
 			labs(x = NULL, y = 'Relative Abundance (%)', title = paste0('Differentially abundant OTUs for ', 
 				paste(treatment_group, collapse = ' '), ', for samples on ', 
-				time_point, ' day')) + 
 			theme(legend.position = c(0.9, 0.9), 
+				time, ' day')) + 
 				legend.background = element_rect(color = "black"),
 				legend.title = element_blank()) + 
 			geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", 
