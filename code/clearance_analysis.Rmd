@@ -175,10 +175,10 @@ end_test_output_df <- map_dfr(treatment_list, ~ test_otus(.x, 'last_sample'))
 
 test_output_df <- rbind(d0_test_output_df, end_test_output_df)
 
-differential_abundance_plot <- function(df, treatment_group, time){
+differential_abundance_plot <- function(df, treatment_group){
 	lod_df <- data.frame(x = 0.75, y = min_rel_abund)
 	temp_df <- df %>% 
-		filter(antibiotic == treatment_group, time_point == time) %>% 
+		filter(antibiotic == treatment_group) %>% 
 		mutate(tax_pval = paste0(tax_otu_label, '\n(p=', 
 				formatC(pvalue, format = "e", digits = 2), ')')) 
 	temp_df %>% 
@@ -205,29 +205,21 @@ differential_abundance_plot <- function(df, treatment_group, time){
 			geom_point(aes(y = cleared), color = 'red3', size = 3) +
 			scale_y_log10() + coord_flip() + 
 			theme_bw() +  
-			labs(x = NULL, y = 'Relative Abundance (%)', title = paste0('Differentially abundant OTUs for ', 
-				paste(treatment_group, collapse = ' '), ', for samples on ', 
-				time, ' day')) + 
+			labs(x = NULL, y = 'Relative Abundance (%)', title = paste0('Differentially abundant OTUs between cleared and colonized communities for ', 
+				paste(treatment_group, collapse = ' '))) + 
 			theme(legend.position = c(0.9, 0.95), 
 				legend.background = element_rect(color = "black"),
 				legend.title = element_blank()) + 
 			geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", 
-				fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE) 
+				fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE)  + 
+			facet_wrap(.~time_point, scales = 'free_y', ncol = 1)
 }
 
-differential_abundance_plot(test_output_df, 'cef', 0)
-differential_abundance_plot(test_output_df, 'cef', 'last_sample')
-differential_abundance_plot(test_output_df, 'metro', 0)
-differential_abundance_plot(test_output_df, 'metro', 'last_sample')
-differential_abundance_plot(test_output_df, 'strep', 0)
-differential_abundance_plot(test_output_df, paste(treatment_list[[4]], collapse = '_'), 0)
-differential_abundance_plot(test_output_df, paste(treatment_list[[5]], collapse = '_'), 0)
-differential_abundance_plot(test_output_df, 'strep', 'last_sample')
-differential_abundance_plot(test_output_df, paste(treatment_list[[4]], collapse = '_'), 'last_sample')
-differential_abundance_plot(test_output_df, paste(treatment_list[[5]], collapse = '_'), 'last_sample')
-
-
-
+differential_abundance_plot(test_output_df, 'cef')
+differential_abundance_plot(test_output_df, 'metro')
+differential_abundance_plot(test_output_df, 'strep')
+differential_abundance_plot(test_output_df, paste(treatment_list[[4]], collapse = '_'))
+differential_abundance_plot(test_output_df, paste(treatment_list[[5]], collapse = '_'))
 
 test_output_df %>% 
 	select(antibiotic, tax_otu_label, pvalue, time_point) %>% 
