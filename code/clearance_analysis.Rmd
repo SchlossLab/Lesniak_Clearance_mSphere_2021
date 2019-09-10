@@ -124,13 +124,7 @@ test_otus <- function(antibiotic, time_point){
 		filter(cdiff == T, abx %in% antibiotic, clearance != 'clearing') %>% 
 		select(group, clearance) %>% 
 		inner_join(rel_abund, by = c('group'))
-	## select otus present in at least 10% of samples
-	#tmp_otus <- tmp_shared_clearance %>% 
-	#	select(-group, -clearance) %>% 
-	#	mutate_all(function(x) x > 0) %>% 
-	#	apply(., 2, sum) %>% 
-	#	.[. > 0.1*nrow(tmp_shared_clearance)] %>% 
-	#	names
+
 	# select otus with median relative abundance > 1%
 	tmp_otus <- tmp_shared_clearance %>% 
 		select(-group, -clearance) %>% 
