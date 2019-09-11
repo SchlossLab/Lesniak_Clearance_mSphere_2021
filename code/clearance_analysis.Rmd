@@ -140,7 +140,7 @@ test_otus <- function(antibiotic, time_point){
 		gather(OTU, abundance) %>% 
 		group_by(OTU) %>% 
 		summarise(median_abundance = median(abundance)) %>% 
-		filter(median_abundance > 1) %>% 
+		filter(median_abundance > 0.5) %>% 
 		pull(OTU)
 
     warn_orig <- options("warn")$warn
@@ -177,7 +177,7 @@ test_otus <- function(antibiotic, time_point){
 }
 
 treatment_list <- list('cef', 'metro', 'strep', c('cef', 'metro', 'strep'), 
-		c("clinda", "vanc", "cipro", "amp", "cef", "metro", "strep"))
+		c("clinda", "vanc", "amp", "cef", "metro", "strep"))
 
 d0_test_output_df <- map_dfr(treatment_list, ~ test_otus(.x, 0))
 end_test_output_df <- map_dfr(treatment_list, ~ test_otus(.x, 'last_sample'))
@@ -353,14 +353,151 @@ differential_abundance_plot(test_change_cleared_df, 'cef')
 differential_abundance_plot(test_change_cleared_df, 'metro')
 differential_abundance_plot(test_change_cleared_df, treatment_list[[4]])
 differential_abundance_plot(test_change_cleared_df, treatment_list[[5]])
+```
+
+
+```{r test for association of changes in otu/cfu, eval = F}
+
 
 ####
 # test for association between changes in cfu and changes in otus
 ####
+diff_trt_list <- list('amp', 'clinda', 'cef', 'metro', 'strep', 'vanc',
+		c("clinda", "vanc", "amp", "cef", "metro", "strep"))
 
+corr_otu <- diff_rel_abund %>% 
+	inner_join(differenced_cfu, by = 'group') %>% 
+	mutate(diff_cfu = case_when(delta_cfu > 0 ~ log10(delta_cfu),
+		delta_cfu < 0 ~ -log10(-delta_cfu),
+		delta_cfu == 0 ~ 0)) %>% 
+	filter(diff_cfu > 0) %>% 
+	select(diff_cfu, contains('Otu')) %>% 
+	gather(otu, delta_abund, contains('Otu')) %>% 
+	filter(!is.na(delta_abund)) %>% 
+	group_by(otu) %>% 
+	summarise(median_delta_abund = median(delta_abund),
+		rho = cor.test(diff_cfu, delta_abund, method = 'spearman')$estimate,
+		pvalue = cor.test(diff_cfu, delta_abund, method = 'spearman')$p.value) %>% 
+	mutate(pvalue_BH = p.adjust(as.numeric(pvalue), method = 'BH'),
+		pvalue_bon = p.adjust(as.numeric(pvalue), method = 'bonferroni')) %>% 
+	filter(pvalue_BH <= 0.05) %>% 
+	arrange(rho)
+
+meta_file %>% 
+	inner_join(rel_abund, by = 'group') %>% 
+	select(mouse_id, CFU, day, abx, one_of(corr_otu$otu)) %>% 
+	filter(day >= 0, !abx %in% c('cipro', 'none')) %>% 
+	gather(otu, rel_abund, contains('Otu00')) %>% 
+	left_join(tax_df, by = c('otu' = 'OTU')) %>% 
+	mutate(CFU = log10(CFU + 60),
+		rel_abund = log10(rel_abund + 0.04)) %>% 
+	gather(bacteria, abundance, rel_abund, CFU) %>% 
+	ggplot(aes(y = abundance, x = day)) + 
+		geom_line(aes(color = bacteria, group = mouse_id)) + 
+		theme_bw() + 
+		facet_grid(bacteria~abx, scales = 'free_y') + 
+		labs(x = 'Relative Abundance', y = 'C.difficile CFU')
+
+corr_otu <- function(antibiotic){
+	tmp_otus <- meta_file %>% 
+		left_join(clearance, by = c('mouse_id')) %>% 
+		filter(day > 0, 
+			clearance == 'cleared',
+			cdiff == T,
+			!abx %in% c('none', 'cipro')) %>% 
+		select(group, day) %>% 
+		inner_join(rel_abund, by = c('group')) %>% 
+		select(-group, -day) %>% 
+		gather(OTU, abundance) %>% 
+		group_by(OTU) %>% 
+		summarise(median_abundance = median(abundance)) %>% 
+		#filter(median_abundance > 0) %>% 
+		pull(OTU)	
+
+	tmp_df <- diff_rel_abund %>% 
+		select(group, mouse_id, day, one_of(tmp_otus)) %>% 
+		inner_join(differenced_cfu, by = 'group') %>% 
+		mutate(diff_cfu = case_when(delta_cfu > 0 ~ log10(delta_cfu),
+			delta_cfu < 0 ~ -log10(-delta_cfu),
+			delta_cfu == 0 ~ 0)) %>% 
+		filter(diff_cfu != 0) %>% 
+		select(diff_cfu, contains('Otu')) %>% 
+		gather(otu, delta_abund, contains('Otu')) %>% 
+		filter(!is.na(delta_abund)) %>% 
+		group_by(otu) %>% 
+		summarise(median_delta_abund = median(delta_abund),
+			rho = cor.test(diff_cfu, delta_abund, method = 'spearman')$estimate,
+			pvalue = cor.test(diff_cfu, delta_abund, method = 'spearman')$p.value) %>% 
+		mutate(pvalue_BH = p.adjust(as.numeric(pvalue), method = 'BH'),
+			pvalue_bon = p.adjust(as.numeric(pvalue), method = 'bonferroni')) %>% 
+		filter(pvalue_BH <= 0.05) %>% 
+		arrange(rho)
+	return(tmp_df  %>% 
+			mutate(treatment = paste(antibiotic, collapse = '_')))
+}
+
+diff_corr_otus <- map_dfr(diff_trt_list, ~ corr_otu(.x))
+left_join(diff_corr_otus, tax_df, by = c('otu' = 'OTU')) %>% 
+	select(treatment, otu)
+
+plot_diff_corr <- function(antibiotic){
+	meta_file %>% 
+		inner_join(rel_abund, by = 'group') %>% 
+		select(mouse_id, CFU, day, abx, 
+			one_of(diff_corr_otus$otu[diff_corr_otus$treatment == paste(antibiotic, collapse = '_')])) %>% 
+		filter(day >= 0, abx %in% antibiotic) %>% 
+		mutate(CFU = log10(CFU + 60)) %>% 
+		mutate_at(vars(contains('Otu')), function(otu) {log10(otu + 0.04)}) %>% 
+		gather(otu, rel_abund, CFU, contains('Otu00')) %>% 
+		#left_join(tax_df, by = c('otu' = 'OTU')) %>% 
+		ggplot(aes(y = rel_abund, x = day)) + 
+			geom_line(aes(color = otu, group = mouse_id)) + 
+			theme_bw() + 
+			facet_grid(otu~abx, scales = 'free_y') + 
+			labs(x = 'Relative Abundance', y = 'C.difficile CFU')
+}
+plot_diff_corr(diff_trt_list[[1]])
+plot_diff_corr(diff_trt_list[[2]])
+plot_diff_corr(diff_trt_list[[3]])
+plot_diff_corr(diff_trt_list[[4]])
+plot_diff_corr(diff_trt_list[[5]])
+plot_diff_corr(diff_trt_list[[6]])
+plot_diff_corr(diff_trt_list[[7]])
+
+# when selecting otus with a median abundance > 0, no change in OTUs correlate with changes in CFU
+# however when using all otus, the most common is Clostridium XI (C. difficile) and the others are lowly abundant OTUs
+# treatment
+#  1 amp                             Herbaspirillum (OTU 344)              
+#  2 amp                             Tumebacillus (OTU 444)                
+#  3 amp                             Streptococcus (OTU 158)               
+#  4 amp                             Clostridium_XI (OTU 33)               
+#  5 clinda                          Clostridium_XI (OTU 33)               
+#  6 strep                           Ruminococcaceae_unclassified (OTU 290)
+#  7 strep                           Clostridium_XI (OTU 33)               
+#  8 vanc                            Barnesiella (OTU 422)                 
+#  9 vanc                            Clostridium_XI (OTU 33)               
+# 10 clinda_vanc_amp_cef_metro_strep Tumebacillus (OTU 444)                
+# 11 clinda_vanc_amp_cef_metro_strep Clostridium_XI (OTU 33)    
+# 
+# median_delta_ab…    rho   pvalue pvalue_BH pvalue_bon treatment Kingdom
+#    <chr>            <dbl>  <dbl>    <dbl>     <dbl>      <dbl> <chr>     <chr>  
+#  1 Otu0…                0 -0.298 3.18e- 5  9.27e- 3   1.85e- 2 amp       Bacter…
+#  2 Otu0…                0 -0.275 1.27e- 4  2.47e- 2   7.40e- 2 amp       Bacter…
+#  3 Otu0…                0  0.261 2.93e- 4  4.27e- 2   1.71e- 1 amp       Bacter…
+#  4 Otu0…                0  0.405 7.79e- 9  4.54e- 6   4.54e- 6 amp       Bacter…
+#  5 Otu0…                0  0.651 1.99e-10  8.07e- 8   8.07e- 8 clinda    Bacter…
+#  6 Otu0…                0  0.322 2.14e- 5  5.64e- 3   1.13e- 2 strep     Bacter…
+#  7 Otu0…                0  0.387 2.42e- 7  1.28e- 4   1.28e- 4 strep     Bacter…
+#  8 Otu0…                0  0.289 3.41e- 5  1.32e- 2   2.65e- 2 vanc      Bacter…
+#  9 Otu0…                0  0.374 5.10e- 8  3.96e- 5   3.96e- 5 vanc      Bacter…
+# 10 Otu0…                0 -0.157 3.69e- 6  3.14e- 3   6.27e- 3 clinda_v… Bacter…
+# 11 Otu0…                0  0.348 5.13e-26  8.72e-23   8.72e-23 clinda_v… Bacter…
 
 ```
 
+Test for association between changes in C. difficile CFU and OTUs
+- when selecting otus with a median abundance > 0, no change in OTUs correlate with changes in CFU
+- when using all otus, the most common is Clostridium XI (C. difficile) and the others are lowly abundant OTUs with 
 
 Does abundance, z-score, or change in abundance predict change in CFU?
 	Model - RF/SVM/Logistic L2
@@ -369,7 +506,7 @@ Does abundance, z-score, or change in abundance predict change in CFU?
 What is the network interactions of each antibiotic?
 	network via spieceasi
 
-Akkermansia seems to bloom in response to C. difficile colonization
+Generally in these experiements, Akkermansia seems to bloom in response to C. difficile colonization
 -  Compare level of Akkermansia in samples with C. difficile and those without
 -  Compare level of Akkermansia in samples challenged with C. difficile to the unchallenged samples
 
