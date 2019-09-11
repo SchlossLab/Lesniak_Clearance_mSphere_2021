@@ -37,6 +37,15 @@ differenced_cfu <- meta_file %>%
 	mutate(delta_cfu = CFU - lag(CFU)) %>% 
 	ungroup %>% 
 	mutate(delta_trend = ifelse(sign(delta_cfu) == -1, -1, 1))
+# create a dataframe with the change in relative abundance by day
+diff_rel_abund <- meta_file %>% 
+	select(group, mouse_id, day) %>% 
+	inner_join(rel_abund, by = 'group') %>% 
+	group_by(mouse_id) %>% 
+	arrange(mouse_id, day) %>% 
+	mutate_at(vars(contains('Otu')), 
+		function(otu) { otu - lag(otu) } ) %>% 
+	ungroup
 # categorize mice based on the colonization levels at the end of the experiment
 clearance <- differenced_cfu %>% 
 	group_by(mouse_id) %>% 
