@@ -46,6 +46,21 @@ diff_rel_abund <- meta_file %>%
 	mutate_at(vars(contains('Otu')), 
 		function(otu) { otu - lag(otu) } ) %>% 
 	ungroup
+
+diff_rel_abund <- meta_file %>% 
+	select(group, mouse_id, day) %>% 
+	inner_join(rel_abund, by = 'group') %>% 
+	group_by(mouse_id) %>% 
+	arrange(mouse_id, day) %>% 
+	mutate_at(vars(contains('Otu')), 
+		function(otu) { otu - lag(otu) } ) %>% 
+	ungroup
+otu1 <- sample(1:100,10)
+cfu1 <- sample(1:100,10)
+lag(otu1) - lag(otu1, 2)
+otu1 - lag(otu1)
+cfu1 - lag(cfu1)
+
 # categorize mice based on the colonization levels at the end of the experiment
 clearance <- differenced_cfu %>% 
 	group_by(mouse_id) %>% 
@@ -497,20 +512,114 @@ plot_diff_corr(diff_trt_list[[7]])
 
 Test for association between changes in C. difficile CFU and OTUs
 - when selecting otus with a median abundance > 0, no change in OTUs correlate with changes in CFU
-- when using all otus, the most common is Clostridium XI (C. difficile) and the others are lowly abundant OTUs with 
+- when using all otus, the most common is Clostridium XI (C. difficile) and the others are lowly abundant OTUs with little variation 
+- testing different subsets (those cleared, only those changing) did not reveal any further information
+
+
 
 Does abundance, z-score, or change in abundance predict change in CFU?
 	Model - RF/SVM/Logistic L2
 	Prediction - Overall colonization trend, change in CFU, Endpoint cleared (T/F) or level (High/Mid/Low/None)
 	Features - Temporal object, prior day level, change in abundance, summary of temporal abundance (mean/median/SD/min/max/trend), abundance metric (~RMS/area of movement)
+
+```{r classify change in cfu}
+
+####
+# what features best classify CFU?
+####
+
+# WHat features at day 0 predict clearance?
+
+# What features at endpoint classify clearance?
+
+# When c diff decreases, what changes events preceding are the best classifiers?
+#	OTU abundance?
+#	change in OTU? change in rel abund? zscore?
+
+
+
+```
+
+
+
 What is the network interactions of each antibiotic?
 	network via spieceasi
+
+```{r network}
+
+#library(devtools)
+#install_github("zdk123/SpiecEasi")
+library(SpiecEasi)
+
+se_cdiff_df <- meta_file %>% 
+	inner_join(clearance, by = 'mouse_id') %>% 
+	filter(cdiff == T, clearance != 'colonized', day > 0) %>% 
+	inner_join(rel_abund, by = 'group') %>% 
+	mutate(Otu00Cdiff = log10(CFU + 0.01)) %>% 
+	select(contains('Otu')) %>% 
+	as.matrix
+se_cdiff_df <- se_cdiff_df[ ,apply(se_cdiff_df, 2, function(x) sum(x > 0)) > 0.1*nrow(se_cdiff_df)]
+
+# the main SPIEC-EASI pipeline: Data transformation, sparse inverse covariance estimation and model selection
+se.mb.cdiff <- spiec.easi(se_cdiff_df, method='mb', lambda.min.ratio=1e-2,
+                          nlambda=20, pulsar.params=list(rep.num=50))
+n.c <- symBeta(getOptBeta(se.mb.cdiff))
+colnames(n.c) <- rownames(n.c) <- colnames(se_cdiff_df)
+stool.ig <- graph.adjacency(n.c, mode='undirected', add.rownames = TRUE, weighted = TRUE)
+ig.mb     <- adj2igraph(getRefit(se.mb.cdiff))
+
+library(igraph)
+## set size of vertex proportional to clr-mean
+vsize    <- rowMeans(clr(se_cdiff_df, 1))+6
+#vsize <- log2(apply(otu.c, 2, mean)) # add log abundance as properties of vertex/nodes.
+cdiff.coord <- layout.fruchterman.reingold(ig.mb)
+cdiff.coord <- layout.fruchterman.reingold(stool.ig)
+plot(ig.mb, layout=cdiff.coord, vertex.size=vsize, vertex.label=NA, main="mb")
+plot(ig.gl, layout=cdiff.coord, vertex.size=vsize, vertex.label=NA, main="gl")
+plot(stool.ig, layout=cdiff.coord, vertex.size=vsize, vertex.label=NA, main="mb")
+
+plot(ig.mb_cef, layout=cdiff.coord, vertex.size=vsize, vertex.label=NA, main="cef")
+plot(ig.mb_strep, layout=cdiff.coord, vertex.size=vsize, vertex.label=NA, main="strep")
+plot(ig.mb_clinda, layout=cdiff.coord, vertex.size=vsize, vertex.label=NA, main="clinda")
+
+se.gl.cdiff <- spiec.easi(se_cdiff_df, method='glasso', lambda.min.ratio=1e-2,
+                          nlambda=20, pulsar.params=list(rep.num=50))
+sparcc.cdiff <- sparcc(se_cdiff_df)
+sparcc.graph <- abs(sparcc.cdiff$Cor) >= 0.3
+diag(sparcc.graph) <- 0
+sparcc.graph <- Matrix(sparcc.graph, sparse=TRUE)
+## Create igraph objects
+ig.mb     <- adj2igraph(getRefit(se.mb.cdiff))
+ig.gl     <- adj2igraph(getRefit(se.gl.cdiff))
+ig.sparcc <- adj2igraph(sparcc.graph)
+
+
+
+
+# spieceasi tutorial
+se.mb.amgut <- spiec.easi(amgut1.filt, method='mb', lambda.min.ratio=1e-2,
+                          nlambda=20, pulsar.params=list(rep.num=50))
+se.gl.amgut <- spiec.easi(amgut1.filt, method='glasso', lambda.min.ratio=1e-2,
+                          nlambda=20, pulsar.params=list(rep.num=50))
+sparcc.amgut <- sparcc(amgut1.filt)
+## Define arbitrary threshold for SparCC correlation matrix for the graph
+sparcc.graph <- abs(sparcc.amgut$Cor) >= 0.3
+diag(sparcc.graph) <- 0
+sparcc.graph <- Matrix(sparcc.graph, sparse=TRUE)
+## Create igraph objects
+ig.mb     <- adj2igraph(getRefit(se.mb.amgut))
+ig.gl     <- adj2igraph(getRefit(se.gl.amgut))
+ig.sparcc <- adj2igraph(sparcc.graph)
+
+
+```
+
 
 Generally in these experiements, Akkermansia seems to bloom in response to C. difficile colonization
 -  Compare level of Akkermansia in samples with C. difficile and those without
 -  Compare level of Akkermansia in samples challenged with C. difficile to the unchallenged samples
 
-Are there any cases with similar communities but different coloniation dynamics? 
+Are there any cases with similar communities but different colonization dynamics? 
 
 What is the difference between uncolonized and colonized within the same treatments? Are those differences shared across treatments?
 	Are they similar to features associated with clearance?
