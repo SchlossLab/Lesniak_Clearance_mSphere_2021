@@ -15,7 +15,7 @@ library(cowplot)
 meta_file   <- '../data/process/abx_cdiff_metadata_clean.txt'
 shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 tax_file <- '../data/process/abx_cdiff_taxonomy_clean.tsv'
-sum_tax_function <- '../code/sum_otu_by_taxa.R'
+sum_taxa_function <- '../code/sum_otu_by_taxa.R'
 
 # read in data
 meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
@@ -56,20 +56,20 @@ clearance <- differenced_cfu %>%
 	mutate(clearance = case_when(end_point_cfu == 0 ~ 'cleared', 
 		delta_trend < 0 & end_point_cfu < 100000 ~ 'clearing', # 10^5 separates the mice 
 		T ~ 'colonized'))
-# plot the colonization of the different colonization categories
-meta_file %>% 
-	left_join(clearance) %>% 	
-	ggplot(aes(x = day, y = log10(CFU + 70), color = clearance, group = mouse_id)) + 
-		geom_line(alpha = 0.3) + 
-		facet_wrap(clearance ~ .) + 
-		theme(legend.position="none")
-# plot to confirm that we are not missing any mice with negatively trending C. difficile
-meta_file %>% 
-	left_join(clearance) %>% 	
-	filter(clearance == 'colonized') %>% 
-	mutate(Decreasing = ifelse(day %in% c(7:10) & delta_trend < 0, T, F)) %>% 
-	ggplot(aes(x = day, y = log10(CFU + 70), color = Decreasing, group = mouse_id)) + 
-		geom_line(alpha = 0.3) 
+## plot the colonization of the different colonization categories
+#meta_file %>% 
+#	left_join(clearance) %>% 	
+#	ggplot(aes(x = day, y = log10(CFU + 70), color = clearance, group = mouse_id)) + 
+#		geom_line(alpha = 0.3) + 
+#		facet_wrap(clearance ~ .) + 
+#		theme(legend.position="none")
+## plot to confirm that we are not missing any mice with negatively trending C. difficile
+#meta_file %>% 
+#	left_join(clearance) %>% 	
+#	filter(clearance == 'colonized') %>% 
+#	mutate(Decreasing = ifelse(day %in% c(7:10) & delta_trend < 0, T, F)) %>% 
+#	ggplot(aes(x = day, y = log10(CFU + 70), color = Decreasing, group = mouse_id)) + 
+#		geom_line(alpha = 0.3) 
 ```
 
 
@@ -402,16 +402,16 @@ corr_otu <- function(antibiotic){
 	tmp_otus <- meta_file %>% 
 		left_join(clearance, by = c('mouse_id')) %>% 
 		filter(day > 0, 
-			clearance == 'cleared',
+			clearance == 'cleared'
 			cdiff == T,
-			!abx %in% c('none', 'cipro')) %>% 
+			abx %in% antibiotic) %>% 
 		select(group, day) %>% 
 		inner_join(rel_abund, by = c('group')) %>% 
 		select(-group, -day) %>% 
 		gather(OTU, abundance) %>% 
 		group_by(OTU) %>% 
 		summarise(median_abundance = median(abundance)) %>% 
-		#filter(median_abundance > 0) %>% 
+		filter(median_abundance > 0) %>% 
 		pull(OTU)	
 
 	tmp_df <- diff_rel_abund %>% 
@@ -420,7 +420,7 @@ corr_otu <- function(antibiotic){
 		mutate(diff_cfu = case_when(delta_cfu > 0 ~ log10(delta_cfu),
 			delta_cfu < 0 ~ -log10(-delta_cfu),
 			delta_cfu == 0 ~ 0)) %>% 
-		filter(diff_cfu != 0) %>% 
+		filter(diff_cfu != 0, abx %in% antibiotic) %>% 
 		select(diff_cfu, contains('Otu')) %>% 
 		gather(otu, delta_abund, contains('Otu')) %>% 
 		filter(!is.na(delta_abund)) %>% 
