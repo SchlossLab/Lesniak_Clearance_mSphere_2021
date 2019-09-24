@@ -550,33 +550,42 @@ What is the network interactions of each antibiotic?
 #library(devtools)
 #install_github("zdk123/SpiecEasi")
 library(SpiecEasi)
-
-se_cdiff_df <- meta_file %>% 
-	inner_join(clearance, by = 'mouse_id') %>% 
-	filter(cdiff == T, clearance != 'colonized', day > 0) %>% 
-	inner_join(rel_abund, by = 'group') %>% 
-	mutate(Otu00Cdiff = log10(CFU + 0.01)) %>% 
-	select(contains('Otu')) %>% 
-	as.matrix
-se_cdiff_df <- se_cdiff_df[ ,apply(se_cdiff_df, 2, function(x) sum(x > 0)) > 0.1*nrow(se_cdiff_df)]
-
-# the main SPIEC-EASI pipeline: Data transformation, sparse inverse covariance estimation and model selection
-se.mb.cdiff <- spiec.easi(se_cdiff_df, method='mb', lambda.min.ratio=1e-2,
-                          nlambda=20, pulsar.params=list(rep.num=50))
-n.c <- symBeta(getOptBeta(se.mb.cdiff))
-colnames(n.c) <- rownames(n.c) <- colnames(se_cdiff_df)
-stool.ig <- graph.adjacency(n.c, mode='undirected', add.rownames = TRUE, weighted = TRUE)
-ig.mb     <- adj2igraph(getRefit(se.mb.cdiff))
-
 library(igraph)
-## set size of vertex proportional to clr-mean
-vsize    <- rowMeans(clr(se_cdiff_df, 1))+6
-#vsize <- log2(apply(otu.c, 2, mean)) # add log abundance as properties of vertex/nodes.
-cdiff.coord <- layout.fruchterman.reingold(ig.mb)
-cdiff.coord <- layout.fruchterman.reingold(stool.ig)
-plot(ig.mb, layout=cdiff.coord, vertex.size=vsize, vertex.label=NA, main="mb")
-plot(ig.gl, layout=cdiff.coord, vertex.size=vsize, vertex.label=NA, main="gl")
-plot(stool.ig, layout=cdiff.coord, vertex.size=vsize, vertex.label=NA, main="mb")
+
+get_se_network <- function(antibiotic){
+	se_cdiff_df <- meta_file %>% 
+		inner_join(clearance, by = 'mouse_id') %>% 
+		filter(cdiff == T, clearance != 'colonized', day > 0, abx %in% antibiotic) %>% 
+		inner_join(rel_abund, by = 'group') %>% 
+		mutate(Otu00Cdiff = log10(CFU + 0.01)) %>% 
+		select(contains('Otu')) %>% 
+		as.matrix
+	se_cdiff_df <- se_cdiff_df[ ,apply(se_cdiff_df, 2, function(x) sum(x > 0)) > 0.1*nrow(se_cdiff_df)]
+	# the main SPIEC-EASI pipeline: Data transformation, sparse inverse covariance estimation and model selection
+	se.mb.cdiff <- spiec.easi(se_cdiff_df, method='mb', lambda.min.ratio=1e-2,
+		nlambda=20, pulsar.params=list(rep.num=50))
+	## set size of vertex proportional to clr-mean
+	vsize    <- rowMeans(clr(se_cdiff_df, 1))+6
+
+	ig.mb <- getRefit(se.mb.cdiff)
+	colnames(ig.mb) <- rownames(ig.mb) <- colnames(se_cdiff_df)
+	ig.mb     <- adj2igraph(ig.mb, vertex.attr = list(name = colnames(ig.mb)))
+	return(ig.mb)
+	#cdiff.coord <- layout.fruchterman.reingold(ig.mb)
+	#network_plot <- plot(ig.mb, layout=cdiff.coord, vertex.size=vsize, main = antibiotic)
+	#ggsave(paste0('cdiff_network_', antibiotic, '_plot.jpg'), network_plot, width = 10, height = 10)
+}
+
+cef_se <- get_se_network('cef')
+clinda_se <- get_se_network('clinda')
+strep_se <- get_se_network('strep')
+
+cef_se
+
+
+
+
+
 
 plot(ig.mb_cef, layout=cdiff.coord, vertex.size=vsize, vertex.label=NA, main="cef")
 plot(ig.mb_strep, layout=cdiff.coord, vertex.size=vsize, vertex.label=NA, main="strep")
