@@ -595,12 +595,12 @@ get_se_network <- function(antibiotic){
 	# the main SPIEC-EASI pipeline: Data transformation, sparse inverse covariance estimation and model selection
 	se.mb.cdiff <- spiec.easi(se_cdiff_df, method='mb', lambda.min.ratio=1e-2,
 		nlambda=20, pulsar.params=list(rep.num=50))
+	#for actual run, use rep.num (99 or 999) 
 	## set size of vertex proportional to clr-mean
 	vsize    <- rowMeans(clr(se_cdiff_df, 1))+6
 
 	ig.mb <- getRefit(se.mb.cdiff)
-	colnames(ig.mb) <- rownames(ig.mb) <- colnames(se_cdiff_df)
-	ig.mb     <- adj2igraph(ig.mb, vertex.attr = list(name = colnames(ig.mb)))
+	colnames(ig.mb) <- rownames(ig.mb) <- gsub('Otu0*', '', colnames(se_cdiff_df))
 	return(ig.mb)
 	#cdiff.coord <- layout.fruchterman.reingold(ig.mb)
 	#network_plot <- plot(ig.mb, layout=cdiff.coord, vertex.size=vsize, main = antibiotic)
@@ -611,46 +611,24 @@ cef_se <- get_se_network('cef')
 clinda_se <- get_se_network('clinda')
 strep_se <- get_se_network('strep')
 
-cef_se
+get_first_order <- function(data_input){
+	first_order_otus <- c(names(which(data_input[,'Cdiff'] > 0)), 'Cdiff')
+	#second_order_otus <- names(apply(data_input[,otus], 1 , sum) > 0)
+	data_input <- data_input[first_order_otus, first_order_otus]
+	#ig.mb <- ig.mb[second_order_otus, second_order_otus]
+	first_order_network <- adj2igraph(data_input, 
+		vertex.attr = list(name = colnames(data_input)))
+	plot(first_order_network)
+}
 
+get_first_order(cef_se)
+get_first_order(clinda_se)
+get_first_order(strep_se)
+plot(cef_se, layout = layout_as_star(cef_se, center = 'Cdiff'))
+plot(cef_se, layout= layout_as_tree)
 
-
-
-
-
-plot(ig.mb_cef, layout=cdiff.coord, vertex.size=vsize, vertex.label=NA, main="cef")
-plot(ig.mb_strep, layout=cdiff.coord, vertex.size=vsize, vertex.label=NA, main="strep")
-plot(ig.mb_clinda, layout=cdiff.coord, vertex.size=vsize, vertex.label=NA, main="clinda")
-
-se.gl.cdiff <- spiec.easi(se_cdiff_df, method='glasso', lambda.min.ratio=1e-2,
-                          nlambda=20, pulsar.params=list(rep.num=50))
-sparcc.cdiff <- sparcc(se_cdiff_df)
-sparcc.graph <- abs(sparcc.cdiff$Cor) >= 0.3
-diag(sparcc.graph) <- 0
-sparcc.graph <- Matrix(sparcc.graph, sparse=TRUE)
-## Create igraph objects
-ig.mb     <- adj2igraph(getRefit(se.mb.cdiff))
-ig.gl     <- adj2igraph(getRefit(se.gl.cdiff))
-ig.sparcc <- adj2igraph(sparcc.graph)
-
-
-
-
-# spieceasi tutorial
-se.mb.amgut <- spiec.easi(amgut1.filt, method='mb', lambda.min.ratio=1e-2,
-                          nlambda=20, pulsar.params=list(rep.num=50))
-se.gl.amgut <- spiec.easi(amgut1.filt, method='glasso', lambda.min.ratio=1e-2,
-                          nlambda=20, pulsar.params=list(rep.num=50))
-sparcc.amgut <- sparcc(amgut1.filt)
-## Define arbitrary threshold for SparCC correlation matrix for the graph
-sparcc.graph <- abs(sparcc.amgut$Cor) >= 0.3
-diag(sparcc.graph) <- 0
-sparcc.graph <- Matrix(sparcc.graph, sparse=TRUE)
-## Create igraph objects
-ig.mb     <- adj2igraph(getRefit(se.mb.amgut))
-ig.gl     <- adj2igraph(getRefit(se.gl.amgut))
-ig.sparcc <- adj2igraph(sparcc.graph)
-
+plot(ig.mb, layout = layout_as_star(ig.mb, center = 'Cdiff'))
+plot(ig.mb, layout= layout_as_tree)
 
 ```
 
