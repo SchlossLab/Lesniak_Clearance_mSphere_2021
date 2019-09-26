@@ -242,26 +242,52 @@ differential_abundance_plot <- function(df, treatment_group){
 			geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", 
 				fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE)  + 
 			facet_grid(time_point~., scales = 'free_y', space = 'free')
+#	ggsave(paste0('../results/figures/clearance_diff_abund_', treatment_group, '.jpg'), 
+#		plot_output, width = 6, height = .5*length(unique(temp_df$OTU)))
 }
 
-differential_abundance_plot(test_output_df, 'cef')
-differential_abundance_plot(test_output_df, 'metro')
-differential_abundance_plot(test_output_df, 'strep')
-differential_abundance_plot(test_output_df, paste(treatment_list[[4]], collapse = '_'))
-differential_abundance_plot(test_output_df, paste(treatment_list[[5]], collapse = '_'))
+cef_diff_abund <- differential_abundance_plot(test_output_df, 'cef')
+metro_diff_abund <- differential_abundance_plot(test_output_df, 'metro')
+strep_diff_abund <- differential_abundance_plot(test_output_df, 'strep')
+#differential_abundance_plot(test_output_df, paste(treatment_list[[4]], collapse = '_'))
+all_diff_abund <- differential_abundance_plot(test_output_df, paste(treatment_list[[5]], collapse = '_'))
 
-test_output_df %>% 
-	select(antibiotic, tax_otu_label, pvalue, time_point) %>% 
-	unique %>% 
-	count(tax_otu_label) %>% 
-	filter(n > 1) %>% 
-	arrange(desc(n))
-install.packages('VennDiagram')
-library(VennDiagram)
+## what is the overlap of significant otus?
+#test_output_df %>% 
+#	select(antibiotic, tax_otu_label, pvalue, time_point) %>% 
+#	unique %>% 
+#	count(tax_otu_label) %>% 
+#	filter(n > 1) %>% 
+#	arrange(desc(n))
+##install.packages('VennDiagram')
+#library(VennDiagram)
 
 
 ```
 
+# Comparing communities that cleared the infection to those that remained colonized
+When looking at all treatments together, there were 4 OTUs that were statistically significant. At the end of the experiment, Lactobacillus (OTU 11) and turicibacter (OTU 15) were in higher abundance in mice that remained colonized. Whereas Porphyromoadaceae (OTU 3) and Bacteroides (OTU 4) were abunant at much greater levels in mice that cleared the colonization.
+
+```{r all plot, eval=F}
+all_diff_abund
+```
+
+Next we looked at the differences within each antibiotic treatment that had mice that cleared and mice that remained colonized. Since each antibiotic resulted specific changes that could be masked by other treatments, we looked at the individual communities to see what changes were unique to each treatment.
+In metronidazole treatment, at the time of C. difficile challenge comunities that cleared the colonization had much higher levels of Lachnospiraceae (OTU 34), turicibacter (OTU 15) and Barnesiella (OTU 7) and lower levels of Lactobacillus. The only end point difference was communities that cleared had higher levels of Bifidobacterium. So the greatest difference appears to be at the day of colonization since the commnities do not appear too different at the end of the experiment.
+In streptomycin treatment, the differences between the communities that cleared and those that remained colonized are largely related to a set of Porphyromonadaceae OTUs. At both the time of challenge and endpoint, Barnesiella was higher in the mice that remained colonized. 
+
+
+```{r cef plot, eval=F}
+cef_diff_abund
+```
+
+```{r metro plot, eval=F}
+metro_diff_abund
+```
+
+```{r strep plot, eval=F}
+strep_diff_abund
+```
 
 
 What changes lead to clearance?
