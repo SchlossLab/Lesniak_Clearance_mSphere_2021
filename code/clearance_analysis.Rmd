@@ -200,12 +200,16 @@ end_test_output_df <- map_dfr(treatment_list, ~ test_otus(.x, 'last_sample'))
 test_output_df <- rbind(d0_test_output_df, end_test_output_df)
 
 differential_abundance_plot <- function(df, treatment_group){
+	# create dataframe for the plot location of limit of detection
 	lod_df <- data.frame(x = 0.75, y = min_rel_abund)
 	temp_df <- df %>% 
-		filter(antibiotic == treatment_group) %>% 
+		filter(antibiotic == treatment_group) %>% # subset by treatment
 		mutate(tax_pval = paste0(tax_otu_label, '\n(p=', 
-				formatC(pvalue, format = "e", digits = 2), ')')) 
-	temp_df %>% 
+				formatC(pvalue, format = "e", digits = 2), ')'),
+			tax_pval = gsub('_unclassified', '', tax_pval), # create label with taxonomy and p value
+			time_point = case_when(time_point == '0' ~ 'Day 0', 
+				time_point == 'last_sample' ~ 'Day 10')) # convert timepoint labels
+	plot_output <- temp_df %>% 
 		right_join(., group_by(., OTU) %>% 
 				summarise(order = mean(abundance)),
 			by = c('OTU')) %>% 
@@ -229,14 +233,15 @@ differential_abundance_plot <- function(df, treatment_group){
 			geom_point(aes(y = cleared), color = 'red3', size = 3) +
 			scale_y_log10() + coord_flip() + 
 			theme_bw() +  
-			labs(x = NULL, y = 'Relative Abundance (%)', title = paste0('Differentially abundant OTUs between cleared and colonized communities for ', 
-				paste(treatment_group, collapse = ' '))) + 
-			theme(legend.position = c(0.9, 0.95), 
+			labs(x = NULL, y = 'Relative Abundance (%)', title = paste0('Differentially abundant OTUs between\ncleared and colonized communities for ', 
+				paste(treatment_group, collapse = ' ')), 
+			subtitle = 'Plotted only statically significant by Wilcoxon after BH correction') + 
+			theme(legend.position = c(0.85, 0.95), 
 				legend.background = element_rect(color = "black"),
 				legend.title = element_blank()) + 
 			geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", 
 				fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE)  + 
-			facet_wrap(.~time_point, scales = 'free_y', ncol = 1)
+			facet_grid(time_point~., scales = 'free_y', space = 'free')
 }
 
 differential_abundance_plot(test_output_df, 'cef')
