@@ -46,20 +46,20 @@ diff_rel_abund <- meta_file %>%
 	mutate_at(vars(contains('Otu')), 
 		function(otu) { otu - lag(otu) } ) %>% 
 	ungroup
-
-diff_rel_abund <- meta_file %>% 
-	select(group, mouse_id, day) %>% 
-	inner_join(rel_abund, by = 'group') %>% 
-	group_by(mouse_id) %>% 
-	arrange(mouse_id, day) %>% 
-	mutate_at(vars(contains('Otu')), 
-		function(otu) { otu - lag(otu) } ) %>% 
-	ungroup
-otu1 <- sample(1:100,10)
-cfu1 <- sample(1:100,10)
-lag(otu1) - lag(otu1, 2)
-otu1 - lag(otu1)
-cfu1 - lag(cfu1)
+## for ML - second differenced
+#diff_rel_abund <- meta_file %>% 
+#	select(group, mouse_id, day) %>% 
+#	inner_join(rel_abund, by = 'group') %>% 
+#	group_by(mouse_id) %>% 
+#	arrange(mouse_id, day) %>% 
+#	mutate_at(vars(contains('Otu')), 
+#		function(otu) { otu - lag(otu) } ) %>% 
+#	ungroup
+#otu1 <- sample(1:100,10)
+#cfu1 <- sample(1:100,10)
+#lag(otu1) - lag(otu1, 2)
+#otu1 - lag(otu1)
+#cfu1 - lag(cfu1)
 
 # categorize mice based on the colonization levels at the end of the experiment
 clearance <- differenced_cfu %>% 
