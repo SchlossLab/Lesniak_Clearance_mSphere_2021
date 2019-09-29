@@ -274,8 +274,8 @@ all_diff_abund
 
 Next we looked at the differences within each antibiotic treatment that had mice that cleared and mice that remained colonized. Since each antibiotic resulted specific changes that could be masked by other treatments, we looked at the individual communities to see what changes were unique to each treatment.
 In metronidazole treatment, at the time of C. difficile challenge comunities that cleared the colonization had much higher levels of Lachnospiraceae (OTU 34), turicibacter (OTU 15) and Barnesiella (OTU 7) and lower levels of Lactobacillus. The only end point difference was communities that cleared had higher levels of Bifidobacterium. So the greatest difference appears to be at the day of colonization since the commnities do not appear too different at the end of the experiment.
-In streptomycin treatment, the differences between the communities that cleared and those that remained colonized are largely related to a set of Porphyromonadaceae OTUs. At both the time of challenge and endpoint, Barnesiella was higher in the mice that remained colonized. 
-
+In streptomycin treatment, the differences between the communities that cleared and those that remained colonized are largely related to a set of Porphyromonadaceae OTUs. At both the time of challenge and endpoint, Barnesiella was higher in the mice that remained colonized. For the mice that cleared C difficile colonization, at the time of challenge Porphyromonadaceae (OTUs 5, 13 and 18) were higher, and at the endpoint Alistipes (OTU 22) and Porphyromonadaceae (OTUs 6 and 19) were higher. 
+In cefaperazone treatment, nearly all significant OTUs (27 of 28 OTUs) were increased in communities that cleared colonization of which many were Porphyromonadaceae (OTUs 1, 2, 3, 5, 6, 9, 13, 16), Barnesiella (OTU 7), Bacteroidales (OTU 24), Alistipes (OTU 22) were shared between Day 0 and Day 10. Unique OTUs were Porphyromonadaceae (OTUs 18 and 19) and Akkermansia on day 0 and Lactobacillus (OTU 11), the one OTU higher in colonized mice, and Bacteroides (OTU 4) were significant on Day 10.  
 
 ```{r cef plot, eval=F}
 cef_diff_abund
@@ -397,6 +397,7 @@ differential_abundance_plot <- function(df, treatment_group){
 differential_abundance_plot(test_change_cleared_df, 'strep')
 differential_abundance_plot(test_change_cleared_df, 'cef')
 differential_abundance_plot(test_change_cleared_df, 'metro')
+differential_abundance_plot(test_change_cleared_df, 'clinda')
 differential_abundance_plot(test_change_cleared_df, treatment_list[[4]])
 differential_abundance_plot(test_change_cleared_df, treatment_list[[5]])
 ```
