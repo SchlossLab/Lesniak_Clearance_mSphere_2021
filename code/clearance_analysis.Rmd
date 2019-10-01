@@ -27,7 +27,8 @@ source(sum_taxa_function) # function to create taxanomic labels for OTUs
 
 # get relative abundances
 n_seqs <- unique(apply(shared_file, 1, sum))
-rel_abund <- data.frame(group = row.names(shared_file), 100*shared_file/n_seqs)
+rel_abund <- data.frame(group = row.names(shared_file), 100*shared_file/n_seqs,
+	stringsAsFactors = F)
 min_rel_abund <- 100 * 1/n_seqs
 
 # create a dataframe with the change in C. difficile CFU by day
@@ -91,12 +92,12 @@ clearance <- differenced_cfu %>%
 What is the difference between the mice that clear the colonization and those that do not within the same treatment? antibiotic? Are those differences shared across antibiotics?
 
 ```{r community difference}
-clearing %>% 
-	left_join(cleared) %>% 	
-	filter(day >= 0, cdiff == T) %>% 
-	ggplot(aes(x = day, y = (delta_trend * log10(abs(delta_cfu) + 70)), color = cleared, group = mouse_id)) + 
-		geom_line(alpha = 0.3) + facet_grid(abx ~.) + 
-		theme(legend.position="none")
+#clearing %>% 
+#	left_join(cleared) %>% 	
+#	filter(day >= 0, cdiff == T) %>% 
+#	ggplot(aes(x = day, y = (delta_trend * log10(abs(delta_cfu) + 70)), color = cleared, group = mouse_id)) + 
+#		geom_line(alpha = 0.3) + facet_grid(abx ~.) + 
+#		theme(legend.position="none")
 # how many mice fall into each category per antibiotic
 #meta_file %>% 
 #	left_join(clearance, by = c('mouse_id')) %>% 
@@ -218,7 +219,8 @@ differential_abundance_plot <- function(df, treatment_group){
 			by = c('OTU', 'clearance', 'time_point')) %>% 
 		select(-group, -abundance) %>% distinct %>% 
 		spread(clearance, median_abundance) %>% 
-		full_join(select(temp_df, abundance, clearance, time_point, tax_otu_label)) %>% 
+		full_join(select(temp_df, abundance, clearance, time_point, tax_otu_label),
+			by = c("time_point", "tax_otu_label")) %>% 
 		filter(!is.na(clearance)) %>% 
 		ggplot(aes(x = reorder(tax_pval, -order), color = clearance)) + 
 			geom_hline(data = lod_df, aes(yintercept = y), size = 0.5, 
@@ -370,7 +372,8 @@ differential_abundance_plot <- function(df, treatment_group){
 			by = c('OTU', 'time_point')) %>% 
 		select(-group, -abundance, -day) %>% distinct %>% 
 		spread(time_point, median_abundance) %>% 
-		full_join(select(temp_df, abundance, time_point, tax_otu_label)) %>% 
+		full_join(select(temp_df, abundance, time_point, tax_otu_label),
+			by = c('tax_otu_label')) %>% 
 		filter(!is.na(time_point)) %>% 
 		ggplot(aes(x = reorder(tax_pval, -order), color = time_point)) + 
 			geom_hline(data = lod_df, aes(yintercept = y), size = 0.5, 
