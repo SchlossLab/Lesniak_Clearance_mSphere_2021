@@ -283,14 +283,28 @@ In cefaperazone treatment, communities that cleared colonization had higher abun
 
 ```{r cef plot, eval=F}
 cef_diff_abund
+# when only looking at communities colonized, results went from:
+#	In cefaperazone treatment, nearly all significant OTUs (27 of 28 OTUs) were increased in communities that cleared colonization of which many were Porphyromonadaceae (OTUs 1, 2, 3, 5, 6, 9, 13, 16), Barnesiella (OTU 7), Bacteroidales (OTU 24), Alistipes (OTU 22) were shared between Day 0 and Day 10. Unique OTUs were Porphyromonadaceae (OTUs 18 and 19) and Akkermansia on day 0 and Lactobacillus (OTU 11), the one OTU higher in colonized mice, and Bacteroides (OTU 4) were significant on Day 10.   
+# to:
+#	In cefaperazone treatment, communities that cleared colonization had higher abundances of Porphyromonadaceae (OTUs 5 and 9) and Barnesiella (OTU 7) at the endpoint. Whereas, Turicibacter (OTU 15) was higher in colonized mice at the end of the experiment.   
+
 ```
 
 ```{r metro plot, eval=F}
 metro_diff_abund
+# when only looking at communities colonized, results went from:
+#	In metronidazole treatment, at the time of C. difficile challenge comunities that cleared the colonization had much higher levels of Lachnospiraceae (OTU 34), turicibacter (OTU 15) and Barnesiella (OTU 7) and lower levels of Lactobacillus. The only end point difference was communities that cleared had higher levels of Bifidobacterium. So the greatest difference appears to be at the day of colonization since the commnities do not appear too different at the end of the experiment. 
+# to:
+#	In metronidazole treatment, at the time of C. difficile challenge comunities that cleared the colonization had much higher levels of Lachnospiraceae (OTU 34), turicibacter (OTU 15) and Barnesiella (OTU 7) and lower levels of Lactobacillus (OTU 11).  
 ```
 
 ```{r strep plot, eval=F}
 strep_diff_abund
+# when only looking at communities colonized, results went from:
+#	In streptomycin treatment, the differences between the communities that cleared and those that remained colonized are largely related to a set of Porphyromonadaceae OTUs. At both the time of challenge and endpoint, Barnesiella was higher in the mice that remained colonized. For the mice that cleared C difficile colonization, at the time of challenge Porphyromonadaceae (OTUs 5, 13 and 18) were higher, and at the endpoint Alistipes (OTU 22) and Porphyromonadaceae (OTUs 6 and 19) were higher.  
+# to:
+#	In streptomycin treatment, the differences between the communities that cleared and those that remained colonized are largely related to a set of Porphyromonadaceae OTUs. At both the time of challenge and endpoint, Barnesiella was higher in the mice that remained colonized. For the mice that cleared C difficile colonization, at the time of challenge Porphyromonadaceae (OTUs 5, 13 and 18) were higher, and at the endpoint Porphyromonadaceae (OTU 19), Alistipes (OTU 22) and Lactobacillus (OTU 17) were higher. Lastly, the endpoint Porphyromonadaceae (OTU 3) was higher at in colonized communities. 
+
 ```
 
 
@@ -361,10 +375,13 @@ test_change_cleared_df <- map_dfr(treatment_list, ~ test_otus(.x))
 differential_abundance_plot <- function(df, treatment_group){
 	lod_df <- data.frame(x = 0.75, y = min_rel_abund)
 	temp_df <- df %>% 
-		filter(antibiotic == treatment_group) %>% 
+		filter(antibiotic == paste(treatment_group, collapse = '_')) %>% 
 		mutate(tax_pval = paste0(tax_otu_label, '\n(p=', 
 				formatC(pvalue, format = "e", digits = 2), ')'),
 			time_point = ifelse(day ==0, 'Initial', 'End')) 
+	if( !length(pull(temp_df, OTU)) > 1 ){
+		stop(paste("No significant OTUs for", paste(treatment_group, collapse = '_')))
+	}
 	temp_df %>% 
 		right_join(., group_by(., OTU) %>% 
 				summarise(order = mean(abundance)),
@@ -390,7 +407,7 @@ differential_abundance_plot <- function(df, treatment_group){
 			geom_point(aes(y = End), color = 'red3', size = 3) +
 			scale_y_log10() + coord_flip() + 
 			theme_bw() +  
-			labs(x = NULL, y = 'Relative Abundance (%)', title = paste0('Differentially abundant OTUs over time of clearing C. difficile for ', 
+			labs(x = NULL, y = 'Relative Abundance (%)', title = paste0('Differentially abundant OTUs\nover time of clearing C. difficile\nfor ', 
 				paste(treatment_group, collapse = ' '))) + 
 			theme(legend.position = c(0.9, 0.95), 
 				legend.background = element_rect(color = "black"),
@@ -400,12 +417,27 @@ differential_abundance_plot <- function(df, treatment_group){
 }
 
 differential_abundance_plot(test_change_cleared_df, 'strep')
-differential_abundance_plot(test_change_cleared_df, 'cef')
-differential_abundance_plot(test_change_cleared_df, 'metro')
-differential_abundance_plot(test_change_cleared_df, 'clinda')
-differential_abundance_plot(test_change_cleared_df, treatment_list[[4]])
+#differential_abundance_plot(test_change_cleared_df, 'cef')
+#differential_abundance_plot(test_change_cleared_df, 'metro')
+#differential_abundance_plot(test_change_cleared_df, 'clinda')
+#differential_abundance_plot(test_change_cleared_df, treatment_list[[4]])
 differential_abundance_plot(test_change_cleared_df, treatment_list[[5]])
+
+# when only looking at communities colonized, results went from:
+#	strep - Decrease in Porphyromonadaceae (OTU 18), Akkermansia (OTU 8), Bacteroides (OTU 4)
+#	cef - Increase in Porphyromonadaceae (OTU 12 and 3), Decrease in Porphyromonadaceae (OTU 18 and 19) and Akkermansia (OTU 8)
+#	metro - NA
+#	clinda - NA
+#	all - Increase in Porphyromonadaceae (OTU 3)
+# to:
+#	strep - Increase in Lactobacillus (OTU 17), Decrease in Porphyromonadaceae (OTU 18), Akkermansia (OTU 8), Bacteroides (OTU 4)
+#	all - Increase in Lactobacillus (OTU 20) and Porphyromonadaceae (OTU 3), Decrease in Lactobacillus (OTU 11)
+
+
 ```
+
+# Comparing within the communities that clear colonization
+
 
 
 ```{r test for association of changes in otu/cfu, eval = F}
