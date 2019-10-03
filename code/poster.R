@@ -17,7 +17,8 @@ source(sum_taxa_function) # function to create taxanomic labels for OTUs
 
 # get relative abundances
 n_seqs <- unique(apply(shared_file, 1, sum))
-rel_abund <- data.frame(group = row.names(shared_file), 100*shared_file/n_seqs)
+rel_abund <- data.frame(group = row.names(shared_file), 100*shared_file/n_seqs, 
+	stringsAsFactors = F)
 min_rel_abund <- 100 * 1/n_seqs
 
 # create a dataframe with the change in C. difficile CFU by day
@@ -50,14 +51,14 @@ diff_rel_abund <- meta_file %>%
 clearance <- differenced_cfu %>% 
 	group_by(mouse_id) %>% 
 	summarise(last_sample = max(day),
-		inital_sample = min(day)) %>% 
+		inital_sample = min(day),
+		max_cfu = max(CFU)) %>% 
 	left_join(differenced_cfu) %>% 
-	filter(day == last_sample) %>% 
+	filter(day == last_sample, max_cfu > 0) %>% # remove mice that don't become colonized at all
 	select(mouse_id, end_point_cfu = CFU, delta_trend, delta_cfu, last_sample, inital_sample) %>% 
 	mutate(clearance = case_when(end_point_cfu == 0 ~ 'Cleared', 
 		delta_trend < 0 & end_point_cfu < 100000 ~ 'Clearing', # 10^5 separates the mice 
 		T ~ 'Colonized'))
-
 
 ####### Colonization dynamic
 cfu_lod_df <- data.frame(x = -0.5, y = 2) 
@@ -118,29 +119,30 @@ nmds_plot <- meta_file %>%
 # whats the difference between the communities within antibiotic between day 0 and end point
 ####
 
-delta_abund_df <- meta_file %>% 
+delta_abund_df <- meta_file %>%
 	inner_join(clearance, by = 'mouse_id') %>% 
 	filter(abx %in% c('clinda', 'strep', 'cef'), cdiff == T, 
-		clearance != 'Colonized', !mouse_id %in% c('42_1', '600_2', '88_1') ) %>% 
-	filter(day == 0 | day == last_sample) %>% 
-	inner_join(rel_abund, by = 'group') %>% 
+		clearance != 'Colonized'#, 
+		#mouse_id %in% c('42_1', '600_2', '88_1') #mice were being excluded since they were missing either day 0 or day 10
+		# but removing and adding a filtering step at the beginning of the script to only include samples in both shared/meta
+		) %>% 
+	filter(day == 0 | day == last_sample) %>%  
+	inner_join(rel_abund, by = 'group') %>% )
 	gather(OTU, abundance, contains('Otu00')) %>% 
 	mutate(day = ifelse(day == 0, 'start', 'end')) %>% 
 	select(abx, mouse_id, OTU, day, abundance) %>% 
-	spread(day, abundance) %>% 
-	group_by(mouse_id, OTU) %>% 
-	mutate(delta_abund = end - start) %>% 
-	filter(delta_abund != 0)
+	spread(day, abundance) #%>% 
+# dont need to remove since not comparing individuals #filter( !( is.na(start) | is.na(end) ) ) %>% # remove any mice missing either sample 
+# dont need to remove since not comparing individuals #filter(end == 0 & start == 0) 
 
-test_otus <- function(antibiotic, time_point){
+test_otus <- function(antibiotic){
 	tmp_shared_clearance <- delta_abund_df %>% 
 		filter(abx %in% antibiotic)
-
 	# select otus with median relative abundance > 1%
 	tmp_otus <- tmp_shared_clearance %>% 
 		group_by(OTU) %>% 
 		gather(timepoint, abundance, end, start) %>% 
-		summarise(median_abundance = median(abundance)) %>% 
+		summarise(median_abundance = median(abundance, na.rm = T)) %>% 
 		filter(median_abundance > 0.5) %>% 
 		pull(OTU)
 
@@ -159,9 +161,14 @@ test_otus <- function(antibiotic, time_point){
 	tmp_shared_clearance <- tmp_shared_clearance %>%  
 		inner_join(sig_otus, by = c('OTU'))  %>% 
 		inner_join(tax_df, by = c('OTU')) 
-
+	if(nrow(tmp_shared_clearance) < 1) { 
+		print(paste('No significant OTUs for', paste(antibiotic, collapse = '_')))
+		return(data.frame(antibiotic = paste(antibiotic, collapse = '_'), 
+		stringsAsFactors = F)) 	
+	} else {
 	return(data.frame(tmp_shared_clearance, antibiotic = paste(antibiotic, collapse = '_'), 
 		stringsAsFactors = F)) 
+	}
 }
 
 treatment_list <- list('cef', 'clinda', 'strep', c('cef', 'clinda', 'strep'))
@@ -169,7 +176,6 @@ treatment_list <- list('cef', 'clinda', 'strep', c('cef', 'clinda', 'strep'))
 test_output_df <- map_dfr(treatment_list, ~ test_otus(.x))
 
 differential_abundance_df <- function(df, treatment_group){
-	lod_df <- data.frame(x = 0.75, y = min_rel_abund)
 	temp_df <- df %>% 
 		filter(antibiotic == paste(treatment_group, collapse = '_')) %>% 
 		mutate(tax_pval = paste0(tax_otu_label, '\n(p=', 
@@ -177,12 +183,12 @@ differential_abundance_df <- function(df, treatment_group){
 	output_df <- temp_df %>% 
 		gather(time_point, abundance, start, end) %>% 
 		right_join(., group_by(., OTU) %>% 
-				summarise(order = mean(abundance)),
+				summarise(order = mean(abundance, na.rm = T)),
 			by = c('OTU')) %>% 
 		right_join(., group_by(., OTU, time_point) %>% 
-				summarise(median_abundance = (median(abundance)) + 0.04),
+				summarise(median_abundance = (median(abundance, na.rm = T)) + 0.04),
 			by = c('OTU', 'time_point')) %>% 
-		select(-abx, -mouse_id, -delta_abund, -abundance) %>% distinct %>% 
+		select(-abx, -mouse_id, -abundance) %>% distinct %>% 
 		spread(time_point, median_abundance) %>% 
 		inner_join(
 			select(gather(temp_df, time_point, abundance, start, end), 
@@ -193,8 +199,10 @@ differential_abundance_df <- function(df, treatment_group){
 
 plot_df <- map_dfr(treatment_list, ~ differential_abundance_df(test_output_df, .x))
 
+lod_df <- data.frame(x = 0.75, y = min_rel_abund)
 diff_abund_plot <- plot_df %>% 
-	filter(treatment != 'cef_clinda_strep') %>% 
+	filter(treatment != 'cef_clinda_strep',
+		!is.na(OTU)) %>% 
 	mutate(treatment = case_when(treatment == 'clinda' ~ 'Clindamycin',
 		treatment == 'strep' ~ 'Streptomycin',
 		treatment == 'cef' ~ 'Cefoperazone'),
