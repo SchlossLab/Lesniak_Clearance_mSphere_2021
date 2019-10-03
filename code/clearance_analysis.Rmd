@@ -497,30 +497,43 @@ corr_otu <- function(antibiotic){
 		select(-group, -day) %>% 
 		gather(OTU, abundance) %>% 
 		group_by(OTU) %>% 
-		summarise(median_abundance = median(abundance)) %>% 
-		filter(median_abundance > 0) %>% 
+		#summarise(median_abundance = median(abundance)) %>% 
+		#filter(median_abundance > 0) %>% 
 		pull(OTU)	
 
-	tmp_df <- diff_rel_abund %>% 
-		select(group, mouse_id, day, one_of(tmp_otus)) %>% 
-		inner_join(differenced_cfu, by = 'group') %>% 
-		mutate(diff_cfu = case_when(delta_cfu > 0 ~ log10(delta_cfu),
-			delta_cfu < 0 ~ -log10(-delta_cfu),
-			delta_cfu == 0 ~ 0)) %>% 
-		filter(diff_cfu != 0, abx %in% antibiotic) %>% 
-		select(diff_cfu, contains('Otu')) %>% 
-		gather(otu, delta_abund, contains('Otu')) %>% 
-		filter(!is.na(delta_abund)) %>% 
-		group_by(otu) %>% 
-		summarise(median_delta_abund = median(delta_abund),
-			rho = cor.test(diff_cfu, delta_abund, method = 'spearman')$estimate,
-			pvalue = cor.test(diff_cfu, delta_abund, method = 'spearman')$p.value) %>% 
-		mutate(pvalue_BH = p.adjust(as.numeric(pvalue), method = 'BH'),
-			pvalue_bon = p.adjust(as.numeric(pvalue), method = 'bonferroni')) %>% 
-		filter(pvalue_BH <= 0.05) %>% 
-		arrange(rho)
-	return(tmp_df  %>% 
-			mutate(treatment = paste(antibiotic, collapse = '_')))
+	if(length(tmp_otus) < 1){
+		print(paste('No OTUs with median abundance for',
+			paste(antibiotic, collapse = '_')))
+		return(data.frame(treatment = paste(antibiotic, collapse = '_'), 
+				stringsAsFactors = F))
+	} else{
+		tmp_df <- diff_rel_abund %>% 
+			select(group, mouse_id, day, one_of(tmp_otus)) %>% 
+			inner_join(differenced_cfu, by = 'group') %>% 
+			mutate(diff_cfu = delta_trend * log10(abs(delta_cfu)),
+				diff_cfu = ifelse(diff_cfu == -Inf, 0, diff_cfu)) %>% 
+			filter(diff_cfu != 0, abx %in% antibiotic) %>% 
+			select(diff_cfu, contains('Otu')) %>% 
+			gather(otu, delta_abund, contains('Otu')) %>% 
+			filter(!is.na(delta_abund)) %>% 
+			group_by(otu) %>% 
+			summarise(median_delta_abund = median(delta_abund),
+				rho = cor.test(diff_cfu, delta_abund, method = 'spearman')$estimate,
+				pvalue = cor.test(diff_cfu, delta_abund, method = 'spearman')$p.value) %>% 
+			mutate(pvalue_BH = p.adjust(as.numeric(pvalue), method = 'BH'),
+				pvalue_bon = p.adjust(as.numeric(pvalue), method = 'bonferroni')) %>% 
+			filter(pvalue_BH <= 0.05) %>% 
+			arrange(rho)
+		if(nrow(tmp_df) < 1){
+			print(paste('No OTUs correlated for',
+				paste(antibiotic, collapse = '_')))
+			return(data.frame(treatment = paste(antibiotic, collapse = '_'), 
+				stringsAsFactors = F))
+		} else {
+			return(tmp_df  %>% 
+				mutate(treatment = paste(antibiotic, collapse = '_')))
+		}
+	}
 }
 
 diff_corr_otus <- map_dfr(diff_trt_list, ~ corr_otu(.x))
