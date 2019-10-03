@@ -17,7 +17,8 @@ source(sum_taxa_function) # function to create taxanomic labels for OTUs
 
 # get relative abundances
 n_seqs <- unique(apply(shared_file, 1, sum))
-rel_abund <- data.frame(group = row.names(shared_file), 100*shared_file/n_seqs)
+rel_abund <- data.frame(group = row.names(shared_file), 100*shared_file/n_seqs, 
+	stringsAsFactors = F)
 min_rel_abund <- 100 * 1/n_seqs
 
 # create a dataframe with the change in C. difficile CFU by day
@@ -50,14 +51,14 @@ diff_rel_abund <- meta_file %>%
 clearance <- differenced_cfu %>% 
 	group_by(mouse_id) %>% 
 	summarise(last_sample = max(day),
-		inital_sample = min(day)) %>% 
+		inital_sample = min(day),
+		max_cfu = max(CFU)) %>% 
 	left_join(differenced_cfu) %>% 
-	filter(day == last_sample) %>% 
+	filter(day == last_sample, max_cfu > 0) %>% # remove mice that don't become colonized at all
 	select(mouse_id, end_point_cfu = CFU, delta_trend, delta_cfu, last_sample, inital_sample) %>% 
 	mutate(clearance = case_when(end_point_cfu == 0 ~ 'Cleared', 
 		delta_trend < 0 & end_point_cfu < 100000 ~ 'Clearing', # 10^5 separates the mice 
 		T ~ 'Colonized'))
-
 
 ####### Colonization dynamic
 cfu_lod_df <- data.frame(x = -0.5, y = 2) 
