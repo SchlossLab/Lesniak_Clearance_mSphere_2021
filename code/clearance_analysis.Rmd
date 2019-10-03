@@ -68,10 +68,10 @@ clearance <- differenced_cfu %>%
 	summarise(last_sample = max(day),
 		max_cfu = max(CFU)) %>% 
 	left_join(differenced_cfu, by = c('mouse_id')) %>% 
-	filter(day == last_sample,
-		max_cfu > 0) %>% 
+	filter(day == last_sample) %>% 
 	select(mouse_id, end_point_cfu = CFU, delta_trend, delta_cfu, last_sample, max_cfu) %>% 
-	mutate(clearance = case_when(end_point_cfu == 0 ~ 'cleared', 
+	mutate(clearance = case_when(max_cfu < 1 ~ 'uncolonized',
+		end_point_cfu == 0 ~ 'cleared', 
 		delta_trend < 0 & end_point_cfu < 100000 ~ 'clearing', # 10^5 separates the mice 
 		T ~ 'colonized'))
 ## plot the colonization of the different colonization categories
@@ -148,7 +148,8 @@ test_otus <- function(antibiotic, time_point){
 				filter(day == !!(sym(time_point)))
 		}
 	tmp_shared_clearance <- subset_df %>% 
-		filter(cdiff == T, abx %in% antibiotic, clearance != 'clearing') %>% 
+		filter(cdiff == T, abx %in% antibiotic, 
+			!clearance %in% c('uncolonized', 'clearing') ) %>% 
 		select(group, clearance) %>% 
 		inner_join(rel_abund, by = c('group'))
 
@@ -317,14 +318,13 @@ What changes associate with decreases in CFU?
 #  test difference between day 0 and last day for mice that clear
 ####
 
-
 test_otus <- function(antibiotic){
 	tmp_shared_cleared <- meta_file %>% 
 		left_join(clearance, by = c('mouse_id')) %>% 
 			filter(day == 0 | day == last_sample, 
 				abx != 'none',
 				cdiff == T,
-				clearance == 'cleared', 
+				clearance %in% c('cleared', 'clearing'), 
 				abx %in% antibiotic) %>% 
 		select(group, day) %>% 
 		inner_join(rel_abund, by = c('group'))
@@ -401,10 +401,11 @@ differential_abundance_plot <- function(df, treatment_group){
 				linetype = 'dashed', color = 'white') + 
 			geom_point(aes(y = (abundance) + 0.04), 
 				position = position_dodge(width = 0.5), alpha = 0.2) + 
-			geom_segment(aes(y = Initial, yend = End, 
-				xend = reorder(tax_pval, -order)), color = 'black') + 
 			geom_point(aes(y = Initial), color = 'cyan4', size = 3) + 
 			geom_point(aes(y = End), color = 'red3', size = 3) +
+			geom_segment(aes(y = Initial, yend = End, 
+					xend = reorder(tax_pval, -order)), 
+				arrow = arrow(type = 'closed', angle = 15), color = 'black') + 
 			scale_y_log10() + coord_flip() + 
 			theme_bw() +  
 			labs(x = NULL, y = 'Relative Abundance (%)', title = paste0('Differentially abundant OTUs\nover time of clearing C. difficile\nfor ', 
@@ -424,14 +425,16 @@ differential_abundance_plot(test_change_cleared_df, 'strep')
 differential_abundance_plot(test_change_cleared_df, treatment_list[[5]])
 
 # when only looking at communities colonized, results went from:
-#	strep - Decrease in Porphyromonadaceae (OTU 18), Akkermansia (OTU 8), Bacteroides (OTU 4)
-#	cef - Increase in Porphyromonadaceae (OTU 12 and 3), Decrease in Porphyromonadaceae (OTU 18 and 19) and Akkermansia (OTU 8)
-#	metro - NA
-#	clinda - NA
-#	all - Increase in Porphyromonadaceae (OTU 3)
-# to:
-#	strep - Increase in Lactobacillus (OTU 17), Decrease in Porphyromonadaceae (OTU 18), Akkermansia (OTU 8), Bacteroides (OTU 4)
-#	all - Increase in Lactobacillus (OTU 20) and Porphyromonadaceae (OTU 3), Decrease in Lactobacillus (OTU 11)
+#	With uncolonized, colonized, and clearing
+#		strep - Increase Porphyromonadaceae (12, 1, 5), Decrease in Porphyromonadaceae (OTU 18), Akkermansia (OTU 8), Bacteroides (OTU 4)
+#		cef - Increase in Porphyromonadaceae (OTU 12), Decrease in Porphyromonadaceae (OTU 18 and 19) and Akkermansia (OTU 8)
+#		metro - NA
+#		clinda - NA
+#		all - Decrease in Lactobacillus, Increase in Porphyromonadaceae (OTU 3)
+#	
+# 	to (with just clearing and cleared):
+#		strep - Increase in Porphyromonadaceae (OTU 12 and 1), Decrease in Porphyromonadaceae (OTU 18), Akkermansia (OTU 8), Bacteroides (OTU 4)
+#		all - Increase in Porphyromonadaceae (OTU 3), Decrease in Lactobacillus (OTU 11)
 
 
 ```
