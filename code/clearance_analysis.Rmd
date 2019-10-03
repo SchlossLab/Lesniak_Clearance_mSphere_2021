@@ -489,7 +489,7 @@ corr_otu <- function(antibiotic){
 	tmp_otus <- meta_file %>% 
 		left_join(clearance, by = c('mouse_id')) %>% 
 		filter(day > 0, 
-			clearance == 'cleared'
+			clearance == 'cleared',
 			cdiff == T,
 			abx %in% antibiotic) %>% 
 		select(group, day) %>% 
@@ -665,10 +665,19 @@ cef_se <- get_se_network('cef')
 clinda_se <- get_se_network('clinda')
 strep_se <- get_se_network('strep')
 
+network_labels <- tax_df %>% 
+	mutate(otu_number = gsub('OTU ', '', otu_label),
+		tax_otu_label = gsub('_unclassified', '', tax_otu_label),
+		tax_otu_label = gsub(' \\(', '\\\n\\(', tax_otu_label)) %>% 
+	pull(tax_otu_label)
+
 get_first_order <- function(data_input){
 	first_order_otus <- c(names(which(data_input[,'Cdiff'] > 0)), 'Cdiff')
 	#second_order_otus <- names(apply(data_input[,otus], 1 , sum) > 0)
 	data_input <- data_input[first_order_otus, first_order_otus]
+	labels <- network_labels[as.numeric(colnames(data_input))]
+	labels[length(labels)] <- 'C. difficile'
+	colnames(data_input) <- rownames(data_input) <- labels
 	#ig.mb <- ig.mb[second_order_otus, second_order_otus]
 	first_order_network <- adj2igraph(data_input, 
 		vertex.attr = list(name = colnames(data_input)))
@@ -678,6 +687,9 @@ get_first_order <- function(data_input){
 get_first_order(cef_se)
 get_first_order(clinda_se)
 get_first_order(strep_se)
+
+
+
 plot(cef_se, layout = layout_as_star(cef_se, center = 'Cdiff'))
 plot(cef_se, layout= layout_as_tree)
 
