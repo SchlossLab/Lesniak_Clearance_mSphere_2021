@@ -698,6 +698,71 @@ plot(ig.mb, layout= layout_as_tree)
 
 ```
 
+```{r bayesian network}
+# using http://www.bnlearn.com/examples/useR19-tutorial/
+library(bnlearn)
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+#BiocManager::install("Rgraphviz")
+library(Rgraphviz)
+
+network_labels <- tax_df %>% 
+	mutate(otu_number = gsub('OTU ', '', otu_label),
+		tax_otu_label = gsub('_unclassified', '', tax_otu_label),
+		tax_otu_label = gsub(' \\(', '\\\n\\(', tax_otu_label)) %>% 
+	select(OTU, tax_otu_label) %>% 
+	rbind(data.frame(OTU = 'C_difficile', tax_otu_label = 'C. difficile',
+		stringsAsFactors = F))
+
+
+bn_df <- diff_rel_abund %>% 
+	filter(!is.na(Otu000001)) %>% 
+	inner_join(
+		select(filter(differenced_cfu, abx == 'strep'), 
+			group, C_difficile = delta_cfu) %>% 
+			filter(),
+		by = c('group')) %>% 
+	select(-group, -mouse_id, -day)
+bn_features <- bn_df %>% 
+	gather(otu, diff_abundance) %>% 
+	group_by(otu) %>% 
+	summarise(sd = sd(diff_abundance)) %>% 
+	filter(sd > min_rel_abund)  %>% 
+	pull(otu)
+bn_df <- bn_df %>% 
+	select(one_of(bn_features))
+
+# learn bayesian network structure of directed acyclic graph
+##bn_dag <- hc(bn_df)
+## visualize dag
+##graphviz.plot(bn_dag, shape = "ellipse")
+# since data not likely all normal or linear, bootstrap to find 
+str_bn <- boot.strength(bn_df, R = 200, algorithm = "hc"#,
+	#algorithm.args = list(whitelist = wl, blacklist = bl)
+	)
+#plot(str_bn)
+#head(str_bn) # strength and direction of each interaction
+#attr(str_bn, "threshold") # threshold used to determine included vertices
+#avg_bn <- averaged.network(str_bn)
+#graphviz.plot(avg_bn)
+cdiff_bn <- str_bn[(str_bn$from == 'C_difficile' | str_bn$to == 'C_difficile') & 
+str_bn$strength > 0.5, ]
+tax_labels <- cdiff_bn %>% 
+	left_join(network_labels, by = c('from' = 'OTU')) %>% 
+	left_join(network_labels, by = c('to' = 'OTU')) %>% 
+	mutate(from = tax_otu_label.x,
+		to = tax_otu_label.y)
+cdiff_bn$from <- tax_labels$from
+cdiff_bn$to <- tax_labels$to
+avg_bn <- averaged.network(cdiff_bn)
+
+strength.plot(avg_bn, cdiff_bn, shape = "ellipse")
+
+
+
+
+```
+
 
 Generally in these experiements, Akkermansia seems to bloom in response to C. difficile colonization
 -  Compare level of Akkermansia in samples with C. difficile and those without
