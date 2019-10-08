@@ -8,6 +8,8 @@ library(Rgraphviz)
 library(tidyverse)
 library(cowplot)
 
+run_number <- commandArgs(TRUE)
+
 # file names relative to code directory for Rmd
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
@@ -21,6 +23,9 @@ shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors 
 	select(-label, -numOtus)
 tax_df <- read.table(tax_file, sep = '\t', header = T, stringsAsFactors = F)
 source(sum_taxa_function) # function to create taxanomic labels for OTUs
+
+antibiotic_run <- list('amp', 'clinda', 'cef', 'metro', 'strep', 'vanc',
+		c("clinda", "vanc", "amp", "cef", "metro", "strep"))[[run_number]]
 
 # get relative abundances
 n_seqs <- unique(apply(shared_file, 1, sum))
@@ -114,7 +119,7 @@ get_bayesian_network <- function(antibiotic){
 	strength.plot(avg_bn, cdiff_bn, shape = "ellipse")
 	dev.off()
 
-	return(data.frame(str_bn, antibiotic = antibiotic, stringsAsFactors = F))
+	return(data.frame(str_bn, antibiotic = paste(antibiotic, collapse = '_'), stringsAsFactors = F))
 }
 
-bn_df <- map_dfr(diff_trt_list, ~ get_bayesian_network(.x))
+bn_df <- get_bayesian_network(antibiotic_run)
