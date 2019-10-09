@@ -6,7 +6,7 @@ library(bnlearn)
 #BiocManager::install("Rgraphviz")
 library(Rgraphviz)
 library(tidyverse)
-library(cowplot)
+
 
 run_number <- commandArgs(TRUE)
 
@@ -123,3 +123,9 @@ get_bayesian_network <- function(antibiotic){
 }
 
 bn_df <- get_bayesian_network(antibiotic_run)
+
+write.table(bn_df, paste0('data/process/bn_df_', 
+		paste(antibiotic, collapse = '_'), '.txt'), 
+	sep = '\t', quote = F, row.names = F)
+
+
