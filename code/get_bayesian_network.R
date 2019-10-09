@@ -8,7 +8,7 @@ library(Rgraphviz)
 library(tidyverse)
 
 
-run_number <- commandArgs(TRUE)
+run_number <- as.numeric(commandArgs(TRUE))
 
 # file names relative to code directory for Rmd
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
@@ -26,7 +26,8 @@ source(sum_taxa_function) # function to create taxanomic labels for OTUs
 
 antibiotic_run <- list('amp', 'clinda', 'cef', 'metro', 'strep', 'vanc',
 		c("clinda", "vanc", "amp", "cef", "metro", "strep"))[[run_number]]
-
+print(paste('Running bayesian network analysis on', 
+	paste(antibiotic_run, collapse = ' ')))
 # get relative abundances
 n_seqs <- unique(apply(shared_file, 1, sum))
 rel_abund <- data.frame(group = row.names(shared_file), 100*shared_file/n_seqs,
@@ -77,7 +78,7 @@ get_bayesian_network <- function(antibiotic){
 	bn_df <- diff_rel_abund %>% 
 		filter(!is.na(Otu000001)) %>% 
 		inner_join(
-			select(filter(differenced_cfu, abx == antibiotic), 
+			select(filter(differenced_cfu, abx %in% antibiotic), 
 				group, C_difficile = delta_cfu) %>% 
 				filter(),
 			by = c('group')) %>% 
@@ -121,7 +122,7 @@ get_bayesian_network <- function(antibiotic){
 
 	return(data.frame(str_bn, antibiotic = paste(antibiotic, collapse = '_'), stringsAsFactors = F))
 }
-
+print('Beginning bayesian network analysis')
 bn_df <- get_bayesian_network(antibiotic_run)
 
 write.table(bn_df, paste0('data/process/bn_df_', 
