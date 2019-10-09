@@ -106,7 +106,7 @@ get_bayesian_network <- function(antibiotic){
 	#avg_bn <- averaged.network(str_bn)
 	#graphviz.plot(avg_bn)
 	cdiff_bn <- str_bn[(str_bn$from == 'C_difficile' | str_bn$to == 'C_difficile') & 
-	str_bn$strength > 0.5, ]
+		str_bn$strength > 0.5, ]
 	tax_labels <- cdiff_bn %>% 
 		left_join(network_labels, by = c('from' = 'OTU')) %>% 
 		left_join(network_labels, by = c('to' = 'OTU')) %>% 
@@ -126,7 +126,7 @@ print('Beginning bayesian network analysis')
 bn_df <- get_bayesian_network(antibiotic_run)
 
 write.table(bn_df, paste0('data/process/bn_df_', 
-		paste(antibiotic, collapse = '_'), '.txt'), 
+		paste(antibiotic_run, collapse = '_'), '.txt'), 
 	sep = '\t', quote = F, row.names = F)
 
 
