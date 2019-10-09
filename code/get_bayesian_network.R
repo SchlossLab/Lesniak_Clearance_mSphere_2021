@@ -40,7 +40,10 @@ differenced_cfu <- meta_file %>%
 	arrange(mouse_id, day) %>% 
 	mutate(delta_cfu = CFU - lag(CFU)) %>% 
 	ungroup %>% 
-	mutate(delta_trend = ifelse(sign(delta_cfu) == -1, -1, 1))
+	mutate(delta_trend = ifelse(sign(delta_cfu) == -1, -1, 1),
+		diff_cfu = delta_trend * log10(abs(delta_cfu)),
+		diff_cfu = ifelse(diff_cfu == -Inf, 0, diff_cfu))
+
 
 # create a dataframe with the change in relative abundance by day
 diff_rel_abund <- meta_file %>% 
@@ -59,7 +62,7 @@ clearance <- differenced_cfu %>%
 		max_cfu = max(CFU)) %>% 
 	left_join(differenced_cfu, by = c('mouse_id')) %>% 
 	filter(day == last_sample) %>% 
-	select(mouse_id, end_point_cfu = CFU, delta_trend, delta_cfu, last_sample, max_cfu) %>% 
+	select(mouse_id, end_point_cfu = CFU, delta_trend, diff_cfu, last_sample, max_cfu) %>% 
 	mutate(clearance = case_when(max_cfu < 1 ~ 'uncolonized',
 		end_point_cfu == 0 ~ 'cleared', 
 		delta_trend < 0 & end_point_cfu < 100000 ~ 'clearing', # 10^5 separates the mice 
@@ -79,7 +82,7 @@ get_bayesian_network <- function(antibiotic){
 		filter(!is.na(Otu000001)) %>% 
 		inner_join(
 			select(filter(differenced_cfu, abx %in% antibiotic), 
-				group, C_difficile = delta_cfu) %>% 
+				group, C_difficile = diff_cfu) %>% 
 				filter(),
 			by = c('group')) %>% 
 		select(-group, -mouse_id, -day)
@@ -105,8 +108,8 @@ get_bayesian_network <- function(antibiotic){
 	#attr(str_bn, "threshold") # threshold used to determine included vertices
 	#avg_bn <- averaged.network(str_bn)
 	#graphviz.plot(avg_bn)
-	cdiff_bn <- str_bn[(str_bn$from == 'C_difficile' | str_bn$to == 'C_difficile') & 
-		str_bn$strength > 0.5, ]
+	cdiff_bn <- str_bn %>% 
+		.[(.$from == 'C_difficile' | .$to == 'C_difficile') & .$strength > 0.5, ]
 	tax_labels <- cdiff_bn %>% 
 		left_join(network_labels, by = c('from' = 'OTU')) %>% 
 		left_join(network_labels, by = c('to' = 'OTU')) %>% 
