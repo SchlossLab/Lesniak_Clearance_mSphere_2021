@@ -3,6 +3,7 @@
 #install_github("zdk123/SpiecEasi")
 library(SpiecEasi)
 library(igraph)
+library(tidyverse)
 run_number <- as.numeric(commandArgs(TRUE))
 
 # file names relative to code directory for Rmd
