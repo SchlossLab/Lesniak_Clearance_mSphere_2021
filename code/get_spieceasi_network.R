@@ -92,7 +92,7 @@ get_se_network <- function(antibiotic){
 	ig.mb <- getRefit(se.mb.cdiff)
 	colnames(ig.mb) <- rownames(ig.mb) <- gsub('Otu0*', '', colnames(se_cdiff_df))
 	# save output from spiec-easi, but a sparse matrix so need to convert to dataframe before writing
-	write.table(Matrix::summary(cef_se), paste0('data/process/se_df_', 
+	write.table(Matrix::summary(ig.mb), paste0('data/process/se_df_', 
 			paste(antibiotic, collapse = '_'), '.txt'), 
 		sep = '\t', quote = F, row.names = F)
 		## to read in sparse matrix
