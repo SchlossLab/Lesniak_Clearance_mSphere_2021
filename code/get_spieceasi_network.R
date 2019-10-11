@@ -84,7 +84,7 @@ get_se_network <- function(antibiotic){
 	se_cdiff_df <- se_cdiff_df[ ,apply(se_cdiff_df, 2, function(x) sum(x > 0)) > 0.1*nrow(se_cdiff_df)]
 	# the main SPIEC-EASI pipeline: Data transformation, sparse inverse covariance estimation and model selection
 	se.mb.cdiff <- spiec.easi(se_cdiff_df, method='mb', lambda.min.ratio=1e-2,
-		nlambda=20, pulsar.params=list(rep.num=200))
+		nlambda=20, pulsar.params=list(rep.num=999))
 	#for actual run, use rep.num (99 or 999) 
 	## set size of vertex proportional to clr-mean
 	vsize    <- rowMeans(clr(se_cdiff_df, 1))+6
@@ -117,19 +117,24 @@ get_first_order <- function(data_input){
 	variable_name <- antibiotic_run
 	#variable_name <- gsub('_se', '', deparse(substitute(data_input)))
 	print(variable_name)
-	first_order_otus <- c(names(which(data_input[,'Cdiff'] > 0)), 'Cdiff')
-	#second_order_otus <- names(apply(data_input[,otus], 1 , sum) > 0)
-	data_input <- data_input[first_order_otus, first_order_otus]
-	labels <- network_labels[as.numeric(colnames(data_input))]
-	labels[length(labels)] <- 'C. difficile'
-	colnames(data_input) <- rownames(data_input) <- labels
-	#ig.mb <- ig.mb[second_order_otus, second_order_otus]
-	first_order_network <- adj2igraph(data_input, 
-		vertex.attr = list(name = colnames(data_input)))
-	pdf(paste0('results/figures/se_network_', variable_name, '.pdf'))
-		plot(first_order_network, main = paste('Spiec-easi Network for C. difficile in',
-			variable_name) )
-	dev.off()
+	if(sum(data_input[,'Cdiff']) > 0){
+		first_order_otus <- c(names(which(data_input[,'Cdiff'] > 0)), 'Cdiff')
+		#second_order_otus <- names(apply(data_input[,otus], 1 , sum) > 0)
+		data_input <- data_input[first_order_otus, first_order_otus]
+		labels <- network_labels[as.numeric(colnames(data_input))]
+		labels[length(labels)] <- 'C. difficile'
+		colnames(data_input) <- rownames(data_input) <- labels
+		#ig.mb <- ig.mb[second_order_otus, second_order_otus]
+		first_order_network <- adj2igraph(data_input, 
+			vertex.attr = list(name = colnames(data_input)))
+		pdf(paste0('results/figures/se_network_', variable_name, '.pdf'))
+			plot(first_order_network, main = paste('Spiec-easi Network for C. difficile in',
+				variable_name) )
+		dev.off()
+		} else {
+			print(paste0('No C_difficile interactions for ', paste(antibiotic_run, collapse = ' ')))
+	}
+
 }
 
 get_first_order(se_network_matrix)
