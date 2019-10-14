@@ -100,7 +100,9 @@ get_se_network <- function(antibiotic){
 	ig.mb <- getRefit(se.mb.cdiff)
 	colnames(ig.mb) <- rownames(ig.mb) <- gsub('Otu0*', '', colnames(se_cdiff_df))
 	# save output from spiec-easi, but a sparse matrix so need to convert to dataframe before writing
-	write.table(Matrix::summary(ig.mb), paste0('data/process/se_df_', 
+	write.table(data.frame(otu = colnames(ig.mb)), paste0('data/process/spieceasi/se_df_', 
+			paste(antibiotic, collapse = '_'), '_features.txt'), 
+		sep = '\t', quote = F, row.names = T)
 	write.table(ig.mb, paste0('data/process/spieceasi/se_df_', 
 			paste(antibiotic, collapse = '_'), '.txt'), 
 		sep = '\t', quote = F, row.names = F)
@@ -138,7 +140,7 @@ get_first_order <- function(data_input){
 			vertex.attr = list(name = colnames(data_input)))
 		pdf(paste0('results/figures/spieceasi/se_network_', variable_name, '.pdf'))
 			plot(first_order_network, main = paste('Spiec-easi Network for C. difficile in',
-				variable_name) )
+				paste(variable_name, collapse = '_')) )
 		dev.off()
 		} else {
 			print(paste0('No C_difficile interactions for ', paste(antibiotic_run, collapse = ' ')))
