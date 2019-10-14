@@ -104,7 +104,7 @@ get_se_network <- function(antibiotic){
 	write.table(data.frame(otu = colnames(ig.mb)), paste0('data/process/spieceasi/se_df_', 
 			paste(antibiotic, collapse = '_'), '_features.txt'), 
 		sep = '\t', quote = F, row.names = T)
-	write.table(ig.mb, paste0('data/process/spieceasi/se_df_', 
+	write.table(Matrix::summary(ig.mb), paste0('data/process/spieceasi/se_df_', 
 			paste(antibiotic, collapse = '_'), '.txt'), 
 		sep = '\t', quote = F, row.names = F)
 		## to read in sparse matrix
