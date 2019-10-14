@@ -29,7 +29,8 @@ for(i in c('data/process/', 'results/figures/')){
 }
 
 antibiotic_run <- list('amp', 'clinda', 'cef', 'metro', 'strep', 'vanc',
-		c("clinda", "vanc", "amp", "cef", "metro", "strep"))[[run_number]]
+	c("clinda", "cef", "strep"), c("cef", "metro", "strep"), c("clinda", "cef", "metro", "strep"),
+	c("clinda", "vanc", "amp", "cef", "metro", "strep"))[[run_number]]
 print(paste('Running SpiecEasi network analysis on', 
 	paste(antibiotic_run, collapse = ' ')))
 # get relative abundances

@@ -13,7 +13,7 @@
 #PBS -q fluxod
 #PBS -A pschloss_fluxod
 
-#PBS -t 1-7
+#PBS -t 1-10
 
 cd $PBS_O_WORKDIR
 
