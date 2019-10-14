@@ -24,6 +24,14 @@ shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors 
 tax_df <- read.table(tax_file, sep = '\t', header = T, stringsAsFactors = F)
 source(sum_taxa_function) # function to create taxanomic labels for OTUs
 
+# create output dir if doesnt already exist
+for(i in c('data/process/', 'results/figures/')){
+	save_dir <- paste0(i, 'bayesnet/')
+	ifelse(!dir.exists(save_dir), 
+		dir.create(save_dir), 
+		print(paste0(save_dir, ' directory ready')))
+}
+
 antibiotic_run <- list('amp', 'clinda', 'cef', 'metro', 'strep', 'vanc',
 		c("clinda", "vanc", "amp", "cef", "metro", "strep"))[[run_number]]
 print(paste('Running bayesian network analysis on', 
@@ -109,7 +117,8 @@ get_bayesian_network <- function(antibiotic){
 	#avg_bn <- averaged.network(str_bn)
 	#graphviz.plot(avg_bn)
 	cdiff_bn <- str_bn %>% 
-		.[(.$from == 'C_difficile' | .$to == 'C_difficile') & .$strength > 0.5, ]
+		.[(.$from == 'C_difficile' | .$to == 'C_difficile') & 
+			.$strength > attr(str_bn, "threshold"), ]
 	tax_labels <- cdiff_bn %>% 
 		left_join(network_labels, by = c('from' = 'OTU')) %>% 
 		left_join(network_labels, by = c('to' = 'OTU')) %>% 
@@ -119,7 +128,7 @@ get_bayesian_network <- function(antibiotic){
 	cdiff_bn$to <- tax_labels$to
 	avg_bn <- averaged.network(cdiff_bn)
 
-	pdf(paste0('results/figures/', antibiotic, '_bayesian_network_plot.pdf'))
+	pdf(paste0('results/figures/bayesnet/bayesian_network_', antibiotic, '_plot.pdf'))
 	strength.plot(avg_bn, cdiff_bn, shape = "ellipse")
 	dev.off()
 
@@ -128,7 +137,7 @@ get_bayesian_network <- function(antibiotic){
 print('Beginning bayesian network analysis')
 bn_df <- get_bayesian_network(antibiotic_run)
 
-write.table(bn_df, paste0('data/process/bn_df_', 
+write.table(bn_df, paste0('data/process/bayesnet/bn_df_', 
 		paste(antibiotic_run, collapse = '_'), '.txt'), 
 	sep = '\t', quote = F, row.names = F)
 

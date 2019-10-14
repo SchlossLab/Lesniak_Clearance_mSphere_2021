@@ -20,6 +20,14 @@ shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors 
 tax_df <- read.table(tax_file, sep = '\t', header = T, stringsAsFactors = F)
 source(sum_taxa_function) # function to create taxanomic labels for OTUs
 
+# create output dir if doesnt already exist
+for(i in c('data/process/', 'results/figures/')){
+	save_dir <- paste0(i, 'spieceasi/')
+	ifelse(!dir.exists(save_dir), 
+		dir.create(save_dir), 
+		print(paste0(save_dir, ' directory ready')))
+}
+
 antibiotic_run <- list('amp', 'clinda', 'cef', 'metro', 'strep', 'vanc',
 		c("clinda", "vanc", "amp", "cef", "metro", "strep"))[[run_number]]
 print(paste('Running SpiecEasi network analysis on', 
@@ -93,6 +101,7 @@ get_se_network <- function(antibiotic){
 	colnames(ig.mb) <- rownames(ig.mb) <- gsub('Otu0*', '', colnames(se_cdiff_df))
 	# save output from spiec-easi, but a sparse matrix so need to convert to dataframe before writing
 	write.table(Matrix::summary(ig.mb), paste0('data/process/se_df_', 
+	write.table(ig.mb, paste0('data/process/spieceasi/se_df_', 
 			paste(antibiotic, collapse = '_'), '.txt'), 
 		sep = '\t', quote = F, row.names = F)
 		## to read in sparse matrix
@@ -127,7 +136,7 @@ get_first_order <- function(data_input){
 		#ig.mb <- ig.mb[second_order_otus, second_order_otus]
 		first_order_network <- adj2igraph(data_input, 
 			vertex.attr = list(name = colnames(data_input)))
-		pdf(paste0('results/figures/se_network_', variable_name, '.pdf'))
+		pdf(paste0('results/figures/spieceasi/se_network_', variable_name, '.pdf'))
 			plot(first_order_network, main = paste('Spiec-easi Network for C. difficile in',
 				variable_name) )
 		dev.off()
