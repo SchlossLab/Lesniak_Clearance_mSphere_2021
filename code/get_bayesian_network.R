@@ -141,4 +141,117 @@ write.table(bn_df, paste0('data/process/bayesnet/bn_df_',
 		paste(antibiotic_run, collapse = '_'), '.txt'), 
 	sep = '\t', quote = F, row.names = F)
 
+# compare cleared and colonized networks
+	bn_df <- diff_rel_abund %>% 
+		filter(!is.na(Otu000001)) %>% 
+		inner_join(
+			select(filter(differenced_cfu, abx == antibiotic), 
+				group, C_difficile = diff_cfu),
+			by = c('group')) %>% 
+		inner_join(select(clearance, mouse_id, clearance) %>% 
+			unique, by = c('mouse_id')) %>% 
+		select(-group, -mouse_id, -day) 
+	bn_features <- bn_df %>% 
+		select(-clearance) %>% 
+		gather(otu, diff_abundance) %>% 
+		group_by(otu) %>% 
+		summarise(sd = sd(diff_abundance)) %>% 
+		filter(sd > min_rel_abund)  %>% 
+		pull(otu)
+	bn_df <- bn_df %>% 
+		select(clearance, one_of(bn_features))
 
+bn_cleared <- bn_df %>% 
+	filter(clearance == 'cleared') %>% 
+	select(-clearance)
+bn_colonized <- bn_df %>% 
+	filter(clearance == 'colonized') %>% 
+	select(-clearance)
+# learn bayesian network structure of directed acyclic graph
+# since data not likely all normal or linear, bootstrap to find 
+str_colonized_bn <- boot.strength(bn_colonized, R = 200, algorithm = "hc")
+str_cleared_bn <- boot.strength(bn_cleared, R = 200, algorithm = "hc")
+str_bn <- boot.strength(select(bn_df, -clearance), R = 200, algorithm = "hc")
+
+plot_bn <- function(bn_data){
+	cdiff_bn <- bn_data %>% 
+		.[(.$from == 'C_difficile' | .$to == 'C_difficile') & 
+			.$strength > attr(bn_data, "threshold"), ]
+	tax_labels <- cdiff_bn %>% 
+		left_join(network_labels, by = c('from' = 'OTU')) %>% 
+		left_join(network_labels, by = c('to' = 'OTU')) %>% 
+		mutate(from = tax_otu_label.x,
+			to = tax_otu_label.y)
+	cdiff_bn$from <- tax_labels$from
+	cdiff_bn$to <- tax_labels$to
+	avg_bn <- averaged.network(cdiff_bn)
+	strength.plot(avg_bn, cdiff_bn, shape = 'ellipse')
+}
+plot_bn(str_colonized_bn)
+plot_bn(str_cleared_bn)
+plot_bn(str_bn)
+
+cdiff_otus <- str_bn %>% 
+	filter(strength > attr(str_bn, "threshold"),
+		from == 'C_difficile') %>% 
+	pull(to)
+
+cdiff_bn_subset <- str_bn %>% 
+	.[.$strength > 0.5, ] %>% 
+	.[.$from %in% c('C_difficile', cdiff_otus) |
+		.$to %in% c('C_difficile', cdiff_otus), ]
+avg_bn_subset <- averaged.network(cdiff_bn_subset)
+strength.plot(avg_bn_subset, cdiff_bn_subset)
+
+fitted <- bn.fit(avg_bn_subset, select(bn_df, one_of(unique(cdiff_bn_subset$to))))
+
+
+xval <- bn.cv(bn_colonized, bn = "hc", loss = "cor-lw",
+		loss.args = list(target = 'C_difficile', n = 200), runs = 10)
+
+predcor[var] = mean(sapply(xval, function(x) attr(x, "mean")))
+
+}#FOR
+
+round(predcor, digits = 3)
+
+dCoGo dGoPg dIMPA  dCoA dPPPM  dANB 
+0.850 0.904 0.233 0.923 0.410 0.643
+
+
+plot_diff_corr <- function(bn_data, antibiotic){
+	meta_file %>% 
+		inner_join(rel_abund, by = 'group') %>% 
+		select(mouse_id, CFU, day, abx, 
+			one_of(cdiff_bn$from)) %>% 
+		filter(day >= 0, abx %in% antibiotic) %>% 
+		mutate(CFU = log10(CFU + 60)) %>% 
+		mutate_at(vars(contains('Otu')), function(otu) {log10(otu + 0.04)}) %>% 
+		gather(otu, rel_abund, CFU, contains('Otu00')) %>% 
+		left_join(select(clearance, mouse_id, clearance)) %>% 
+		#left_join(tax_df, by = c('otu' = 'OTU')) %>% 
+		ggplot(aes(y = rel_abund, x = day)) + 
+
+			geom_line(aes(color = otu, group = mouse_id)) + 
+			theme_bw() + 
+			facet_grid(otu~clearance, scales = 'free_y') + 
+			labs(x = 'Relative Abundance', y = 'C.difficile CFU')
+}
+diff_rel_abund %>% 
+	filter(!is.na(Otu000001)) %>% 
+	gather(OTU, abundance, one_of(cdiff_bn$from)) %>% 
+	select(group, mouse_id, OTU, abundance) %>% 
+	inner_join(
+		select(filter(differenced_cfu, abx == antibiotic), 
+			group, C_difficile = diff_cfu),
+		by = c('group')) %>% 
+	mutate(abundance = case_when(abundance > 0 ~ log10(abundance),
+			abundance < 0 ~ -log10(-abundance),
+			abundance == 0 ~ 0)) %>% 
+	inner_join(select(clearance, mouse_id, clearance) %>% 
+		unique, by = c('mouse_id')) %>% 
+	filter(clearance %in% c('colonized', 'cleared')) %>% 
+	ggplot( aes(x = abundance, y = C_difficile, color = OTU)) + 
+		geom_point(alpha = 0.2) + 
+		facet_grid(OTU~clearance, scales = 'free_x') + 
+		theme_bw()
