@@ -195,7 +195,8 @@ test_otus <- function(antibiotic, time_point){
 		}
 }
 
-treatment_list <- list('cef', 'metro', 'strep', c('cef', 'metro', 'strep'), 
+treatment_list <- list('clinda', 'cef', 'metro', 'strep', c('cef', 'metro', 'strep'), 
+		c('clinda', 'cef', 'strep'), 
 		c("clinda", "vanc", "amp", "cef", "metro", "strep"))
 
 d0_test_output_df <- map_dfr(treatment_list, ~ test_otus(.x, 0))
@@ -247,15 +248,21 @@ differential_abundance_plot <- function(df, treatment_group){
 			geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", 
 				fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE)  + 
 			facet_grid(time_point~., scales = 'free_y', space = 'free')
-#	ggsave(paste0('../results/figures/clearance_diff_abund_', treatment_group, '.jpg'), 
-#		plot_output, width = 6, height = .5*length(unique(temp_df$OTU)))
+	if(length(unique(temp_df$OTU)) < 1){
+		print(paste0('No significant OTUs for ', paste(treatment_group, collapse = ' ')))
+		} else {
+		ggsave(paste0('../results/figures/clearance_diff_abund_', treatment_group, '.jpg'), 
+			plot_output, width = 6, height = .5*length(unique(temp_df$OTU)))
+		return(plot_output)
+	}
 }
 
 cef_diff_abund <- differential_abundance_plot(test_output_df, 'cef')
 metro_diff_abund <- differential_abundance_plot(test_output_df, 'metro')
 strep_diff_abund <- differential_abundance_plot(test_output_df, 'strep')
-#differential_abundance_plot(test_output_df, paste(treatment_list[[4]], collapse = '_'))
-all_diff_abund <- differential_abundance_plot(test_output_df, paste(treatment_list[[5]], collapse = '_'))
+# differential_abundance_plot(test_output_df, 'clinda')
+# differential_abundance_plot(test_output_df, paste(treatment_list[[6]], collapse = '_'))
+all_diff_abund <- differential_abundance_plot(test_output_df, paste(treatment_list[[7]], collapse = '_'))
 
 ## what is the overlap of significant otus?
 #test_output_df %>% 
@@ -318,7 +325,7 @@ What changes associate with decreases in CFU?
 #  test difference between day 0 and last day for mice that clear
 ####
 
-test_otus <- function(antibiotic){
+test_delta_otus <- function(antibiotic){
 	tmp_shared_cleared <- meta_file %>% 
 		left_join(clearance, by = c('mouse_id')) %>% 
 			filter(day == 0 | day == last_sample, 
@@ -370,7 +377,7 @@ test_otus <- function(antibiotic){
 		}
 }
 
-test_change_cleared_df <- map_dfr(treatment_list, ~ test_otus(.x))
+test_change_cleared_df <- map_dfr(treatment_list, ~ test_delta_otus(.x))
 
 differential_abundance_plot <- function(df, treatment_group){
 	lod_df <- data.frame(x = 0.75, y = min_rel_abund)
@@ -378,11 +385,12 @@ differential_abundance_plot <- function(df, treatment_group){
 		filter(antibiotic == paste(treatment_group, collapse = '_')) %>% 
 		mutate(tax_pval = paste0(tax_otu_label, '\n(p=', 
 				formatC(pvalue, format = "e", digits = 2), ')'),
+			tax_pval = gsub('_unclassified', '', tax_pval), # create label with taxonomy and p value
 			time_point = ifelse(day ==0, 'Initial', 'End')) 
 	if( !length(pull(temp_df, OTU)) > 1 ){
 		stop(paste("No significant OTUs for", paste(treatment_group, collapse = '_')))
 	}
-	temp_df %>% 
+	plot_output <- temp_df %>% 
 		right_join(., group_by(., OTU) %>% 
 				summarise(order = mean(abundance)),
 			by = c('OTU')) %>% 
@@ -415,14 +423,19 @@ differential_abundance_plot <- function(df, treatment_group){
 				legend.title = element_blank()) + 
 			geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", 
 			 	fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE)
+	ggsave(paste0('../results/figures/clearance_delta_abund_', 
+		paste(treatment_group, collapse = ' '), '.jpg'), 
+		plot_output, width = 6, height = 1 + 0.5*length(unique(temp_df$OTU)))
+	return(plot_output)
+
 }
 
 differential_abundance_plot(test_change_cleared_df, 'strep')
 #differential_abundance_plot(test_change_cleared_df, 'cef')
 #differential_abundance_plot(test_change_cleared_df, 'metro')
-#differential_abundance_plot(test_change_cleared_df, 'clinda')
-#differential_abundance_plot(test_change_cleared_df, treatment_list[[4]])
-differential_abundance_plot(test_change_cleared_df, treatment_list[[5]])
+differential_abundance_plot(test_change_cleared_df, 'clinda')
+differential_abundance_plot(test_change_cleared_df, treatment_list[[6]])
+differential_abundance_plot(test_change_cleared_df, treatment_list[[7]])
 
 # when only looking at communities colonized, results went from:
 #	With uncolonized, colonized, and clearing
