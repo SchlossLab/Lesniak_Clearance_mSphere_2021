@@ -6,6 +6,7 @@ library(bnlearn)
 #BiocManager::install("Rgraphviz")
 library(Rgraphviz)
 library(tidyverse)
+library(forecast)
 
 
 run_number <- as.numeric(commandArgs(TRUE))
@@ -93,7 +94,19 @@ get_bayesian_network <- function(antibiotic){
 				group, C_difficile = diff_cfu) %>% 
 				filter(),
 			by = c('group')) %>% 
-		select(-group, -mouse_id, -day)
+		filter(day > 0) %>% 
+		select(-group, -day)
+
+	training.set <- filter(bn_df, mouse_id != unique(bn_df$mouse_id)[1]) %>% 
+		select(one_of(bn_features))
+	test.set <- filter(bn_df, mouse_id == unique(bn_df$mouse_id)[1]) %>% 
+		select(one_of(bn_features))
+	res = hc(training.set)                 # learn BN structure on training set data 
+	fitted = bn.fit(res, training.set)     # learning of parameters
+	pred = predict(fitted, "C_difficile", test.set)  # predicts the value of node C given test set
+	cbind(pred, test.set[, "C_difficile"])           # compare the actual and predicted
+	accuracy(f = pred, x = test.set$C_difficile)
+	
 	bn_features <- bn_df %>% 
 		gather(otu, diff_abundance) %>% 
 		group_by(otu) %>% 
