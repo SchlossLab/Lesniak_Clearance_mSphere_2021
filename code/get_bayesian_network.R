@@ -96,23 +96,45 @@ get_bayesian_network <- function(antibiotic){
 			by = c('group')) %>% 
 		filter(day > 0) %>% 
 		select(-group, -day)
-
-	training.set <- filter(bn_df, mouse_id != unique(bn_df$mouse_id)[1]) %>% 
-		select(one_of(bn_features))
-	test.set <- filter(bn_df, mouse_id == unique(bn_df$mouse_id)[1]) %>% 
-		select(one_of(bn_features))
-	res = hc(training.set)                 # learn BN structure on training set data 
-	fitted = bn.fit(res, training.set)     # learning of parameters
-	pred = predict(fitted, "C_difficile", test.set)  # predicts the value of node C given test set
-	cbind(pred, test.set[, "C_difficile"])           # compare the actual and predicted
-	accuracy(f = pred, x = test.set$C_difficile)
-	
 	bn_features <- bn_df %>% 
 		gather(otu, diff_abundance) %>% 
 		group_by(otu) %>% 
 		summarise(sd = sd(diff_abundance)) %>% 
 		filter(sd > min_rel_abund)  %>% 
 		pull(otu)
+	mouse_list <- unique(bn_df$mouse_id)
+	for(i in mouse_list){
+		training.set <- filter(bn_df, mouse_id != i) %>% 
+			select(one_of(bn_features))
+		test.set <- filter(bn_df, mouse_id == i) %>% 
+			select(one_of(bn_features))
+		train_bn <- boot.strength(training.set, R = 10, algorithm = "hc") # learn BN structure on training set data 
+		avg.diff <- averaged.network(train_bn)
+		strength.plot(avg.diff, train_bn)
+		fit_bn <- bn.fit(averaged.network(train_bn), training.set) # learning of parameters
+		pred <- predict(fit_bn, "C_difficile", test.set) # predicts the value of node C given test set
+		pred_df <- cbind(pred, test.set[, "C_difficile"], mouse_id = i) # compare the actual and predicted
+		accuracy(f = pred, x = test.set$C_difficile)
+	
+xval <- bn.cv(training.set, bn = "hc",
+	  loss = "cor-lw",
+	  loss.args = list(target = "C_difficile", n = 200), runs = 10)
+	
+err <- numeric(10)
+	
+for (i in 1:10) {
+
+	  tt <- table(unlist(sapply(xval[[i]], '[[', "observed")),
+	             unlist(sapply(xval[[i]], '[[', "predicted")) > 0.50)
+
+	  err[i] <- (sum(tt) - sum(diag(tt))) / sum(tt)
+
+	}#FOR
+	
+summary(err)
+
+
+
 	bn_df <- bn_df %>% 
 		select(one_of(bn_features))
 
