@@ -199,8 +199,8 @@ treatment_list <- list('clinda', 'cef', 'metro', 'strep', c('cef', 'metro', 'str
 		c('clinda', 'cef', 'strep'), 
 		c("clinda", "vanc", "amp", "cef", "metro", "strep"))
 
-d0_test_output_df <- map_dfr(treatment_list, ~ test_otus(.x, 0))
-end_test_output_df <- map_dfr(treatment_list, ~ test_otus(.x, 'last_sample'))
+d0_test_output_df <- map_dfr(treatment_list[-1], ~ test_otus(.x, 0))
+end_test_output_df <- map_dfr(treatment_list[-1], ~ test_otus(.x, 'last_sample'))
 
 test_output_df <- rbind(d0_test_output_df, end_test_output_df)
 
@@ -235,17 +235,18 @@ differential_abundance_plot <- function(df, treatment_group){
 				position = position_dodge(width = 0.5), alpha = 0.2) + 
 			geom_segment(aes(y = colonized, yend = cleared, 
 				xend = reorder(tax_pval, -order)), color = 'black') + 
-			geom_point(aes(y = colonized), color = 'cyan4', size = 3) + 
-			geom_point(aes(y = cleared), color = 'red3', size = 3) +
+			geom_point(aes(y = colonized), color = '#00BFC4', size = 3) + # ggplot default cyan
+			geom_point(aes(y = cleared), color = '#F8766D', size = 3) + # ggplot default red
 			scale_y_log10() + coord_flip() + 
 			theme_bw() +  
 			labs(x = NULL, y = 'Relative Abundance (%)', title = paste0('Differentially abundant OTUs between\ncleared and colonized communities for ', 
 				paste(treatment_group, collapse = ' ')), 
 			subtitle = 'Plotted only statically significant by Wilcoxon after BH correction') + 
-			theme(legend.position = c(0.85, 0.95), 
-				legend.background = element_rect(color = "black"),
-				legend.title = element_blank()) + 
-			geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", 
+			theme(legend.position = 'none') + #,#c(0.85, 0.95), 
+				#legend.background = element_rect(color = "black"),
+				#legend.title = element_blank()) + 
+			#guides(colour = guide_legend(override.aes = list(alpha = 1, size = 3))) + 
+			geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", size = 3,
 				fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE)  + 
 			facet_grid(time_point~., scales = 'free_y', space = 'free')
 	if(length(unique(temp_df$OTU)) < 1){
@@ -409,8 +410,8 @@ differential_abundance_plot <- function(df, treatment_group){
 				linetype = 'dashed', color = 'white') + 
 			geom_point(aes(y = (abundance) + 0.04), 
 				position = position_dodge(width = 0.5), alpha = 0.2) + 
-			geom_point(aes(y = Initial), color = 'cyan4', size = 3) + 
-			geom_point(aes(y = End), color = 'red3', size = 3) +
+			geom_point(aes(y = Initial), color = '#00BFC4', size = 3) + # ggplot default cyan
+			geom_point(aes(y = End), color = '#F8766D', size = 3) + # ggplot default red
 			geom_segment(aes(y = Initial, yend = End, 
 					xend = reorder(tax_pval, -order)), 
 				arrow = arrow(type = 'closed', angle = 15), color = 'black') + 
@@ -418,14 +419,16 @@ differential_abundance_plot <- function(df, treatment_group){
 			theme_bw() +  
 			labs(x = NULL, y = 'Relative Abundance (%)', title = paste0('Differentially abundant OTUs\nover time of clearing C. difficile\nfor ', 
 				paste(treatment_group, collapse = ' '))) + 
-			theme(legend.position = c(0.9, 0.95), 
+			theme(legend.position = 'bottom', 
 				legend.background = element_rect(color = "black"),
-				legend.title = element_blank()) + 
-			geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", 
-			 	fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE)
+				legend.title = element_blank(), 
+				) + 
+			guides(colour = guide_legend(override.aes = list(alpha = 1, size = 3))) + 
+			geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", size = 3,
+				fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE)
 	ggsave(paste0('../results/figures/clearance_delta_abund_', 
 		paste(treatment_group, collapse = ' '), '.jpg'), 
-		plot_output, width = 6, height = 1 + 0.5*length(unique(temp_df$OTU)))
+		plot_output, width = 6, height = 2 + 0.5*length(unique(temp_df$OTU)))
 	return(plot_output)
 
 }
@@ -712,14 +715,19 @@ get_first_order <- function(antibiotic, vertex_color = 'black'){
 		vertex.size=7, vertex.color = vertex_color, vertex.label.size = 8)
 	dev.off()
 }
-
+# jenior colors
 #strep_col <- '#D37A1F'
 #cef_col <- '#3A9CBC'
 #clinda_col <- '#A40019'
+# ggplot colors
+#strep_col <- '#619CFF'
+#cef_col <- '#F8766D'
+#clinda_col <- '#00BA38'
 
-get_first_order('strep', '#D37A1F')
-get_first_order('cef', '#3A9CBC')
-get_first_order('clinda', '#A40019')
+get_first_order('strep', '#619CFF')
+get_first_order('cef', '#F8766D')
+get_first_order('clinda', '#00BA38')
+get_first_order('metro', 'purple')
 
 ```
 
@@ -740,56 +748,204 @@ network_labels <- tax_df %>%
 	rbind(data.frame(OTU = 'C_difficile', tax_otu_label = 'C. difficile',
 		stringsAsFactors = F))
 
-get_bayesian_network <- function(antibiotic){
-	bn_df <- diff_rel_abund %>% 
-		filter(!is.na(Otu000001)) %>% 
-		inner_join(
-			select(filter(differenced_cfu, abx == antibiotic), 
-				group, C_difficile = delta_cfu),
-			by = c('group')) %>% 
-		select(-group, -mouse_id, -day)
-	bn_features <- bn_df %>% 
-		gather(otu, diff_abundance) %>% 
-		group_by(otu) %>% 
-		summarise(sd = sd(diff_abundance)) %>% 
-		filter(sd > min_rel_abund)  %>% 
-		pull(otu)
-	bn_df <- bn_df %>% 
-		select(one_of(bn_features))
+# moved analysis into own script
+#get_bayesian_network <- function(antibiotic){
+#	bn_df <- diff_rel_abund %>% 
+#		filter(!is.na(Otu000001)) %>% 
+#		inner_join(
+#			select(filter(differenced_cfu, abx == antibiotic), 
+#				group, C_difficile = delta_cfu),
+#			by = c('group')) %>% 
+#		select(-group, -mouse_id, -day)
+#	bn_features <- bn_df %>% 
+#		gather(otu, diff_abundance) %>% 
+#		group_by(otu) %>% 
+#		summarise(sd = sd(diff_abundance)) %>% 
+#		filter(sd > min_rel_abund)  %>%   
+#		pull(otu)
+#	bn_df <- bn_df %>% 
+#		select(one_of(bn_features))
+#
+#	# learn bayesian network structure of directed acyclic graph
+#	##bn_dag <- hc(bn_df)
+#	## visualize dag
+#	##graphviz.plot(bn_dag, shape = "ellipse")
+#	# since data not likely all normal or linear, bootstrap to find 
+#	str_bn <- boot.strength(bn_df, R = 200, algorithm = "hc"#,
+#		#algorithm.args = list(whitelist = wl, blacklist = bl)
+#		)
+#	#plot(str_bn)
+#	#head(str_bn) # strength and direction of each interaction
+#	#attr(str_bn, "threshold") # threshold used to determine included vertices
+#	#avg_bn <- averaged.network(str_bn)
+#	#graphviz.plot(avg_bn)
+#	cdiff_bn <- str_bn[(str_bn$from == 'C_difficile' | str_bn$to == 'C_difficile') & 
+#	str_bn$strength > 0.5, ]
+#	tax_labels <- cdiff_bn %>% 
+#		left_join(network_labels, by = c('from' = 'OTU')) %>% 
+#		left_join(network_labels, by = c('to' = 'OTU')) %>% 
+#		mutate(from = tax_otu_label.x,
+#			to = tax_otu_label.y)
+#	cdiff_bn$from <- tax_labels$from
+#	cdiff_bn$to <- tax_labels$to
+#	avg_bn <- averaged.network(cdiff_bn)
+#
+#	pdf(paste0('../results/figures/', antibiotic, '_bayesian_network_plot.pdf'))
+#	strength.plot(avg_bn, cdiff_bn, shape = "ellipse")
+#	dev.off()
+#
+#	return(data.frame(str_bn, antibiotic = antibiotic, stringsAsFactors = F))
+#}
+#
+#bn_df <- map_dfr(diff_trt_list, ~ get_bayesian_network(.x))
 
-	# learn bayesian network structure of directed acyclic graph
-	##bn_dag <- hc(bn_df)
-	## visualize dag
-	##graphviz.plot(bn_dag, shape = "ellipse")
-	# since data not likely all normal or linear, bootstrap to find 
-	str_bn <- boot.strength(bn_df, R = 200, algorithm = "hc"#,
-		#algorithm.args = list(whitelist = wl, blacklist = bl)
-		)
-	#plot(str_bn)
-	#head(str_bn) # strength and direction of each interaction
-	#attr(str_bn, "threshold") # threshold used to determine included vertices
-	#avg_bn <- averaged.network(str_bn)
-	#graphviz.plot(avg_bn)
-	cdiff_bn <- str_bn[(str_bn$from == 'C_difficile' | str_bn$to == 'C_difficile') & 
-	str_bn$strength > 0.5, ]
-	tax_labels <- cdiff_bn %>% 
-		left_join(network_labels, by = c('from' = 'OTU')) %>% 
-		left_join(network_labels, by = c('to' = 'OTU')) %>% 
-		mutate(from = tax_otu_label.x,
-			to = tax_otu_label.y)
-	cdiff_bn$from <- tax_labels$from
-	cdiff_bn$to <- tax_labels$to
-	avg_bn <- averaged.network(cdiff_bn)
 
-	pdf(paste0('../results/figures/', antibiotic, '_bayesian_network_plot.pdf'))
-	strength.plot(avg_bn, cdiff_bn, shape = "ellipse")
+get_first_order <- function(antibiotic, vertex_color = 'black'){
+	set.seed(1)
+	se_data <- read.table(paste0('../data/process/spieceasi/se_df_',
+		antibiotic, '.txt'), header = T)
+	# se_data has columns (i, j, x) -> we can use via do.call() as arguments to sparseMatrix():
+	se_data <- do.call(Matrix::sparseMatrix, se_data)
+
+	se_features <- read.table(paste0('../data/process/spieceasi/se_df_',
+			antibiotic, '_features.txt'), 
+		header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+	colnames(se_data) <- rownames(se_data) <- gsub('Otu0*', '', se_features$otu)
+	
+	first_order_otus <- c(names(which(se_data[,'Cdiff'] > 0)), 'Cdiff')
+	#second_order_otus <- names(apply(se_data[,otus], 1 , sum) > 0)
+	se_data <- se_data[first_order_otus, first_order_otus]
+	labels <- network_labels[as.numeric(colnames(se_data))]
+	labels[length(labels)] <- 'C. difficile'
+	colnames(se_data) <- rownames(se_data) <- labels
+	#ig.mb <- ig.mb[second_order_otus, second_order_otus]
+	first_order_network <- adj2igraph(se_data, 
+		vertex.attr = list(name = colnames(se_data)))
+	jpeg(paste0('../results/figures/spieceasi/se_', 
+			antibiotic, '_network.jpg'),
+		width = 5, height = 5, units = 'in', res = 150)
+	plot(first_order_network, vertex.label.color='black', vertex.label.dist=3,
+		vertex.size=7, vertex.color = vertex_color, vertex.label.size = 8)
 	dev.off()
-
-	return(data.frame(str_bn, antibiotic = antibiotic, stringsAsFactors = F))
 }
 
-bn_df <- map_dfr(diff_trt_list, ~ get_bayesian_network(.x))
+get_first_order_bn('strep', '#619CFF')
+get_first_order_bn('cef', '#F8766D')
+get_first_order_bn('clinda', '#00BA38')
+get_first_order_bn('metro', 'purple')
 
+
+plot_temporal <- function(antibiotic, otus){
+	data_df <- meta_file %>% 
+		filter(day >= 0, abx %in% antibiotic)		
+	abundance_plot <- data_df %>% 
+		mutate(dose = case_when(dose == min(dose) ~ 'low',
+				dose == max(dose) ~ 'high',
+				T ~ 'mid'),
+			mouse_id = paste(dose, mouse_id, sep = '_')) %>% 
+		inner_join(rel_abund, by = 'group') %>% 
+		select(mouse_id, CFU, day, abx, one_of(otus)) %>% 
+		gather(otu, rel_abund, contains('Otu00'), CFU) %>% 
+		left_join(tax_df, by = c('otu' = 'OTU')) %>% 
+		mutate(rel_abund = case_when(otu == 'CFU' ~ log10(rel_abund + 60),
+				T ~ log10(rel_abund + 0.04)),
+			tax_otu_label = ifelse(is.na(tax_otu_label), 'C. difficile', tax_otu_label),
+			tax_otu_label = gsub('_unclassified','', tax_otu_label),
+			tax_otu_label = gsub(' \\(', '\\\n\\(', tax_otu_label)) %>% 
+		ggplot(aes(y = rel_abund, x = day, color = otu)) + 
+			geom_point(aes(group = mouse_id), alpha	 = 0.25) + 
+			stat_summary(fun.y=median, geom="line", size = 1, aes(group = otu)) +
+			theme_bw() + 
+			facet_grid(tax_otu_label~., scales = 'free_y') + 
+			labs(y = 'Relative Abundance', x = 'Day') + 
+			theme(legend.position = 'none')
+	return(abundance_plot)
+}
+plot_temporal('strep',
+	c('Otu000033', 'Otu000051', 'Otu000148', 'Otu000008', 'Otu000043'))
+
+plot_temporal('strep',
+	c('Otu000006', 'Otu000008', 'Otu000414', 'Otu000022', 'Otu000024',
+		'Otu000024', 'Otu000005', 'Otu000013'))
+
+plot_temporal('metro',
+	c('Otu000003', 'Otu000010', 'Otu000024','Otu000013'))
+
+#spieceasi
+plot_temporal('clinda',
+	c('Otu000007', 'Otu000008', 'Otu000010','Otu000040'))
+# bayesnet
+plot_temporal('clinda',
+	c('Otu000777', 'Otu000008', 'Otu000010','Otu000033',
+		'Otu000036', 'Otu000095', 'Otu000097'))
+# wilcox 0/10
+plot_temporal('clinda',
+	c('Otu000020', 'Otu000008', 'Otu000011','Otu000004',
+		'Otu000003', 'Otu000010'))
+
+plot_correlation <- function(antibiotic, otus){
+	meta_file %>% 
+		filter(day > 0, abx %in% antibiotic) %>% 
+		inner_join(rel_abund, by = 'group') %>% 
+		select(mouse_id, CFU, day, abx, one_of(otus)) %>% 
+		gather(otu, rel_abund, contains('Otu00')) %>% 
+		left_join(tax_df, by = c('otu' = 'OTU')) %>% 
+		mutate(CFU = log10(CFU + 60),
+			rel_abund = log10(rel_abund + 0.04)) %>% 
+		ggplot(aes(y = rel_abund, x = CFU)) + 
+			geom_point(aes(color = otu)) + 
+			theme_bw() + 
+			facet_wrap(tax_otu_label~., scales = 'free_y') + 
+			labs(y = 'Relative Abundance', x = 'C.difficile CFU/g (log10)') + 
+			theme(legend.position = 'none')
+	}
+#speiceasi
+plot_correlation('clinda',
+	c('Otu000007', 'Otu000008', 'Otu000010','Otu000040'))
+#bayesnet
+plot_correlation('clinda',
+	c('Otu000777', 'Otu000008', 'Otu000010','Otu000033',
+		'Otu000036', 'Otu000095', 'Otu000097'))
+#wilcox
+plot_correlation('clinda',
+	c('Otu000020', 'Otu000008', 'Otu000011','Otu000004',
+		'Otu000003', 'Otu000010'))
+
+plot_correlation_pos_lag <- function(antibiotic, otus){
+	meta_file %>% 
+		filter(day > 0, abx %in% 'clinda') %>% 
+		inner_join(rel_abund, by = 'group') %>% 
+		select(mouse_id, CFU, day, abx, one_of(otus)) %>% 
+		gather(otu, rel_abund, contains('Otu00')) %>% 
+		group_by(mouse_id, otu) %>% 
+		arrange(mouse_id, otu, day) %>% 
+		mutate(CFU = log10(CFU + 60),
+			rel_abund = log10(rel_abund + 0.04)) %>% 
+		mutate(rel_abund_t2 = rel_abund,
+			rel_abund_t1 = lag(rel_abund)) %>% 
+		gather()
+		left_join(tax_df, by = c('otu' = 'OTU')) %>% 
+		ggplot(aes(y = rel_abund_t1, x = CFU)) + 
+			geom_point(aes(color = otu)) + 
+			theme_bw() + 
+			facet_wrap(tax_otu_label~., scales = 'free_y') + 
+			labs(y = 'Relative Abundance', x = 'C.difficile CFU/g (log10)') + 
+			theme(legend.position = 'none')
+	}
+
+meta_file %>% 
+	filter(day > 0, abx %in% c('cef', 'strep')) %>% 
+	group_by(abx) %>% 
+	mutate(dose = case_when(dose == min(dose) ~ 'low',
+		dose == max(dose) ~ 'high',
+		T ~ 'mid')) %>% 
+	mutate(CFU = log10(CFU + 60)) %>% 
+	ggplot(aes(x = day, y = CFU, color = abx)) + 
+		geom_point(alpha = 0.2) +
+		stat_summary(fun.y = median, geom = 'line', aes(group = dose)) + 
+		facet_grid(dose~abx) + 
+		theme_bw() +
+		theme(legend.position = 'none')
 
 ```
 
