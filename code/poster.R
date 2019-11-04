@@ -83,37 +83,68 @@ cfu_plot <- meta_file %>%
 
 
 ####### Beta diversity
+# input_dataframe_name <- 'cef_0.3_clearance_df' # for testing
+nmds_df <- meta_file %>% 
+	filter(abx %in% c('clinda', 'cef', 'strep'), cdiff == T) %>% 
+	group_by(mouse_id) %>% 
+	mutate(min_day = min(day), max_day = max(day)) %>% 
+	filter(day == 0 | day == min_day | day == max_day)
+mothur <- '/Applications/mothur/mothur'
 
-time_nmds_2m <- read.table('data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.nmds.2.axes', 
-  sep = '\t', header = T)
+plot_nmds <- function(input_dataframe_name){
+	i <- input_dataframe_name
+	current_df <- get(i)
+	current_shared <- shared_file[row.names(shared_file) %in% current_df$group, ]
+	# remove otus that either have 0 or only present in 2 or fewer samples
+	present_otus <- current_shared %>% 
+	  map_dbl(~ sum(. > 0)) %>% 
+	  which(x = (. > 2)) %>% 
+	  names
+	current_shared <- current_shared %>% 
+		mutate(label = 0.03, Group = row.names(.), 
+			numOtus = length(present_otus)) %>% 
+		select(label, Group, numOtus, one_of(present_otus))
 
-nmds_plot <- meta_file %>% 
-	inner_join(clearance, by ='mouse_id') %>% 
-	filter(abx %in% c('clinda', 'strep', 'cef'), cdiff == T, clearance != 'Clearing') %>% 
-	filter(day == inital_sample | day == 0 | day == last_sample) %>% 
-	mutate(abx = case_when(abx == 'clinda' ~ 'Clindamycin',
-			abx == 'strep' ~ 'Streptomycin',
-			abx == 'cef' ~ 'Cefoperazone'),
-		time_point = factor(case_when(day == 0 ~ 'Day 0',
-			day < 0 ~ 'Initial',
-			day > 0 ~ 'End'), levels = c('Initial', 'Day 0', 'End')),
-		pt_size = ifelse(time_point == "End", 3, 1),
-		pt_shape = ifelse(time_point == 'End', 3, 1),
-		clearance = case_when(clearance == 'Cleared' ~'Cleared Colonization',
-			clearance == 'Colonized' ~ 'Remain Colonized')) %>% 
-	inner_join(time_nmds_2m) %>% 
-	arrange(mouse_id, day) %>% 
-	ggplot(aes(x = axis1, y = axis2, color = abx)) +
-		geom_point(color = 'black', size = 0.5) + 
-		geom_path(aes(group = mouse_id), 
-			  arrow = arrow(type = "closed", angle = 15, length = unit(0.25, "inches"))) + 
-		theme_bw() +
-		labs(x = 'NMDS Axis 1', y = 'NMDS Axis 2') + 
-		facet_grid(.~clearance) + 
-		theme(legend.position = 'none', panel.grid.minor = element_blank(), 
-			text = element_text(size = 20))
+	# write files to be used in mothur for nmds analysis
+	write_tsv(path = paste0('../data/mothur/', i, '.shared'), 
+		x = current_shared)
+	# run nmds
+	system(paste0(mothur, ' "#set.dir(input=../data/mothur, output=../data/mothur);
+		dist.shared(shared=', i, '.shared, calc=thetayc-jclass, subsample=t);
+		nmds(phylip=', i, '.thetayc.0.03.lt.ave.dist)"'))
 
+	# plot  results
+	nmds_df <<- read_tsv(paste0('../data/mothur/', i, '.thetayc.0.03.lt.ave.nmds.axes'))
 
+	nmds_plot <- meta_file %>% 
+		inner_join(clearance, by ='mouse_id') %>% 
+		filter(abx %in% c('clinda', 'strep', 'cef'), cdiff == T, clearance != 'Clearing') %>% 
+		filter(day == inital_sample | day == 0 | day == last_sample) %>% 
+		mutate(abx = case_when(abx == 'clinda' ~ 'Clindamycin',
+				abx == 'strep' ~ 'Streptomycin',
+				abx == 'cef' ~ 'Cefoperazone'),
+			time_point = factor(case_when(day == 0 ~ 'Day 0',
+				day < 0 ~ 'Initial',
+				day > 0 ~ 'End'), levels = c('Initial', 'Day 0', 'End')),
+			pt_size = ifelse(time_point == "End", 3, 1),
+			pt_shape = ifelse(time_point == 'End', 3, 1),
+			clearance = case_when(clearance == 'Cleared' ~'Cleared Colonization',
+				clearance == 'Colonized' ~ 'Remain Colonized')) %>% 
+		inner_join(nmds_df) %>% 
+		arrange(mouse_id, day) %>% 
+		ggplot(aes(x = axis1, y = axis2, color = abx)) +
+			geom_point(color = 'black', size = 0.5) + 
+			geom_path(aes(group = mouse_id), 
+				  arrow = arrow(type = "closed", angle = 15, length = unit(0.25, "inches"))) + 
+			theme_bw() +
+			labs(x = 'NMDS Axis 1', y = 'NMDS Axis 2') + 
+			facet_grid(.~clearance) + 
+			theme(legend.position = 'none', panel.grid.minor = element_blank(), 
+				text = element_text(size = 20))
+	ggsave('~/Desktop/nmds_temporal.jpg', nmds_plot,
+			width = 6, height = 4)
+}
+plot_nmds('nmds_df')
 ######## Community changes
 #### 
 # whats the difference between the communities within antibiotic between day 0 and end point

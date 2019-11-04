@@ -933,8 +933,8 @@ plot_correlation_pos_lag <- function(antibiotic, otus){
 			theme(legend.position = 'none')
 	}
 
-meta_file %>% 
-	filter(day > 0, abx %in% c('cef', 'strep')) %>% 
+colonization_plot <- meta_file %>% 
+	filter(day > 0, abx %in% c('cef', 'strep'), cdiff == T) %>% 
 	group_by(abx) %>% 
 	mutate(dose = case_when(dose == min(dose) ~ 'low',
 		dose == max(dose) ~ 'high',
@@ -946,7 +946,8 @@ meta_file %>%
 		facet_grid(dose~abx) + 
 		theme_bw() +
 		theme(legend.position = 'none')
-
+ggsave('~/Desktop/cef_strep_colonization.jpg', colonization_plot,
+	width = 6, height = 4)
 ```
 
 What do the OTUs selected by the BN/SpiecEasi look like when plotted with Cdiff?
