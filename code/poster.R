@@ -84,12 +84,12 @@ cfu_plot <- meta_file %>%
 
 ####### Beta diversity
 # input_dataframe_name <- 'cef_0.3_clearance_df' # for testing
-nmds_df <- meta_file %>% 
+nmds_initial_end_df <- meta_file %>% 
 	filter(abx %in% c('clinda', 'cef', 'strep'), cdiff == T) %>% 
 	group_by(mouse_id) %>% 
 	mutate(min_day = min(day), max_day = max(day)) %>% 
-	filter(day == 0 | day == min_day | day == max_day)
-mothur <- '/Applications/mothur/mothur'
+	filter(day == min_day | day == max_day)
+mothur <- '/mothur/mothur'
 
 plot_nmds <- function(input_dataframe_name){
 	i <- input_dataframe_name
@@ -106,15 +106,15 @@ plot_nmds <- function(input_dataframe_name){
 		select(label, Group, numOtus, one_of(present_otus))
 
 	# write files to be used in mothur for nmds analysis
-	write_tsv(path = paste0('../data/mothur/', i, '.shared'), 
+	write_tsv(path = paste0('data/mothur/', i, '.shared'), 
 		x = current_shared)
 	# run nmds
-	system(paste0(mothur, ' "#set.dir(input=../data/mothur, output=../data/mothur);
+	system(paste0(mothur, ' "#set.dir(input=data/mothur, output=data/mothur);
 		dist.shared(shared=', i, '.shared, calc=thetayc-jclass, subsample=t);
 		nmds(phylip=', i, '.thetayc.0.03.lt.ave.dist)"'))
 
 	# plot  results
-	nmds_df <<- read_tsv(paste0('../data/mothur/', i, '.thetayc.0.03.lt.ave.nmds.axes'))
+	nmds_df <- read_tsv(paste0('data/mothur/', i, '.thetayc.0.03.lt.ave.nmds.axes'))
 
 	nmds_plot <- meta_file %>% 
 		inner_join(clearance, by ='mouse_id') %>% 
@@ -144,7 +144,7 @@ plot_nmds <- function(input_dataframe_name){
 	ggsave('~/Desktop/nmds_temporal.jpg', nmds_plot,
 			width = 6, height = 4)
 }
-plot_nmds('nmds_df')
+plot_nmds('nmds_initial_end_df')
 ######## Community changes
 #### 
 # whats the difference between the communities within antibiotic between day 0 and end point

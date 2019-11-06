@@ -839,10 +839,12 @@ plot_temporal <- function(antibiotic, otus){
 	data_df <- meta_file %>% 
 		filter(day >= 0, abx %in% antibiotic)		
 	abundance_plot <- data_df %>% 
+		group_by(abx) %>% 
 		mutate(dose = case_when(dose == min(dose) ~ 'low',
 				dose == max(dose) ~ 'high',
 				T ~ 'mid'),
 			mouse_id = paste(dose, mouse_id, sep = '_')) %>% 
+		filter(dose == 'mid' | abx == 'clinda') %>% 
 		inner_join(rel_abund, by = 'group') %>% 
 		select(mouse_id, CFU, day, abx, one_of(otus)) %>% 
 		gather(otu, rel_abund, contains('Otu00'), CFU) %>% 
@@ -856,7 +858,7 @@ plot_temporal <- function(antibiotic, otus){
 			geom_point(aes(group = mouse_id), alpha	 = 0.25) + 
 			stat_summary(fun.y=median, geom="line", size = 1, aes(group = otu)) +
 			theme_bw() + 
-			facet_grid(tax_otu_label~., scales = 'free_y') + 
+			facet_grid(tax_otu_label~abx, scales = 'free_y') + 
 			labs(y = 'Relative Abundance', x = 'Day') + 
 			theme(legend.position = 'none')
 	return(abundance_plot)
@@ -864,16 +866,31 @@ plot_temporal <- function(antibiotic, otus){
 plot_temporal('strep',
 	c('Otu000033', 'Otu000051', 'Otu000148', 'Otu000008', 'Otu000043'))
 
-plot_temporal('strep',
-	c('Otu000006', 'Otu000008', 'Otu000414', 'Otu000022', 'Otu000024',
-		'Otu000024', 'Otu000005', 'Otu000013'))
+# spieceasi - strep
+ggsave('results/figures/strep_network_temporal_otus.jpg',
+	plot_temporal('strep',
+		c('Otu000006', 'Otu000008', 'Otu000022', 'Otu000024', #'Otu000414', 
+			'Otu000024', 'Otu000005', 'Otu000013')),
+	width = 10, height = 10)
+
+# spieceasi - cef
+ggsave('results/figures/cef_network_temporal_otus.jpg',
+	plot_temporal('cef',
+		c('Otu000033', 'Otu000287', 'Otu000006', #'Otu000314', 'Otu000304', 
+			'Otu000010', 'Otu000012')),
+	width = 10, height = 10)
 
 plot_temporal('metro',
 	c('Otu000003', 'Otu000010', 'Otu000024','Otu000013'))
 
-#spieceasi
+#spieceasi - clinda
 plot_temporal('clinda',
 	c('Otu000007', 'Otu000008', 'Otu000010','Otu000040'))
+# compare otus from clinda in other abx
+ggsave('results/figures/cef_strep_w_clinda_network_otus.jpg',
+	plot_temporal(c('cef', 'strep', 'clinda'),
+		c('Otu000007', 'Otu000008', 'Otu000010','Otu000040')),
+	width = 10, height = 7)
 # bayesnet
 plot_temporal('clinda',
 	c('Otu000777', 'Otu000008', 'Otu000010','Otu000033',
