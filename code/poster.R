@@ -21,13 +21,6 @@ rel_abund <- data.frame(group = row.names(shared_file), 100*shared_file/n_seqs,
 	stringsAsFactors = F)
 min_rel_abund <- 100 * 1/n_seqs
 
-# create a dataframe with the change in C. difficile CFU by day
-differenced_cfu <- meta_file %>% 
-	group_by(mouse_id) %>% 
-	arrange(mouse_id, day) %>% 
-	mutate(delta_cfu = CFU - lag(CFU)) %>% 
-	ungroup %>% 
-	mutate(delta_trend = ifelse(sign(delta_cfu) == -1, -1, 1))
 # create a dataframe with the change in relative abundance by day
 diff_rel_abund <- meta_file %>% 
 	select(group, mouse_id, day) %>% 
@@ -38,36 +31,11 @@ diff_rel_abund <- meta_file %>%
 		function(otu) { otu - lag(otu) } ) %>% 
 	ungroup
 
-diff_rel_abund <- meta_file %>% 
-	select(group, mouse_id, day) %>% 
-	inner_join(rel_abund, by = 'group') %>% 
-	group_by(mouse_id) %>% 
-	arrange(mouse_id, day) %>% 
-	mutate_at(vars(contains('Otu')), 
-		function(otu) { otu - lag(otu) } ) %>% 
-	ungroup
-
-# categorize mice based on the colonization levels at the end of the experiment
-clearance <- differenced_cfu %>% 
-	group_by(mouse_id) %>% 
-	summarise(last_sample = max(day),
-		inital_sample = min(day),
-		max_cfu = max(CFU)) %>% 
-	left_join(differenced_cfu) %>% 
-	filter(day == last_sample, max_cfu > 0) %>% # remove mice that don't become colonized at all
-	select(mouse_id, end_point_cfu = CFU, delta_trend, delta_cfu, last_sample, inital_sample) %>% 
-	mutate(clearance = case_when(end_point_cfu == 0 ~ 'Cleared', 
-		delta_trend < 0 & end_point_cfu < 100000 ~ 'Clearing', # 10^5 separates the mice 
-		T ~ 'Colonized'))
-
 ####### Colonization dynamic
 cfu_lod_df <- data.frame(x = -0.5, y = 2) 
 cfu_plot <- meta_file %>% 
 	filter(abx %in% c('clinda', 'strep', 'cef'), cdiff == T, day >= 0) %>% 
-	mutate(abx = case_when(abx == 'clinda' ~ 'Clindamycin',
-		abx == 'strep' ~ 'Streptomycin',
-		abx == 'cef' ~ 'Cefoperazone')) %>% 
-	ggplot(aes(x = day, y = log10(CFU +60), group = mouse_id, color = abx)) + 
+	ggplot(aes(x = day, y = log10CFU, group = mouse_id, color = abx)) + 
 		geom_line() + 
 		facet_wrap(.~abx, ncol = 1) + 
 		theme_bw() + theme(legend.position = 'none') + 
@@ -87,7 +55,6 @@ cfu_plot <- meta_file %>%
 nmds_initial_end_df <- meta_file %>% 
 	filter(abx %in% c('clinda', 'cef', 'strep'), cdiff == T) %>% 
 	group_by(mouse_id) %>% 
-	mutate(min_day = min(day), max_day = max(day)) %>% 
 	filter(day == min_day | day == max_day)
 mothur <- '/mothur/mothur'
 
@@ -116,17 +83,11 @@ plot_nmds <- function(input_dataframe_name){
 	# plot  results
 	nmds_df <- read_tsv(paste0('data/mothur/', i, '.thetayc.0.03.lt.ave.nmds.axes'))
 
-	nmds_plot <- meta_file %>% 
+	nmds_plot1 <- meta_file %>% 
 		inner_join(clearance, by ='mouse_id') %>% 
 		filter(abx %in% c('clinda', 'strep', 'cef'), cdiff == T, clearance != 'Clearing') %>% 
 		filter(day == inital_sample | day == 0 | day == last_sample) %>% 
-		mutate(abx = case_when(abx == 'clinda' ~ 'Clindamycin',
-				abx == 'strep' ~ 'Streptomycin',
-				abx == 'cef' ~ 'Cefoperazone'),
-			time_point = factor(case_when(day == 0 ~ 'Day 0',
-				day < 0 ~ 'Initial',
-				day > 0 ~ 'End'), levels = c('Initial', 'Day 0', 'End')),
-			pt_size = ifelse(time_point == "End", 3, 1),
+		mutate(pt_size = ifelse(time_point == "End", 3, 1),
 			pt_shape = ifelse(time_point == 'End', 3, 1),
 			clearance = case_when(clearance == 'Cleared' ~'Cleared Colonization',
 				clearance == 'Colonized' ~ 'Remain Colonized')) %>% 
@@ -141,7 +102,7 @@ plot_nmds <- function(input_dataframe_name){
 			facet_grid(.~clearance) + 
 			theme(legend.position = 'none', panel.grid.minor = element_blank(), 
 				text = element_text(size = 20))
-	ggsave('~/Desktop/nmds_temporal.jpg', nmds_plot,
+	ggsave('~/Desktop/nmds_temporal_initial_end_by_abx.jpg', nmds_plot,
 			width = 6, height = 4)
 }
 plot_nmds('nmds_initial_end_df')
@@ -160,9 +121,8 @@ delta_abund_df <- meta_file %>%
 	filter(day == 0 | day == last_sample) %>%  
 	inner_join(rel_abund, by = 'group') %>% )
 	gather(OTU, abundance, contains('Otu00')) %>% 
-	mutate(day = ifelse(day == 0, 'start', 'end')) %>% 
-	select(abx, mouse_id, OTU, day, abundance) %>% 
-	spread(day, abundance) #%>% 
+	select(abx, mouse_id, OTU, time_point, abundance) %>% 
+	spread(time_point, abundance) #%>% 
 # dont need to remove since not comparing individuals #filter( !( is.na(start) | is.na(end) ) ) %>% # remove any mice missing either sample 
 # dont need to remove since not comparing individuals #filter(end == 0 & start == 0) 
 
@@ -234,12 +194,7 @@ lod_df <- data.frame(x = 0.75, y = min_rel_abund)
 diff_abund_plot <- plot_df %>% 
 	filter(treatment != 'cef_clinda_strep',
 		!is.na(OTU)) %>% 
-	mutate(treatment = case_when(treatment == 'clinda' ~ 'Clindamycin',
-		treatment == 'strep' ~ 'Streptomycin',
-		treatment == 'cef' ~ 'Cefoperazone'),
-	tax_pval = gsub('_unclassified', '', tax_pval),
-	time_point = case_when(time_point == 'start' ~ 'Day 0',
-		time_point == 'end' ~ 'Day 10')) %>% 
+	mutate(tax_pval = gsub('_unclassified', '', tax_pval)) %>% 
 	ggplot(aes(x = reorder(tax_pval, -order), color = time_point)) + 
 		geom_hline(data = lod_df, aes(yintercept = y), size = 0.5, 
 			linetype = 'solid', color = 'black') + 

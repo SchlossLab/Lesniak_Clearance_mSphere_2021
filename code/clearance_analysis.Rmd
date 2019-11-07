@@ -18,8 +18,7 @@ tax_file <- '../data/process/abx_cdiff_taxonomy_clean.tsv'
 sum_taxa_function <- '../code/sum_otu_by_taxa.R'
 
 # read in data
-meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
-	mutate(mouse_id = paste(cage, mouse, sep = '_'))
+meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) 
 shared_file <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F, row.names = "Group") %>% 
 	select(-label, -numOtus)
 tax_df <- read.table(tax_file, sep = '\t', header = T, stringsAsFactors = F)
@@ -31,13 +30,6 @@ rel_abund <- data.frame(group = row.names(shared_file), 100*shared_file/n_seqs,
 	stringsAsFactors = F)
 min_rel_abund <- 100 * 1/n_seqs
 
-# create a dataframe with the change in C. difficile CFU by day
-differenced_cfu <- meta_file %>% 
-	group_by(mouse_id) %>% 
-	arrange(mouse_id, day) %>% 
-	mutate(delta_cfu = CFU - lag(CFU)) %>% 
-	ungroup %>% 
-	mutate(delta_trend = ifelse(sign(delta_cfu) == -1, -1, 1))
 # create a dataframe with the change in relative abundance by day
 diff_rel_abund <- meta_file %>% 
 	select(group, mouse_id, day) %>% 
@@ -62,32 +54,6 @@ diff_rel_abund <- meta_file %>%
 #otu1 - lag(otu1)
 #cfu1 - lag(cfu1)
 
-# categorize mice based on the colonization levels at the end of the experiment
-clearance <- differenced_cfu %>% 
-	group_by(mouse_id) %>% 
-	summarise(last_sample = max(day),
-		max_cfu = max(CFU)) %>% 
-	left_join(differenced_cfu, by = c('mouse_id')) %>% 
-	filter(day == last_sample) %>% 
-	select(mouse_id, end_point_cfu = CFU, delta_trend, delta_cfu, last_sample, max_cfu) %>% 
-	mutate(clearance = case_when(max_cfu < 1 ~ 'uncolonized',
-		end_point_cfu == 0 ~ 'cleared', 
-		delta_trend < 0 & end_point_cfu < 100000 ~ 'clearing', # 10^5 separates the mice 
-		T ~ 'colonized'))
-## plot the colonization of the different colonization categories
-#meta_file %>% 
-#	left_join(clearance) %>% 	
-#	ggplot(aes(x = day, y = log10(CFU + 70), color = clearance, group = mouse_id)) + 
-#		geom_line(alpha = 0.3) + 
-#		facet_wrap(clearance ~ .) + 
-#		theme(legend.position="none")
-## plot to confirm that we are not missing any mice with negatively trending C. difficile
-#meta_file %>% 
-#	left_join(clearance) %>% 	
-#	filter(clearance == 'colonized') %>% 
-#	mutate(Decreasing = ifelse(day %in% c(7:10) & delta_trend < 0, T, F)) %>% 
-#	ggplot(aes(x = day, y = log10(CFU + 70), color = Decreasing, group = mouse_id)) + 
-#		geom_line(alpha = 0.3) 
 ```
 
 
@@ -470,9 +436,6 @@ diff_trt_list <- list('amp', 'clinda', 'cef', 'metro', 'strep', 'vanc',
 
 corr_otu <- diff_rel_abund %>% 
 	inner_join(differenced_cfu, by = 'group') %>% 
-	mutate(diff_cfu = case_when(delta_cfu > 0 ~ log10(delta_cfu),
-		delta_cfu < 0 ~ -log10(-delta_cfu),
-		delta_cfu == 0 ~ 0)) %>% 
 	filter(diff_cfu > 0) %>% 
 	select(diff_cfu, contains('Otu')) %>% 
 	gather(otu, delta_abund, contains('Otu')) %>% 
@@ -492,14 +455,13 @@ meta_file %>%
 	filter(day >= 0, !abx %in% c('cipro', 'none')) %>% 
 	gather(otu, rel_abund, contains('Otu00')) %>% 
 	left_join(tax_df, by = c('otu' = 'OTU')) %>% 
-	mutate(CFU = log10(CFU + 60),
-		rel_abund = log10(rel_abund + 0.04)) %>% 
-	gather(bacteria, abundance, rel_abund, CFU) %>% 
+	mutate(log10rel_abund = log10(rel_abund + 0.04)) %>% 
+	gather(bacteria, abundance, log10rel_abund, log10CFU) %>% 
 	ggplot(aes(y = abundance, x = day)) + 
 		geom_line(aes(color = bacteria, group = mouse_id)) + 
 		theme_bw() + 
 		facet_grid(bacteria~abx, scales = 'free_y') + 
-		labs(x = 'Relative Abundance', y = 'C.difficile CFU')
+		labs(x = 'Relative Abundance (log10)', y = 'C.difficile CFU')
 
 corr_otu <- function(antibiotic){
 	tmp_otus <- meta_file %>% 
@@ -526,8 +488,6 @@ corr_otu <- function(antibiotic){
 		tmp_df <- diff_rel_abund %>% 
 			select(group, mouse_id, day, one_of(tmp_otus)) %>% 
 			inner_join(differenced_cfu, by = 'group') %>% 
-			mutate(diff_cfu = delta_trend * log10(abs(delta_cfu)),
-				diff_cfu = ifelse(diff_cfu == -Inf, 0, diff_cfu)) %>% 
 			filter(diff_cfu != 0, abx %in% antibiotic) %>% 
 			select(diff_cfu, contains('Otu')) %>% 
 			gather(otu, delta_abund, contains('Otu')) %>% 
@@ -562,9 +522,8 @@ plot_diff_corr <- function(antibiotic){
 		select(mouse_id, CFU, day, abx, 
 			one_of(diff_corr_otus$otu[diff_corr_otus$treatment == paste(antibiotic, collapse = '_')])) %>% 
 		filter(day >= 0, abx %in% antibiotic) %>% 
-		mutate(CFU = log10(CFU + 60)) %>% 
 		mutate_at(vars(contains('Otu')), function(otu) {log10(otu + 0.04)}) %>% 
-		gather(otu, rel_abund, CFU, contains('Otu00')) %>% 
+		gather(otu, rel_abund, log10CFU, contains('Otu00')) %>% 
 		#left_join(tax_df, by = c('otu' = 'OTU')) %>% 
 		ggplot(aes(y = rel_abund, x = day)) + 
 			geom_line(aes(color = otu, group = mouse_id)) + 
@@ -837,14 +796,14 @@ get_first_order_bn('metro', 'purple')
 
 plot_temporal <- function(antibiotic, otus){
 	data_df <- meta_file %>% 
-		filter(day >= 0, abx %in% antibiotic)		
+		group_by(mouse_id) %>% 
+		left_join(clearance) %>% 
+		filter(day >= 0, max_cfu > 100, 
+			abx %in% antibiotic) 
 	abundance_plot <- data_df %>% 
 		group_by(abx) %>% 
-		mutate(dose = case_when(dose == min(dose) ~ 'low',
-				dose == max(dose) ~ 'high',
-				T ~ 'mid'),
-			mouse_id = paste(dose, mouse_id, sep = '_')) %>% 
-		filter(dose == 'mid' | abx == 'clinda') %>% 
+		mutate(mouse_id = paste(dose, mouse_id, sep = '_')) %>% 
+		filter(dose_level == 'mid' | abx == 'clinda', clearance == 'Cleared') %>% 
 		inner_join(rel_abund, by = 'group') %>% 
 		select(mouse_id, CFU, day, abx, one_of(otus)) %>% 
 		gather(otu, rel_abund, contains('Otu00'), CFU) %>% 
@@ -953,11 +912,7 @@ plot_correlation_pos_lag <- function(antibiotic, otus){
 colonization_plot <- meta_file %>% 
 	filter(day > 0, abx %in% c('cef', 'strep'), cdiff == T) %>% 
 	group_by(abx) %>% 
-	mutate(dose = case_when(dose == min(dose) ~ 'low',
-		dose == max(dose) ~ 'high',
-		T ~ 'mid')) %>% 
-	mutate(CFU = log10(CFU + 60)) %>% 
-	ggplot(aes(x = day, y = CFU, color = abx)) + 
+	ggplot(aes(x = day, y = log10CFU, color = abx)) + 
 		geom_point(alpha = 0.2) +
 		stat_summary(fun.y = median, geom = 'line', aes(group = dose)) + 
 		facet_grid(dose~abx) + 

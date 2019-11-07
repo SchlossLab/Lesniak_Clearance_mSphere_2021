@@ -122,6 +122,65 @@ cfu_cleaned <- meta_file %>%
 cfu_cleaned[cfu_cleaned$group == '600-2D-6', 'preAbx'] <- T
 cfu_cleaned[cfu_cleaned$group == '089-1D-6', 'dose'] <- '0.5'  
 
+# create a dataframe with the change in C. difficile CFU by day
+cfu_cleaned %<>% 
+	mutate(mouse_id = paste(cage, mouse, sep = '_')) %>% 
+	group_by(mouse_id) %>% 
+	arrange(mouse_id, day) %>% 
+	mutate(delta_cfu = CFU - lag(CFU)) %>% 
+	ungroup %>% 
+	mutate(delta_trend = ifelse(sign(delta_cfu) == -1, -1, 1)) %>% 
+	group_by(mouse_id) %>% 
+	mutate(last_sample = max(day),
+		max_cfu = max(CFU),
+		initial_sample = min(day))
+
+# categorize mice based on the colonization levels at the end of the experiment
+clearance_df <- cfu_cleaned %>% 
+	filter(day == last_sample) %>% 
+	select(mouse_id, end_point_cfu = CFU, delta_trend, max_cfu) %>% 
+	mutate(clearance = case_when(max_cfu < 1 ~ 'Uncolonized',
+		end_point_cfu == 0 ~ 'Cleared', 
+		delta_trend < 0 & end_point_cfu < 100000 ~ 'Clearing', # 10^5 separates the mice 
+		T ~ 'Colonized'))
+## plot the colonization of the different colonization categories
+#meta_file %>% 
+#	left_join(clearance) %>% 	
+#	ggplot(aes(x = day, y = log10(CFU + 70), color = clearance, group = mouse_id)) + 
+#		geom_line(alpha = 0.3) + 
+#		facet_wrap(clearance ~ .) + 
+#		theme(legend.position="none")
+## plot to confirm that we are not missing any mice with negatively trending C. difficile
+#meta_file %>% 
+#	left_join(clearance) %>% 	
+#	filter(clearance == 'colonized') %>% 
+#	mutate(Decreasing = ifelse(day %in% c(7:10) & delta_trend < 0, T, F)) %>% 
+#	ggplot(aes(x = day, y = log10(CFU + 70), color = Decreasing, group = mouse_id)) + 
+#		geom_line(alpha = 0.3) 
+
+cfu_cleaned <- cfu_cleaned %>% 
+	left_join(select(clearance_df, mouse_id, clearance), 
+		by = 'mouse_id') %>% 
+	ungroup %>% 
+	mutate(abx = case_when(abx == 'clinda' ~ 'Clindamycin',
+			abx == 'strep' ~ 'Streptomycin',
+			abx == 'cef' ~ 'Cefoperazone',
+			abx == "metro" ~ 'Metronidazole',
+			abx == "amp" ~ 'Ampicillin',
+			abx == "cipro" ~ 'Ciprofloxacin',
+			abx == "none" ~ 'None',
+			abx == "vanc" ~ 'Vancomycin'),
+		diff_cfu = ifelse(delta_trend == 0, 0, 
+			delta_trend * log10(abs(delta_cfu))),
+		log10CFU = log10(CFU + 60),
+		time_point = factor(case_when(day == 0 ~ 'Day 0',
+			day == initial_sample ~ 'Initial',
+			day == last_sample ~ 'End',
+			T ~ 'Intermediate'), levels = c('Initial', 'Day 0', 'End', 'Intermediate'))) %>% 
+	group_by(abx) %>% 
+	mutate(dose_level = case_when(dose == min(dose) ~ 'low',
+			dose == max(dose) ~ 'high',
+			T ~ 'mid'))
 
 write.table(cfu_cleaned, 'data/process/abx_cdiff_metadata_clean.txt', 
 	sep = '\t', quote = FALSE, row.names = FALSE)
