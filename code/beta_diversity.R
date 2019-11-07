@@ -9,14 +9,13 @@ dist_function <- 'code/read.dist.R'
 # read in data
 meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
 	filter(abx %in% c('Clindamycin', 'Streptomycin', 'Cefoperazone'))
-
 source(dist_function)
 tyc_df <- read_dist(dist_file)
 
 # for control variation, determine variation between samples on initial day
 initial_intra_cage <- meta_file %>% 
 	filter(time_point == 'Initial') %>% 
-	select(group, abx,clearance)	
+	select(group, abx,clearance, dose_level)	
 
 initial_tyc <- tyc_df %>% 
 	inner_join(initial_intra_cage, by = c('rows' = 'group')) %>% 
@@ -28,18 +27,18 @@ initial_tyc <- tyc_df %>%
 # compare mice against other cages at inital
 initial_inter_cage_diversity <- initial_tyc %>% 
 	filter(cage_rows != cage_cols) %>% 
-	mutate(comparison = 'Between Cages') %>% 
-	select(comparison, clearance, abx, tyc = distances)
+	mutate(comparison = 'Initial Between Cages') %>% 
+	select(comparison, clearance, abx, dose_level, tyc = distances)
 # compare mice within cage at initial
 initial_intra_cage_diversity <- initial_tyc %>% 
 	filter(cage_rows == cage_cols) %>% 
-	mutate(comparison = 'Within Cages') %>% 
-	select(comparison, clearance, abx, tyc = distances)
+	mutate(comparison = 'Initial Within Cages') %>% 
+	select(comparison, clearance, abx, dose_level, tyc = distances)
 
 compare_time_point <- function(timepoints){
 	samples_list <- meta_file %>% 
 		filter(time_point %in% timepoints) %>% 
-		select(group, clearance, abx)	
+		select(group, clearance, abx, dose_level)	
 
 	output_diversity <- tyc_df %>% 
 		inner_join(samples_list, by = c('rows' = 'group')) %>% 
@@ -48,7 +47,7 @@ compare_time_point <- function(timepoints){
 			columns = gsub('D.*', '', columns)) %>% 
 		filter(rows == columns) %>% 
 		mutate(comparison = paste(timepoints, collapse = " to ")) %>% 
-		select(comparison, clearance, abx, tyc = distances)
+		select(comparison, clearance, abx, dose_level, tyc = distances)
 	return(output_diversity)
 }
 
@@ -63,15 +62,16 @@ tyc_comparisons <- map_dfr(comparisons, ~ compare_time_point(.x))
 tyc_df <- rbind(tyc_comparisons, initial_intra_cage_diversity, initial_inter_cage_diversity) 
 
 tyc_df %>% 
-	ggplot(aes(x = comparison, y = tyc)) +
-		geom_boxplot() + 
-		theme_bw() + 
-		facet_wrap(abx~.)
-
-tyc_df %>% 
-	mutate(comparison = factor(tyc_df$comparison, 
-		levels = c('Within Cages', 'Between Cages', 'Day 0 to Initial', 'Day 0 to End', 'End to Initial'))) %>% 
+	mutate(comparison = factor(comparison, 
+		levels = c('Initial Within Cages', 'Initial Between Cages', 
+			'Day 0 to Initial', 'Day 0 to End', 'End to Initial')),
+		dose_level = factor(dose_level, 
+		levels = c('Low', 'Mid', 'High'))) %>% 
 	filter(clearance != 'Clearing') %>% 
 	ggplot(aes(x = comparison, y = tyc, fill = clearance)) +
 		geom_boxplot() + 
-		theme_bw()
+		theme_bw() + 
+		facet_grid(abx~dose_level)
+
+# compare across antibiotic in mice that clear on day 0
+# compare across antibiotic in mice that clear on day 0
