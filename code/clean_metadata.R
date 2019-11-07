@@ -138,8 +138,9 @@ cfu_cleaned %<>%
 # categorize mice based on the colonization levels at the end of the experiment
 clearance_df <- cfu_cleaned %>% 
 	filter(day == last_sample) %>% 
-	select(mouse_id, end_point_cfu = CFU, delta_trend, max_cfu) %>% 
-	mutate(clearance = case_when(max_cfu < 1 ~ 'Uncolonized',
+	select(mouse_id, end_point_cfu = CFU, cdiff, delta_trend, max_cfu) %>% 
+	mutate(clearance = case_when(cdiff == F ~ 'Unchallenged',
+		max_cfu < 1 ~ 'Uncolonized',
 		end_point_cfu == 0 ~ 'Cleared', 
 		delta_trend < 0 & end_point_cfu < 100000 ~ 'Clearing', # 10^5 separates the mice 
 		T ~ 'Colonized'))
@@ -178,9 +179,9 @@ cfu_cleaned <- cfu_cleaned %>%
 			day == last_sample ~ 'End',
 			T ~ 'Intermediate'), levels = c('Initial', 'Day 0', 'End', 'Intermediate'))) %>% 
 	group_by(abx) %>% 
-	mutate(dose_level = case_when(dose == min(dose) ~ 'low',
-			dose == max(dose) ~ 'high',
-			T ~ 'mid'))
+	mutate(dose_level = case_when(dose == min(dose) ~ 'Low',
+			dose == max(dose) ~ 'High',
+			T ~ 'Mid'))
 
 write.table(cfu_cleaned, 'data/process/abx_cdiff_metadata_clean.txt', 
 	sep = '\t', quote = FALSE, row.names = FALSE)
