@@ -8,7 +8,11 @@ dist_function <- 'code/read.dist.R'
 
 # read in data
 meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
-	filter(abx %in% c('Clindamycin', 'Streptomycin', 'Cefoperazone'))
+	filter(abx %in% c('Clindamycin', 'Streptomycin', 'Cefoperazone')) %>% 
+	mutate(time_point = factor(time_point, 
+			levels = c('Initial', 'Day 0', 'Intermediate', 'End')),
+		dose_level = factor(dose_level, 
+			levels = c('Low', 'Mid', 'High')))
 source(dist_function)
 tyc_df <- read_dist(dist_file)
 
@@ -56,22 +60,35 @@ compare_time_point <- function(timepoints){
 # compare mice on day 0 to initial
 # compare day day 0 to end
 # compare intial to end
-comparisons <- list(c('Day 0', 'Initial'), c('Day 0', 'End'), c('End', 'Initial'))
+comparisons <- list(c('Day 0', 'Initial'), c('End', 'Initial'))
 tyc_comparisons <- map_dfr(comparisons, ~ compare_time_point(.x))
 
-tyc_df <- rbind(tyc_comparisons, initial_intra_cage_diversity, initial_inter_cage_diversity) 
+initial_tyc_df <- rbind(tyc_comparisons, initial_intra_cage_diversity, initial_inter_cage_diversity) 
 
-tyc_df %>% 
+initial_tyc_df %>% 
 	mutate(comparison = factor(comparison, 
 		levels = c('Initial Within Cages', 'Initial Between Cages', 
-			'Day 0 to Initial', 'Day 0 to End', 'End to Initial')),
-		dose_level = factor(dose_level, 
-		levels = c('Low', 'Mid', 'High'))) %>% 
+			'Day 0 to Initial', 'Day 0 to End', 'End to Initial'))) %>% 
 	filter(clearance != 'Clearing') %>% 
 	ggplot(aes(x = comparison, y = tyc, fill = clearance)) +
 		geom_boxplot() + 
 		theme_bw() + 
 		facet_grid(abx~dose_level)
 
+# compare across antibiotic in mice that clear on initial day
 # compare across antibiotic in mice that clear on day 0
-# compare across antibiotic in mice that clear on day 0
+# compare across antibiotic in mice that clear on end point
+cleared_df <- meta_file %>% 
+	filter(clearance == 'Cleared', time_point %in% c('End', 'Initial', 'Day 0')) %>% 
+	select(group, abx, dose_level, time_point)
+across_abx_tyc <- tyc_df %>% 
+	inner_join(cleared_df, by = c('rows' = 'group')) %>% 
+	inner_join(select(cleared_df, group, abx), by = c('columns' = 'group'),
+		suffix = c('_rows','_cols'))
+across_abx_tyc %>% 
+	filter(abx_rows != abx_cols) %>% 
+	ggplot(aes(y = distances, fill = abx_rows)) + 
+		geom_boxplot() + 
+		theme_bw() + 
+		facet_grid(dose_level~time_point)
+str(meta_file$time_point)
