@@ -16,9 +16,10 @@ OTU_threshold <- 6
 
 meta_df <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
   mutate(treatment = paste(abx, dose, delayed, cdiff, sep = '_'),
-    mouse_id = paste(cage, mouse, sep = '_'),
     group = gsub('-', '_', group),
-    day = as.numeric(day)) 
+    day = as.numeric(day),
+    colonized = ifelse(max_cfu > 10^4, T, F))  %>% 
+    filter(abx %in% c('Cefoperazone', 'Streptomycin', 'Clindamycin'))
 shared_df_raw <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F)
 
 source(taxonomy_function)
@@ -43,24 +44,6 @@ relative_abundance_df <- data.frame(100 * relative_abundance_df / abundance) %>%
 
 
 rm(samples_w_OTU, OTUs_above_threshold, OTU_threshold, shared_df_raw)
-
-# create category of colonize (max CFU > 10^4) and cleared (min of colonized < 10^4)
-colonized_mice <- meta_df %>% 
-  group_by(mouse_id) %>% 
-  summarise(max_cfu = max(CFU)) %>% 
-  mutate(colonization = ifelse(max_cfu > 10^4, T, F))
-cleared_mice <- meta_df %>% 
-  right_join(
-    filter(colonized_mice, colonization == T),
-    by = 'mouse_id') %>% 
-  filter(day > 0) %>% 
-  group_by(mouse_id) %>% 
-  summarise(min_cfu = min(CFU)) %>% 
-  mutate(clearance = ifelse(min_cfu < 10^3, T, F))
-# merge meta data frame with columns indicating colonization/clearance
-meta_df <- meta_df %>% 
-  left_join(colonized_mice, by = 'mouse_id') %>% 
-  left_join(cleared_mice, by = 'mouse_id')
 
 # make sure directory for figures exists
 ifelse(!dir.exists(save_dir), 
@@ -96,11 +79,10 @@ plot_lefse <- function(input_dataframe_name){
     lefse(shared=', i, '.shared, design=', i, '.design);"'))
 
   # plot lefse results
-  lefse_df <- read_tsv(paste0('data/mothur/', i, '.0.03.lefse_summary'))
-
-  lefse_df <- lefse_df  %>% 
+  lefse_df <- read_tsv(paste0('data/mothur/', i, '.0.03.lefse_summary'))%>% 
     top_n(10, LDA) %>% 
     arrange(desc(LDA)) 
+
   if(nrow(lefse_df) > 0){
     plot_df <- current_df %>% 
       left_join(relative_abundance_df, by = 'group') %>% 
@@ -134,25 +116,21 @@ plot_lefse <- function(input_dataframe_name){
 }
 
 # create subsets dataframes with category of interests
-# as a whole, what OTUs best explain colonization
-colonized_df <- meta_df %>% 
-  filter(cdiff == T, day == 0, 
-    group %in% shared_df$Group) %>%
-  select(group, class = colonization)
-# as a whole, what OTUs best explain clearance
-cleared_df <- meta_df %>% 
-  filter(cdiff == T, colonization == T, day == 0, 
-    group %in% shared_df$Group) %>% 
-  select(group, class = clearance) 
-# [1] "No significant LDA"
 
+# as a whole, what OTUs best explain clearance
+cleared_cef_clinda_strep_df <- meta_df %>% 
+  filter(cdiff == T, day == 0, colonized == T, 
+    clearance %in% c('Cleared', 'Colonized'),
+    group %in% shared_df$Group) %>% 
+  select(group, class = clearance)
+
+# create dataframe with the differenced CFU/abundance
 delta_df <- meta_df %>% 
-  filter(cdiff == T, colonization == T, 
+  filter(cdiff == T, colonized == T, 
     group %in% shared_df$Group) %>% 
   group_by(mouse_id) %>% 
   arrange(mouse_id , day) %>% 
-  mutate(delta_cfu = c(NA, diff(log10(CFU + 1)))) %>% 
-  select(group, mouse_id, day, CFU, delta_cfu) %>% 
+  select(group, mouse_id, day, CFU, delta_log10cfu) %>% 
   left_join(
     select(shared_df, -numOtus, -label), 
     by = c('group' = 'Group')) %>% 
@@ -160,20 +138,20 @@ delta_df <- meta_df %>%
   filter(day > 0) %>% 
   gather(OTU, delta_abundance, contains('Otu0'))  %>% 
   ungroup
-
+# elimniate otus that do not change
 good_otus <- delta_df %>%
   group_by(mouse_id, OTU) %>% 
   summarise(sum_delta_abdnc = sum(abs(delta_abundance))) %>% 
   filter(sum_delta_abdnc != 0) %>% 
   select(mouse_id, OTU) %>% 
   ungroup
-
+# correlate the change in CFU to the change in abundance
 delta_corr_otus <- delta_df %>% 
   right_join(good_otus, by = c('mouse_id', 'OTU')) %>% 
   group_by(OTU) %>% 
   nest() %>% 
   # calculate the Spearman correlation value and its P-value for each OTU against
-  mutate(comparison = map(data, ~cor.test(.$delta_cfu, .$delta_abundance, 
+  mutate(comparison = map(data, ~cor.test(.$delta_log10cfu, .$delta_abundance, 
       method = 'spearman')),
     summaries = map(comparison, broom::glance)) %>% 
   unnest(summaries) %>% 
@@ -184,10 +162,9 @@ delta_corr_otus <- delta_df %>%
   filter(p_adjust == TRUE)
 
 abundance_corr_otu <- meta_df %>% 
-  filter(cdiff == T, colonization == T, 
+  filter(cdiff == T, colonized == T, 
     group %in% shared_df$Group) %>% 
-  select(group, mouse_id, day, CFU) %>% 
-  mutate(CFU = log10(CFU + 1)) %>% 
+  select(group, mouse_id, day, CFU = log10CFU) %>% 
   left_join(
     select(shared_df, -numOtus, -label), 
     by = c('group' = 'Group')) %>% 
@@ -209,16 +186,17 @@ abundance_corr_otu <- meta_df %>%
   arrange(desc(est_mag))
 
 delta_corr_otus
-
+abundance_corr_otu
 
 
 
 #trend_df <- 
 meta_df %>% 
-  filter(colonization == T, day > 0) %>%
+  filter(colonized == T, day > 0) %>%
   select(CFU, day, mouse_id) %>% 
   spread(mouse_id, CFU) %>% 
-  {lm.fit(.[,1], .[,-1])}
+  as.matrix %>% 
+  {lm.fit(.[,-1], .[,1])}
     
   #ggplot(aes(x = day, y = log10(CFU + 1))) + geom_point() + coord_cartesian(ylim = c(0,9)) %>% 
     lm.fit(day, CFU) %>% 
@@ -238,7 +216,9 @@ dat <- data.frame(day1,day2,day3)
 fits <- lm.fit(cbind(1, seq_len(nrow(dat))), t(dat))
 t(coef(fits))
 
-
+meta_df %>% 
+  filter(treatment == 'metro_1_FALSE_TRUE', day == 10)  %>% 
+  select(mouse_id, CFU)  
 
 
 
