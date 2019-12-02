@@ -19,7 +19,9 @@ meta_df <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %
     group = gsub('-', '_', group),
     day = as.numeric(day),
     colonized = ifelse(max_cfu > 10^4, T, F))  %>% 
-    filter(abx %in% c('Cefoperazone', 'Streptomycin', 'Clindamycin'))
+    filter(abx %in% c('Cefoperazone', 'Streptomycin', 'Clindamycin'),
+      clearance != 'Clearing') %>% 
+      mutate(time_point = gsub('Day 0', 'Day_0', time_point))
 shared_df_raw <- read.table(shared_file, sep = '\t', header = T, stringsAsFactors = F)
 
 source(taxonomy_function)
@@ -124,6 +126,84 @@ cleared_cef_clinda_strep_df <- meta_df %>%
     group %in% shared_df$Group) %>% 
   select(group, class = clearance)
 
+plot_lefse('cleared_cef_clinda_strep_df')
+
+# what are the differences between initial and final in clearing mice for
+# clinda - diff between begining and end for mice that clear
+clinda_clearance_df <- meta_df %>% 
+	filter(abx == 'Clindamycin', clearance == 'Cleared', 
+		time_point %in% c('Day_0', 'End')) %>% 
+	select(group, class = time_point)
+plot_lefse('clinda_clearance_df')
+
+# cef - diff between begining and end for mice that clear
+cef_clearance_df <- meta_df %>%
+	filter(abx == 'Cefoperazone', clearance == 'Cleared', 
+		time_point %in% c('Day_0', 'End')) %>% 
+	select(group, class = time_point)
+plot_lefse('cef_clearance_df')
+# strep - diff between begining and end for mice that clear
+strep_clearance_df <- meta_df %>%
+	filter(abx == 'Streptomycin', clearance == 'Cleared', 
+		time_point %in% c('Day_0', 'End')) %>% 
+	select(group, class = time_point)
+plot_lefse('strep_clearance_df')
+
+
+cef_0.3_clearance_initial_df <- meta_df %>% 
+  filter(cdiff == T, day == 0, abx == 'Cefoperazone', dose == '0.3', colonized == TRUE) %>% 
+  select(group, class = clearance)
+# for Cef 0.3, dose with both outcomes, what OTUs best explain clearance
+# based on initial community
+cef_0.3_clearance_initial_df <- meta_df %>% 
+  filter(cdiff == T, day == 0, abx == 'Cefoperazone', dose == '0.3', colonized == TRUE) %>% 
+  select(group, class = clearance)
+# based on final community
+cef_0.3_clearance_end_df <- meta_df %>% 
+  filter(cdiff == T, day == last_sample, abx == 'Cefoperazone', dose == '0.3', colonized == TRUE) %>% 
+  select(group, class = clearance)
+# for all Cef, what OTUs best explain clearance
+# based on initial community
+cef_all_clearance_initial_df <- meta_df %>% 
+  filter(cdiff == T, day == 0, abx == 'Cefoperazone', colonized == TRUE) %>% 
+  select(group, class = clearance)
+ dose with both outcomes,
+# based on final community
+cef_all_clearance_end_df <- meta_df %>% 
+  filter(cdiff == T, day == last_sample, abx == 'Cefoperazone', colonized == TRUE) %>% 
+  select(group, class = clearance)
+
+
+# for strep 0.5, what OTUs best explain clearance
+strep_0.5_clearance_df <- meta_df %>% 
+  filter(cdiff == T, day == 0, abx == 'strep', dose == '0.5', colonization == TRUE) %>% 
+  select(group, class = clearance)
+#  [1] "No significant LDA"
+strep_0.5_clearance_at_end_df <- meta_df %>% 
+  filter(cdiff == T, day == 9, abx == 'strep', dose == '0.5', colonization == TRUE) %>% 
+  select(group, class = clearance)
+
+# for strep 0.1/0.5, what OTUs best explain the difference in antibiotic effect?
+strep_0.1_0.5_comparison_df <- meta_df %>% 
+  filter(cdiff == T, day == 0, abx == 'strep', dose %in% c('0.1', '0.5')) %>% 
+  select(group, class = dose)
+
+# repeat looking at genus level?
+# compare community at end point for clearance?
+# what explains the variation in abx effect?
+
+
+
+# run plotting function using the name of the subsetted dataframe
+# expecting two columns, 1 with group - sample names, 1 with class - grouping category
+output <- c()
+for(i in c('cleared_df', 'colonized_df', 'cef_0.3_colonization_df', 'cef_0.3_clearance_df', 
+    'metro_delayed_colonization_df', 'metro_delayed_recovery_df', 'strep_0.5_clearance_df',
+    'strep_0.1_0.5_comparison_df', 'strep_0.5_clearance_at_end_df', 'vanc_0.1_clearance_df')){
+    output <- rbind(output, plot_lefse(i))
+  }
+#plot_lefse('cef_0.3_clearance_df')
+
 # create dataframe with the differenced CFU/abundance
 delta_df <- meta_df %>% 
   filter(cdiff == T, colonized == T, 
@@ -189,7 +269,6 @@ delta_corr_otus
 abundance_corr_otu
 
 
-
 #trend_df <- 
 meta_df %>% 
   filter(colonized == T, day > 0) %>%
@@ -222,63 +301,6 @@ meta_df %>%
 
 
 
-# for Cef 0.3, what OTUs best explain colonization
-cef_0.3_colonization_df <- meta_df %>% 
-  filter(cdiff == T, day == 0, abx == 'cef', dose == '0.3') %>% 
-  select(group, class = colonization)
-# for Cef 0.3, what OTUs best explain clearance
-cef_0.3_clearance_df <- meta_df %>% 
-  filter(cdiff == T, day == 0, abx == 'cef', dose == '0.3', colonization == TRUE) %>% 
-  select(group, class = clearance)
-
-# for metro delayed 1, what OTUs best explain colonization
-metro_delayed_colonization_df <- meta_df %>% 
-  filter(cdiff == T, day == 0, abx == 'metro', dose == '1', delayed == TRUE) %>% 
-  select(group, class = colonization)
-# cannot ask for "metro delayed 1, what OTUs best explain clearance" because all infected cleared
-# for metro delayed 1, what OTUs best explain recovery
-metro_delayed_recovery_df <- meta_df %>% 
-  filter(cdiff == T, abx == 'metro', dose == '1', delayed == TRUE, day %in% c(-5, 0)) %>% 
-  mutate(class = case_when(day == -5 ~ 'prerecovery',
-      day ==0 ~ 'postrecovery',
-      T ~ 'NA')) %>% 
-  select(group, class)
-# necessary to further breakdown by outcome of recovered community?
-
-# for strep 0.5, what OTUs best explain clearance
-strep_0.5_clearance_df <- meta_df %>% 
-  filter(cdiff == T, day == 0, abx == 'strep', dose == '0.5', colonization == TRUE) %>% 
-  select(group, class = clearance)
-#  [1] "No significant LDA"
-strep_0.5_clearance_at_end_df <- meta_df %>% 
-  filter(cdiff == T, day == 9, abx == 'strep', dose == '0.5', colonization == TRUE) %>% 
-  select(group, class = clearance)
-
-# for strep 0.1/0.5, what OTUs best explain the difference in antibiotic effect?
-strep_0.1_0.5_comparison_df <- meta_df %>% 
-  filter(cdiff == T, day == 0, abx == 'strep', dose %in% c('0.1', '0.5')) %>% 
-  select(group, class = dose)
-
-# for vanc 0.1, what OTUs best explain clearance
-vanc_0.1_clearance_df <- meta_df %>% 
-  filter(cdiff == T, day == 0, abx == 'vanc', dose == '0.1', colonization == TRUE) %>% 
-  select(group, class = clearance)
-
-# repeat looking at genus level?
-# compare community at end point for clearance?
-# what explains the variation in abx effect?
-
-
-
-# run plotting function using the name of the subsetted dataframe
-# expecting two columns, 1 with group - sample names, 1 with class - grouping category
-output <- c()
-for(i in c('cleared_df', 'colonized_df', 'cef_0.3_colonization_df', 'cef_0.3_clearance_df', 
-    'metro_delayed_colonization_df', 'metro_delayed_recovery_df', 'strep_0.5_clearance_df',
-    'strep_0.1_0.5_comparison_df', 'strep_0.5_clearance_at_end_df', 'vanc_0.1_clearance_df')){
-    output <- rbind(output, plot_lefse(i))
-  }
-#plot_lefse('cef_0.3_clearance_df')
 
 ################################################################################
 significant_OTUs <- output %>% 
