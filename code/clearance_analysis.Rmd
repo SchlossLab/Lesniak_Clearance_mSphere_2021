@@ -28,7 +28,9 @@ source(sum_taxa_function) # function to create taxanomic labels for OTUs
 n_seqs <- unique(apply(shared_file, 1, sum))
 rel_abund <- data.frame(group = row.names(shared_file), 100*shared_file/n_seqs,
 	stringsAsFactors = F)
+# set the minimum relative abundance to be used in plots
 min_rel_abund <- 100 * 1/n_seqs
+lod_df <- data.frame(x = 0.75, y = min_rel_abund)
 
 # create a dataframe with the change in relative abundance by day
 diff_rel_abund <- meta_file %>% 
@@ -103,19 +105,17 @@ What is the difference between the mice that clear the colonization and those th
 #### 
 # whats the difference between the communities within antibiotic
 ####
-test_otus <- function(antibiotic, time_point){
-	if(is.numeric(time_point)){
+test_otus <- function(antibiotic, input_time_point){
+	if(is.numeric(input_time_point)){
 			subset_df <- meta_file %>% 
-				left_join(clearance, by = c('mouse_id')) %>% 
-				filter(day == time_point)
+				filter(day == input_time_point)
 		} else {
 			subset_df <- meta_file %>% 
-				left_join(clearance, by = c('mouse_id')) %>% 
-				filter(day == !!(sym(time_point)))
+				filter(day == !!(sym(input_time_point)))
 		}
 	tmp_shared_clearance <- subset_df %>% 
 		filter(cdiff == T, abx %in% antibiotic, 
-			!clearance %in% c('uncolonized', 'clearing') ) %>% 
+			!clearance %in% c('Uncolonized', 'Clearing') ) %>% 
 		select(group, clearance) %>% 
 		inner_join(rel_abund, by = c('group'))
 
@@ -134,8 +134,8 @@ test_otus <- function(antibiotic, time_point){
 	sig_otus <- tmp_shared_clearance %>% 
 		select(one_of(tmp_otus)) %>% 
 		mutate_all(function(otu) {
-			x <- otu[tmp_shared_clearance$clearance == 'cleared']
-			y <- otu[tmp_shared_clearance$clearance == 'colonized']
+			x <- otu[tmp_shared_clearance$clearance == 'Cleared']
+			y <- otu[tmp_shared_clearance$clearance == 'Colonized']
 			wilcox.test(x, y)$p.value}) %>% 
 		unique %>% 
 		gather(OTU, pvalue) %>% 
@@ -146,9 +146,9 @@ test_otus <- function(antibiotic, time_point){
 
 	if(nrow(sig_otus) < 1){
 			print(paste('No significant OTUs for comparison -', paste(antibiotic, collapse = '_'), 
-				'time point -', time_point))
+				'time point -', input_time_point))
 			return(data.frame(antibiotic = paste(antibiotic, collapse = '_'),
-				time_point = as.character(time_point), stringsAsFactors = F)) 
+				time_point = as.character(input_time_point), stringsAsFactors = F)) 
 		} else {
 			tmp_shared_clearance <- tmp_shared_clearance %>% 
 				select(group, clearance, one_of(sig_otus$OTU)) %>% 
@@ -157,13 +157,12 @@ test_otus <- function(antibiotic, time_point){
 				left_join(sig_otus, by = c('OTU')) 
 
 			return(data.frame(tmp_shared_clearance, antibiotic = paste(antibiotic, collapse = '_'),
-				time_point = as.character(time_point), stringsAsFactors = F)) 
+				time_point = as.character(input_time_point), stringsAsFactors = F)) 
 		}
 }
 
-treatment_list <- list('clinda', 'cef', 'metro', 'strep', c('cef', 'metro', 'strep'), 
-		c('clinda', 'cef', 'strep'), 
-		c("clinda", "vanc", "amp", "cef", "metro", "strep"))
+treatment_list <- list('Clindamycin', 'Cefoperazone', 'Streptomycin', 
+		c('Clindamycin', 'Cefoperazone', 'Streptomycin'))
 
 d0_test_output_df <- map_dfr(treatment_list[-1], ~ test_otus(.x, 0))
 end_test_output_df <- map_dfr(treatment_list[-1], ~ test_otus(.x, 'last_sample'))
@@ -172,8 +171,7 @@ test_output_df <- rbind(d0_test_output_df, end_test_output_df)
 
 differential_abundance_plot <- function(df, treatment_group){
 	# create dataframe for the plot location of limit of detection
-	lod_df <- data.frame(x = 0.75, y = min_rel_abund)
-	temp_df <- df %>% 
+	temp_df <- test_output_df %>% 
 		filter(antibiotic == treatment_group) %>% # subset by treatment
 		mutate(tax_pval = paste0(tax_otu_label, '\n(p=', 
 				formatC(pvalue, format = "e", digits = 2), ')'),
@@ -199,10 +197,10 @@ differential_abundance_plot <- function(df, treatment_group){
 				linetype = 'dashed', color = 'white') + 
 			geom_point(aes(y = (abundance) + 0.04), 
 				position = position_dodge(width = 0.5), alpha = 0.2) + 
-			geom_segment(aes(y = colonized, yend = cleared, 
+			geom_segment(aes(y = Colonized, yend = Cleared, 
 				xend = reorder(tax_pval, -order)), color = 'black') + 
-			geom_point(aes(y = colonized), color = '#00BFC4', size = 3) + # ggplot default cyan
-			geom_point(aes(y = cleared), color = '#F8766D', size = 3) + # ggplot default red
+			geom_point(aes(y = Colonized), color = '#00BFC4', size = 3) + # ggplot default cyan
+			geom_point(aes(y = Cleared), color = '#F8766D', size = 3) + # ggplot default red
 			scale_y_log10() + coord_flip() + 
 			theme_bw() +  
 			labs(x = NULL, y = 'Relative Abundance (%)', title = paste0('Differentially abundant OTUs between\ncleared and colonized communities for ', 
@@ -224,12 +222,12 @@ differential_abundance_plot <- function(df, treatment_group){
 	}
 }
 
-cef_diff_abund <- differential_abundance_plot(test_output_df, 'cef')
-metro_diff_abund <- differential_abundance_plot(test_output_df, 'metro')
-strep_diff_abund <- differential_abundance_plot(test_output_df, 'strep')
+cef_diff_abund <- differential_abundance_plot(test_output_df, 'Cefoperazone')
+#metro_diff_abund <- differential_abundance_plot(test_output_df, 'metro')
+strep_diff_abund <- differential_abundance_plot(test_output_df, 'Streptomycin')
 # differential_abundance_plot(test_output_df, 'clinda')
 # differential_abundance_plot(test_output_df, paste(treatment_list[[6]], collapse = '_'))
-all_diff_abund <- differential_abundance_plot(test_output_df, paste(treatment_list[[7]], collapse = '_'))
+all_diff_abund <- differential_abundance_plot(test_output_df, paste(treatment_list[[4]], collapse = '_'))
 
 ## what is the overlap of significant otus?
 #test_output_df %>% 
@@ -294,11 +292,10 @@ What changes associate with decreases in CFU?
 
 test_delta_otus <- function(antibiotic){
 	tmp_shared_cleared <- meta_file %>% 
-		left_join(clearance, by = c('mouse_id')) %>% 
 			filter(day == 0 | day == last_sample, 
 				abx != 'none',
 				cdiff == T,
-				clearance %in% c('cleared', 'clearing'), 
+				clearance %in% c('Cleared', 'Clearing'), 
 				abx %in% antibiotic) %>% 
 		select(group, day) %>% 
 		inner_join(rel_abund, by = c('group'))
@@ -347,7 +344,6 @@ test_delta_otus <- function(antibiotic){
 test_change_cleared_df <- map_dfr(treatment_list, ~ test_delta_otus(.x))
 
 differential_abundance_plot <- function(df, treatment_group){
-	lod_df <- data.frame(x = 0.75, y = min_rel_abund)
 	temp_df <- df %>% 
 		filter(antibiotic == paste(treatment_group, collapse = '_')) %>% 
 		mutate(tax_pval = paste0(tax_otu_label, '\n(p=', 
@@ -392,19 +388,19 @@ differential_abundance_plot <- function(df, treatment_group){
 			guides(colour = guide_legend(override.aes = list(alpha = 1, size = 3))) + 
 			geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", size = 3,
 				fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE)
-	ggsave(paste0('../results/figures/clearance_delta_abund_', 
-		paste(treatment_group, collapse = ' '), '.jpg'), 
-		plot_output, width = 6, height = 2 + 0.5*length(unique(temp_df$OTU)))
+	#ggsave(paste0('../results/figures/clearance_delta_abund_', 
+	#	paste(treatment_group, collapse = ' '), '.jpg'), 
+	#	plot_output, width = 6, height = 2 + 0.5*length(unique(temp_df$OTU)))
 	return(plot_output)
 
 }
 
-differential_abundance_plot(test_change_cleared_df, 'strep')
-#differential_abundance_plot(test_change_cleared_df, 'cef')
-#differential_abundance_plot(test_change_cleared_df, 'metro')
-differential_abundance_plot(test_change_cleared_df, 'clinda')
-differential_abundance_plot(test_change_cleared_df, treatment_list[[6]])
-differential_abundance_plot(test_change_cleared_df, treatment_list[[7]])
+strep_cleared_intial_v_final_plot <- differential_abundance_plot(test_change_cleared_df, 'Streptomycin')
+cef_cleared_intial_v_final_plot <- differential_abundance_plot(test_change_cleared_df, 'Cefoperazone')
+#differential_abundance_plot(test_change_cleared_df, 'Metronidazole')
+clinda_cleared_intial_v_final_plot <- differential_abundance_plot(test_change_cleared_df, 'Clindamycin')
+all_cleared_intial_v_final_plot <- differential_abundance_plot(test_change_cleared_df, treatment_list[[4]])
+
 
 # when only looking at communities colonized, results went from:
 #	With uncolonized, colonized, and clearing
@@ -431,8 +427,9 @@ differential_abundance_plot(test_change_cleared_df, treatment_list[[7]])
 ####
 # test for association between changes in cfu and changes in otus
 ####
-diff_trt_list <- list('amp', 'clinda', 'cef', 'metro', 'strep', 'vanc',
-		c("clinda", "vanc", "amp", "cef", "metro", "strep"))
+
+differenced_cfu <- meta_file %>% 
+	select(group, abx, diff_cfu = delta_log10cfu)
 
 corr_otu <- diff_rel_abund %>% 
 	inner_join(differenced_cfu, by = 'group') %>% 
@@ -451,8 +448,8 @@ corr_otu <- diff_rel_abund %>%
 
 meta_file %>% 
 	inner_join(rel_abund, by = 'group') %>% 
-	select(mouse_id, CFU, day, abx, one_of(corr_otu$otu)) %>% 
-	filter(day >= 0, !abx %in% c('cipro', 'none')) %>% 
+	select(mouse_id, log10CFU, day, abx, one_of(corr_otu$otu)) %>% 
+	filter(day >= 0, abx %in% c('Clindamycin', 'Cefoperazone', 'Streptomycin')) %>% 
 	gather(otu, rel_abund, contains('Otu00')) %>% 
 	left_join(tax_df, by = c('otu' = 'OTU')) %>% 
 	mutate(log10rel_abund = log10(rel_abund + 0.04)) %>% 
@@ -465,9 +462,8 @@ meta_file %>%
 
 corr_otu <- function(antibiotic){
 	tmp_otus <- meta_file %>% 
-		left_join(clearance, by = c('mouse_id')) %>% 
 		filter(day > 0, 
-			clearance == 'cleared',
+			clearance == 'Cleared',
 			cdiff == T,
 			abx %in% antibiotic) %>% 
 		select(group, day) %>% 
@@ -475,9 +471,10 @@ corr_otu <- function(antibiotic){
 		select(-group, -day) %>% 
 		gather(OTU, abundance) %>% 
 		group_by(OTU) %>% 
-		#summarise(median_abundance = median(abundance)) %>% 
-		#filter(median_abundance > 0) %>% 
-		pull(OTU)	
+		summarise(median_abundance = median(abundance)) %>% 
+		filter(median_abundance > 0) %>% 
+		pull(OTU) %>% 
+		unique
 
 	if(length(tmp_otus) < 1){
 		print(paste('No OTUs with median abundance for',
@@ -512,14 +509,14 @@ corr_otu <- function(antibiotic){
 	}
 }
 
-diff_corr_otus <- map_dfr(diff_trt_list, ~ corr_otu(.x))
+diff_corr_otus <- map_dfr(treatment_list, ~ corr_otu(.x))
 left_join(diff_corr_otus, tax_df, by = c('otu' = 'OTU')) %>% 
 	select(treatment, otu)
 
 plot_diff_corr <- function(antibiotic){
 	meta_file %>% 
 		inner_join(rel_abund, by = 'group') %>% 
-		select(mouse_id, CFU, day, abx, 
+		select(mouse_id, log10CFU, day, abx, 
 			one_of(diff_corr_otus$otu[diff_corr_otus$treatment == paste(antibiotic, collapse = '_')])) %>% 
 		filter(day >= 0, abx %in% antibiotic) %>% 
 		mutate_at(vars(contains('Otu')), function(otu) {log10(otu + 0.04)}) %>% 
@@ -531,13 +528,10 @@ plot_diff_corr <- function(antibiotic){
 			facet_grid(otu~abx, scales = 'free_y') + 
 			labs(x = 'Relative Abundance', y = 'C.difficile CFU')
 }
-#plot_diff_corr(diff_trt_list[[1]])
-plot_diff_corr(diff_trt_list[[2]])
-#plot_diff_corr(diff_trt_list[[3]])
-#plot_diff_corr(diff_trt_list[[4]])
-plot_diff_corr(diff_trt_list[[5]])
-plot_diff_corr(diff_trt_list[[6]])
-plot_diff_corr(diff_trt_list[[7]])
+plot_diff_corr(treatment_list[[1]])
+plot_diff_corr(treatment_list[[2]])
+plot_diff_corr(treatment_list[[3]])
+plot_diff_corr(treatment_list[[4]])
 
 # when selecting otus with a median abundance > 0, no change in OTUs correlate with changes in CFU
 # however when using all otus, the most common is Clostridium XI (C. difficile) and the others are lowly abundant OTUs
@@ -684,9 +678,9 @@ get_first_order <- function(antibiotic, vertex_color = 'black'){
 #clinda_col <- '#00BA38'
 
 get_first_order('strep', '#619CFF')
-get_first_order('cef', '#F8766D')
-get_first_order('clinda', '#00BA38')
-get_first_order('metro', 'purple')
+get_first_order('Cefoperazone', '#F8766D')
+get_first_order('Clindamycin', '#00BA38')
+get_first_order('Metronidazole', 'purple')
 
 ```
 

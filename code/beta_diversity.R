@@ -87,6 +87,7 @@ across_abx_tyc <- tyc_df %>%
 		suffix = c('_rows','_cols'))
 across_abx_tyc %>% 
 	filter(abx_rows != abx_cols) %>% 
+	filter(time_point == 'Initial')
 	ggplot(aes(y = distances, fill = abx_rows)) + 
 		geom_boxplot() + 
 		theme_bw() + 
