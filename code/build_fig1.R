@@ -47,7 +47,7 @@ colonization_plot <- meta_df %>%
         stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), color = '#A40019') + 
         scale_x_continuous(breaks = -1:10) +
 		annotate(x = -1, y = 200, geom = 'label', label = "LOD", 
-			fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE) + 
+			fill = "white", color = 'black', label.size = NA) + 
 		geom_hline(yintercept = 101, linetype = 'dashed', size = 0.25) + 
 		scale_y_log10(
    			breaks = scales::trans_breaks("log10", function(x) 10^x),
