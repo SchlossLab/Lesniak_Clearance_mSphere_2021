@@ -1,10 +1,18 @@
 ##############
 #
 # run script to generate plots for Figure 1
-#	Nick Lesniak 04-06-2020
+#	What occurs while C. difficile colonization is naturally cleared?
+# 
+# Nick Lesniak 04-06-2020
 #
 #  need files:
-#
+#	data/process/abx_cdiff_metadata_clean.txt
+#	data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared
+#	data/process/abx_cdiff_taxonomy_clean.tsv
+#	code/sum_otu_by_taxa.R
+#	data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary
+#	data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist
+#	code/read.dist.R
 #
 ##############
 
