@@ -23,7 +23,7 @@ read_dist <- function(dist_file_name){
 
   distance_matrix <- matrix(0, nrow=n_samples, ncol=n_samples)
   colnames(distance_matrix) <- samples
-  as.tibble(cbind(rows=samples, distance_matrix)) %>%
+  as_tibble(cbind(rows=samples, distance_matrix)) %>%
     gather(columns, distances, -rows) %>%
     filter(rows < columns) %>%
     arrange(columns, rows) %>%
