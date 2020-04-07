@@ -59,10 +59,12 @@ na_list <- c(meta_file %>%
 # It seems the NAs are on days that were not plated, but samples were still collected, 
 #	as we have 16S data from those samples
 # We assume NAs prior to Cdiff challenge had 0 CFUs (Days before 1)
-# And we cannot make any assumptions on CFUs post challenge so those samples will be removed
+# And we cannot make any assumptions on CFUs post challenge so those samples will remain NA
 cfu_cleaned <- meta_file %>% 
-  filter(!group %in% c(na_list)) %>% 
-  replace_na(list(CFU = 0))
+	mutate(CFU = case_when(!is.na(CFU) ~ CFU,
+		group %in% c(na_list) ~ as.numeric(NA),
+		is.na(CFU) ~ 0,
+		T ~ as.numeric(NA)))
 
 # few discrepencies with a few mice being mislabeled for preAbx were detected
 # so we checked if there are any other discrepencies
