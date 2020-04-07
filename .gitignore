@@ -17,6 +17,7 @@ mothur*logfile
 *.png
 *.tiff
 *.jpg
+*.jpeg
 
 .nfs*
 scratch/*/
