@@ -10,6 +10,9 @@
 #	data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared
 #	data/process/abx_cdiff_taxonomy_clean.tsv
 #	code/sum_otu_by_taxa.R
+#	data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary
+#	data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist
+#	code/read.dist.R
 #
 ##############
 
@@ -22,9 +25,12 @@ meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
 sum_taxa_function <- 'code/sum_otu_by_taxa.R'
+alpha_div_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary'
+beta_div_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist'
+dist_function <- 'code/read.dist.R'
 
 abx_color <- tibble(abx = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
-	color = c('#D37A1F', '#3A9CBC', '#A40019'))
+	color = c('#D37A1F', '#3A9CBC', abx_col))
 
 # read in data
 meta_df   <- read_tsv(meta_file) %>% 
@@ -33,67 +39,62 @@ shared_df <- read_tsv(shared_file) %>%
 	select(-label, -numOtus) %>% 
 	filter(Group %in% meta_df$group)
 tax_df <- read_tsv(tax_file)
+alpha_df <- read_tsv(alpha_div_file) %>% 
+	filter(group %in% meta_df$group)
 source(sum_taxa_function) # function to create taxanomic labels for OTUs
 	# sum_otu_by_taxa(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0, silent = T){
+source(dist_function) # function to read in distance file and convert from triangle to dataframe
+beta_df <- read_dist(beta_div_file) %>% 
+	filter(rows %in% meta_df$group,
+		columns %in% meta_df$group)
 
-
-# plot colonization dynamics of Strep and Cef, faceted by dosage of antibiotic
-strep_cfu_plot <- meta_df %>% 
-	filter(cdiff == T, day >= -1, abx == 'Streptomycin') %>% 
-	mutate(CFU = case_when(CFU == 0 ~ 60,
-		T ~ CFU),
-		dose = paste('Streptomycin -', dose, 'mg/mL'),
-		dose = factor(dose, levels = c('Streptomycin - 5 mg/mL', 'Streptomycin - 0.5 mg/mL' ,'Streptomycin - 0.1 mg/mL'))) %>% 
-	filter(!is.na(CFU)) %>% 
-	ggplot(aes(x = day, y = CFU)) + 
-		stat_summary(fun.y=median, geom="line", size = 1, color = '#D37A1F') +
-        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), color = '#D37A1F') + 
-        scale_x_continuous(breaks = -1:10) +
-		annotate(x = -0.5, y = 200, geom = 'label', label = "LOD", 
-			fill = "white", color = 'black', label.size = NA) + 
-		geom_hline(yintercept = 101, linetype = 'dashed', size = 0.25) + 
-		scale_y_log10(
-   			breaks = scales::trans_breaks("log10", function(x) 10^x),
-   			labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
-		theme_bw() + facet_wrap(.~dose, ncol = 1) + 
-		labs(x = 'Day', y = expression(italic('C. difficile')~' CFU'))
-
-plot_colonization <- function(antibiotic){
-	dosages <- meta_df %>% 
-		filter(abx == antibiotic) %>% 
-		pull(dose) %>% 
-		unique
-
+plot_diversity <- function(antibiotic){
 	abx_col <- abx_color %>% 
 		filter(abx == antibiotic) %>% 
 		pull(color)
+	abx_meta <- meta_df %>% 
+		filter(abx == antibiotic,
+			cdiff == T) %>% 
+		select(group, mouse_id, day, dose) 
 
-	plot <- meta_df %>% 
-		filter(cdiff == T, day >= -1, abx == antibiotic) %>% 
-		mutate(CFU = case_when(CFU == 0 ~ 60,
-			T ~ CFU),
-			dose = paste(antibiotic, '-', dose, 'mg/mL'),
-			dose = factor(dose, levels = c(paste(antibiotic, '-', max(dosages), 'mg/mL'), 
-				paste(antibiotic, '-', median(dosages), 'mg/mL') ,paste(antibiotic, '-', min(dosages), 'mg/mL')))) %>% 
-		filter(!is.na(CFU)) %>% 
-		ggplot(aes(x = day, y = CFU)) + 
-			stat_summary(fun.y=median, geom="line", size = 1, color = abx_col) +
-	        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), color = abx_col) + 
-	        geom_line(aes(group = mouse_id), alpha = 0.3, color = abx_col) + 
+	alpha_sobs_plot <- alpha_df %>% 
+		select(group, sobs) %>% 
+		inner_join(abx_meta, by = c('group')) %>% 
+		ggplot(aes(x = day, y = sobs)) + 
+			geom_violin(aes(group = cut_width(day, 1)), scale = 'width', fill = abx_col, color = abx_col) + 
 	        scale_x_continuous(breaks = -1:10) +
-			annotate(x = -0.5, y = 200, geom = 'label', label = "LOD", 
-				fill = "white", color = 'black', label.size = NA) + 
-			geom_hline(yintercept = 101, linetype = 'dashed', size = 0.25) + 
-			scale_y_log10(
-	   			breaks = scales::trans_breaks("log10", function(x) 10^x),
-	   			labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
-			theme_bw() + facet_wrap(.~dose, ncol = 1) + 
-			labs(x = 'Day', y = expression(italic('C. difficile')~' CFU'))
-	return(plot)
+			theme_bw() + labs(x = 'Day', y = expression(~S[obs])) + 
+			facet_wrap(dose~., ncol = 1)
+
+	alpha_invsimp_plot <- alpha_df %>% 
+		select(group, invsimpson) %>% 
+		inner_join(abx_meta, by = c('group')) %>% 
+		ggplot(aes(x = day, y = invsimpson)) + 
+			geom_violin(aes(group = cut_width(day, 1)), scale = 'width', fill = abx_col, color = abx_col) + 
+	        scale_x_continuous(breaks = -1:10) +
+			theme_bw() + labs(x = 'Day', y = 'Inverse Simpson')+ 
+			facet_wrap(dose~., ncol = 1)
+
+	beta_plot <- beta_df %>% 
+		inner_join(abx_meta, by = c('rows' = 'group')) %>% 
+		inner_join(abx_meta, by = c('columns' = 'group')) %>% 
+		filter(mouse_id.x == mouse_id.y, 
+			dose.x == dose.y,
+			day.x == min(abx_meta$day)) %>% 
+		ggplot(aes(x = day.y, y = distances, group = mouse_id.x)) + 
+			scale_x_continuous(breaks = -1:10) +
+			coord_cartesian(ylim = c(0,1)) +
+			geom_violin(aes(group = cut_width(day.y, 1)), scale = 'width', fill = abx_col, color = abx_col) + 
+			theme_bw() + 
+			labs(x = 'Day', y = 'Theta yc')+ 
+			facet_wrap(dose.x~., ncol = 1)
+
+	return(plot_grid(alpha_sobs_plot, alpha_invsimp_plot, beta_plot, nrow = 1))
 }
 
-cef_cfu_plot <- plot_colonization('Cefoperazone')
-strep_cfu_plot <- plot_colonization('Streptomycin')
+ggsave('results/figures/figure_3_clindadiv.jpg', plot_diversity('Clindamycin'))
+ggsave('results/figures/figure_3_strepdiv.jpg', plot_diversity('Streptomycin'))
+ggsave('results/figures/figure_3_cefdiv.jpg', plot_diversity('Cefoperazone'))
 
 plot_day0_abundance <- function(antibiotic, n_taxa){
 	abx_col <- abx_color %>% 
