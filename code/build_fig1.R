@@ -47,23 +47,25 @@ beta_df <- read_dist(beta_div_file) %>%
 
 # plot C difficile colonization level
 colonization_plot <- meta_df %>% 
-	mutate(CFU = case_when(CFU == 0 ~ 60,
+	mutate(CFU = case_when(CFU == 0 ~ 60, # shift 0 counts to just below limit of detection line
 		T ~ CFU)) %>% 
 	filter(!is.na(CFU)) %>% 
 	ggplot(aes(x = day, y = CFU)) + 
-		stat_summary(fun.y=median, geom="line", size = 1, color = '#A40019') +
-        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), color = '#A40019') + 
-        scale_x_continuous(breaks = -1:10) +
-		annotate(x = -1, y = 200, geom = 'label', label = "LOD", 
+		stat_summary(fun.y=median, geom="line", size = 1, color = '#A40019') + # create median line
+        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), color = '#A40019') + # with bars for IQR
+        scale_x_continuous(breaks = -1:10) + # make ticks for each day
+		annotate(x = -1, y = 200, geom = 'label', label = "LOD", # create a dotted line labeled LOD for limit of detection
 			fill = "white", color = 'black', label.size = NA) + 
 		geom_hline(yintercept = 101, linetype = 'dashed', size = 0.25) + 
 		scale_y_log10(
    			breaks = scales::trans_breaks("log10", function(x) 10^x),
-   			labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
+   			labels = scales::trans_format("log10", scales::math_format(10^.x))) + # scale y axis log10 and label 10^x
 		theme_bw() + labs(x = 'Day', y = expression(italic('C. difficile')~' CFU'))
 
-shared_genus <- sum_otu_by_taxa(tax_df, shared_df, taxa_level = 'Genus', top_n = 10)
+shared_genus <- sum_otu_by_taxa(tax_df, shared_df, taxa_level = 'Genus', top_n = 10) # sum at the genus level for the top 10
 
+# plot relative abundance over time in a heatmap plot
+# mice along the x axis, taxonomic classification along the y axis and color intensity by log10 relative abundance
 abundance_plot <- shared_genus %>% 
 	full_join(meta_df, by = c('Group' = 'group')) %>% 
 	group_by(Group) %>% 
@@ -83,6 +85,7 @@ abundance_plot <- shared_genus %>%
         	legend.position = 'bottom') +
 		facet_wrap(.~day, nrow = 1)
 
+# plot Sobs by day
 alpha_sobs_plot <- alpha_df %>% 
 	select(group, sobs) %>% 
 	left_join(select(meta_df, group, day), by = c('group')) %>% 
@@ -91,6 +94,7 @@ alpha_sobs_plot <- alpha_df %>%
         scale_x_continuous(breaks = -1:10) +
 		theme_bw() + labs(x = 'Day', y = expression(~S[obs]))
 
+# plot inverse simpson by day
 alpha_invsimp_plot <- alpha_df %>% 
 	select(group, invsimpson) %>% 
 	left_join(select(meta_df, group, day), by = c('group')) %>% 
@@ -99,6 +103,7 @@ alpha_invsimp_plot <- alpha_df %>%
         scale_x_continuous(breaks = -1:10) +
 		theme_bw() + labs(x = 'Day', y = 'Inverse Simpson')
 
+# plot theta yc by day
 beta_plot <- beta_df %>% 
 	inner_join(select(meta_df, group, mouse_id, day), by = c('rows' = 'group')) %>% 
 	inner_join(select(meta_df, group, mouse_id, day), by = c('columns' = 'group')) %>% 
@@ -111,6 +116,7 @@ beta_plot <- beta_df %>%
 			theme_bw() + 
 			labs(x = 'Day', y = 'Theta yc')
 
+# save plot, top row is colonization plot, middle row are diversity plots, bottom row is temporal abundance plot
 ggsave('results/figures/figure_1.jpg', plot_grid(colonization_plot, 
 	plot_grid(alpha_sobs_plot, alpha_invsimp_plot, beta_plot, nrow = 1, labels = c('B', 'C', 'D')), 
 	abundance_plot, ncol = 1, labels = c('A', '', 'D'), rel_heights = c(1, 1, 2)), width = 10, height = 10)
