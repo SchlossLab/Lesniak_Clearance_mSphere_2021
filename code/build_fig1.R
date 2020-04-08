@@ -70,7 +70,8 @@ abundance_plot <- shared_genus %>%
 	full_join(meta_df, by = c('Group' = 'group')) %>% 
 	group_by(Group) %>% 
 	mutate(total = sum(abundance),
-		relative_abundance = log10(abundance/total * 100)) %>% 
+		relative_abundance = log10(abundance/total * 100),
+		taxa = gsub('_unclassified', '', taxa)) %>% 
 	ggplot(aes(x = mouse_id, y =taxa, fill = relative_abundance)) + 
 		geom_tile() +
 		scale_fill_gradient(low="white", high='#A40019', limits = c(0,2), na.value = NA, 

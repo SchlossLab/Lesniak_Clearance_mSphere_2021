@@ -86,7 +86,8 @@ plot_colonization_abundance <- function(antibiotic, n_taxa){
 		left_join(select(abx_meta, group, dose), by = c('Group' = 'group')) %>% 
 		group_by(Group) %>% 
 		mutate(total = sum(abundance),
-			relative_abundance = log10(abundance/total * 100)) %>% 
+			relative_abundance = log10(abundance/total * 100),
+			taxa = gsub('_unclassified', '', taxa)) %>% 
 		ggplot(aes(x = Group, y =taxa, fill = relative_abundance)) + 
 			geom_tile() +
 			scale_fill_gradient(low="white", high=abx_col, limits = c(0,2), na.value = NA, 
@@ -102,7 +103,7 @@ plot_colonization_abundance <- function(antibiotic, n_taxa){
 	        	legend.position = 'bottom')
 	# return a plot with top row colonization plot shifted right to align with abundance plot
 	return(plot_grid(
-			plot_grid(NULL, cfu_plot, nrow = 1, rel_widths = c(1,11)),
+			plot_grid(NULL, cfu_plot, nrow = 1, rel_widths = c(1,15)),
 		abundance_plot, ncol = 1))
 }
 
