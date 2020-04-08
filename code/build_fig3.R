@@ -151,16 +151,16 @@ diff_abund_plot <- plot_df %>%
 	   		labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
 		coord_flip() + theme_bw() +  
 		labs(x = NULL, y = 'Relative Abundance (%)', color = 'Time Point') + 
-		theme(legend.position = c(0.85, 0.925), 
+		theme(legend.position = c(0.15, 0.15), 
 			legend.background = element_rect(color = "black")) + 
 		geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", 
 			fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE) + 
-		facet_grid(treatment~., scale = 'free_y', space = 'free') + 
+		facet_wrap(.~treatment) + 
 		theme(text = element_text(size = 20)) + 
 		guides(colour = guide_legend(override.aes = list(alpha = 1)))
 
-ggsave('results/figures/figure_3_diff_abund_plot_long.jpg', diff_abund_plot, width = 10, height = 11, units = 'in')
-#ggsave('results/figures/figure_3_diff_abund_plot_wide.jpg', diff_abund_plot, width = 15, height = 8, units = 'in')
+ggsave('results/figures/figure_3_diff_abund_plot.jpg', diff_abund_plot, width = 15, height = 8, units = 'in')
+
 plot_diversity <- function(antibiotic){
 	abx_col <- abx_color %>% 
 		filter(abx == antibiotic) %>% 
