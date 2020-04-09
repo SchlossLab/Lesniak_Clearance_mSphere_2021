@@ -34,7 +34,7 @@ diff_rel_abund <- meta_file %>%
 ####### Colonization dynamic
 cfu_lod_df <- data.frame(x = -0.5, y = 2) 
 cfu_plot <- meta_file %>% 
-	filter(abx %in% c('clinda', 'strep', 'cef'), cdiff == T, day >= 0) %>% 
+	filter(abx %in% c('Clindamycin', 'Streptomycin', 'Cefoperazone'), cdiff == T, day >= 0) %>% 
 	ggplot(aes(x = day, y = log10CFU, group = mouse_id, color = abx)) + 
 		geom_line() + 
 		facet_wrap(.~abx, ncol = 1) + 
@@ -112,17 +112,17 @@ plot_nmds('nmds_initial_end_df')
 ####
 
 delta_abund_df <- meta_file %>%
-	inner_join(clearance, by = 'mouse_id') %>% 
-	filter(abx %in% c('clinda', 'strep', 'cef'), cdiff == T, 
+	filter(abx %in% c('Clindamycin', 'Streptomycin', 'Cefoperazone'), cdiff == T, 
 		clearance != 'Colonized'#, 
 		#mouse_id %in% c('42_1', '600_2', '88_1') #mice were being excluded since they were missing either day 0 or day 10
 		# but removing and adding a filtering step at the beginning of the script to only include samples in both shared/meta
 		) %>% 
 	filter(day == 0 | day == last_sample) %>%  
-	inner_join(rel_abund, by = 'group') %>% )
+	inner_join(rel_abund, by = 'group') %>% 
 	gather(OTU, abundance, contains('Otu00')) %>% 
 	select(abx, mouse_id, OTU, time_point, abundance) %>% 
-	spread(time_point, abundance) #%>% 
+	spread(time_point, abundance) %>% 
+	rename(start = 'Day 0', end = End)
 # dont need to remove since not comparing individuals #filter( !( is.na(start) | is.na(end) ) ) %>% # remove any mice missing either sample 
 # dont need to remove since not comparing individuals #filter(end == 0 & start == 0) 
 
@@ -162,7 +162,8 @@ test_otus <- function(antibiotic){
 	}
 }
 
-treatment_list <- list('cef', 'clinda', 'strep', c('cef', 'clinda', 'strep'))
+treatment_list <- list('Cefoperazone', 'Clindamycin', 'Streptomycin', 
+	c('Cefoperazone', 'Clindamycin', 'Streptomycin'))
 
 test_output_df <- map_dfr(treatment_list, ~ test_otus(.x))
 
