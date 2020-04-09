@@ -64,9 +64,6 @@ meta_abund_df <- meta_df %>%
 	mutate(total = sum(abundance),
 		abundance = abundance/total * 100) %>% # generate relative abundance
 	group_by(abx, OTU) %>% 
-	mutate(median_abundance = median(abundance, na.rm = T)) %>%  
-	filter(median_abundance > 0.5)  %>% # elimate OTUs with median abundance < 0.5%
-	select(-total, -median_abundance) %>% 
 	ungroup
 
 # get OTUs significantly different between colonized and cleared by antibiotic and time point
@@ -75,6 +72,8 @@ pval_diff_colon_clear_df <- meta_abund_df %>%
 		clearance %in% c('Colonized', 'Cleared')) %>%  # Only compare mice that are either colonized or cleared
 	pivot_wider(names_from = 'clearance', values_from = 'abundance') %>% 
 	group_by(abx, time_point, OTU) %>% # compare each OTU abundance within each antibiotic in each time point 
+	mutate(median_col = median(Colonized, na.rm = T), median_cle = median(Cleared, na.rm = T)) %>%
+	filter(median_col > 0.5 | median_cle > 0.5)  %>% # select otus with median relative abundance > 0.5%
 	nest() %>% 
 	mutate(pvalue = map(.x = data, .f = ~wilcox.test(.x$Cleared, .x$Colonized)$p.value)) %>% # compare cleared vs colonized
 	unnest(pvalue) %>% 
@@ -99,6 +98,9 @@ colon_clear_median_df <- pval_diff_colon_clear_df %>%
 pval_diff_cleared_df <- meta_abund_df %>% 
 	filter(clearance == 'Cleared') %>% # only mice that colonization clears
 	pivot_wider(names_from = 'time_point', values_from = 'abundance') %>% 
+	group_by(abx, OTU) %>% # compare OTUs across timepoints within each antibiotic
+	mutate(median_TOI = median(TOI, na.rm = T), median_end = median(End, na.rm = T), median_in = median(Initial, na.rm = T)) %>%
+	filter(median_TOI > 0.5 | median_end > 0.5 | median_in > 0.5)  %>% # select otus with median relative abundance > 0.5%
 	group_by(abx, OTU) %>% # compare OTUs across timepoints within each antibiotic
 	nest() %>% 
 	mutate(TOI_End = map(.x = data, .f = ~wilcox.test(.x$TOI, .x$End)$p.value), # compare time of infection to end point
