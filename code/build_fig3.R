@@ -77,7 +77,7 @@ pval_diff_colon_clear_df <- meta_abund_df %>%
 	nest() %>% 
 	mutate(pvalue = map(.x = data, .f = ~wilcox.test(.x$Cleared, .x$Colonized)$p.value)) %>% # compare cleared vs colonized
 	unnest(pvalue) %>% 
-	group_by(abx, time_point, OTU) %>% 
+	group_by(abx, time_point) %>% 
 	mutate(pvalue = p.adjust(pvalue, method = 'BH')) %>% # correct p values
 	filter(pvalue < 0.05) %>% # select only those above 0.05 after pvalue correction
 	unnest(data) %>% 
@@ -107,7 +107,7 @@ pval_diff_cleared_df <- meta_abund_df %>%
 		Initial_TOI = map(.x = data, .f = ~wilcox.test(.x$Initial, .x$TOI)$p.value)) %>% # compare time of infection to initial
 	unnest(TOI_End, Initial_TOI) %>% 
 	pivot_longer(names_to = 'comparison', values_to = 'pvalue', c(TOI_End, Initial_TOI)) %>% # combine all pvalues into one column
-	group_by(abx, OTU, comparison) %>% 
+	group_by(abx, comparison) %>% 
 	mutate(pvalue = p.adjust(pvalue, method = 'BH')) %>% # adjust pvalue
 	filter(pvalue < 0.05) %>% # filter only those below 0.05 after correction
 	unnest(data) %>% 
