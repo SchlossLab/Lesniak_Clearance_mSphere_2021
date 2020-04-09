@@ -48,22 +48,159 @@ beta_df <- read_dist(beta_div_file) %>%
 	filter(rows %in% meta_df$group,
 		columns %in% meta_df$group)
 
+# get minimum relative abundance to set out limit of detection in plots
 n_seqs <- median(apply(shared_df[,-1], 1, sum))
 min_rel_abund <- 100 * 1/n_seqs
+lod_df <- data.frame(x = 0.75, y = min_rel_abund)
 
-# create dataframe with difference between pre/post-colonization
-delta_abund_df <- meta_df %>%
-	filter(cdiff == T, clearance != 'Colonized') %>% 
-	filter(day == 0 | day == last_sample) %>%  
+# create dataframe with relative abundance subset with samples used in following analysis
+meta_abund_df <- meta_df %>%
+	filter(cdiff == T, time_point != 'Intermediate') %>%  # filter mice the were challenged and samples from day of infection
+	mutate(time_point = ifelse(time_point == 'Day 0', 'TOI', time_point)) %>% 
 	inner_join(shared_df, by = c('group' = 'Group')) %>% 
-	pivot_longer(names_to = 'OTU', values_to = 'abundance', starts_with('Otu')) %>% 
-	select(abx, mouse_id, OTU, time_point, abundance)%>% 
+	pivot_longer(names_to = 'OTU', values_to = 'abundance', starts_with('Otu')) %>% # convert abundances to single column
+	select(day, abx, mouse_id, OTU, clearance, time_point, abundance) %>% 
 	group_by(mouse_id, time_point) %>% 
 	mutate(total = sum(abundance),
-		abundance = abundance/total * 100) %>% 
-	pivot_wider(names_from = time_point, values_from = abundance)  %>% 
-	rename(Beginning = 'Day 0')
+		abundance = abundance/total * 100) %>% # generate relative abundance
+	group_by(abx, OTU) %>% 
+	mutate(median_abundance = median(abundance, na.rm = T)) %>%  
+	filter(median_abundance > 0.5)  %>% # elimate OTUs with median abundance < 0.5%
+	select(-total, -median_abundance) %>% 
+	ungroup
 
+# get OTUs significantly different between colonized and cleared by antibiotic and time point
+pval_diff_colon_clear_df <- meta_abund_df %>% 
+	filter(abx != 'Clindamycin', 
+		clearance %in% c('Colonized', 'Cleared')) %>%  # Only compare mice that are either colonized or cleared
+	pivot_wider(names_from = 'clearance', values_from = 'abundance') %>% 
+	group_by(abx, time_point, OTU) %>% # compare each OTU abundance within each antibiotic in each time point 
+	nest() %>% 
+	mutate(pvalue = map(.x = data, .f = ~wilcox.test(.x$Cleared, .x$Colonized)$p.value)) %>% # compare cleared vs colonized
+	unnest(pvalue) %>% 
+	group_by(abx, time_point, OTU) %>% 
+	mutate(pvalue = p.adjust(pvalue, method = 'BH')) %>% # correct p values
+	filter(pvalue < 0.05) %>% # select only those above 0.05 after pvalue correction
+	unnest(data) %>% 
+	pivot_longer(names_to = 'clearance', values_to = 'abundance', c(Colonized, Cleared)) %>% # unnest and recreate abundance column
+	filter(!is.na(abundance)) %>% 
+	left_join(select(tax_df, OTU, tax_otu_label), by = 'OTU') %>% # add otu labels
+	group_by(abx, time_point, OTU) %>% 
+	mutate(order = mean(abundance)) %>% # find mean abundance of comparsions to set order in plot
+	ungroup
+# create median df for plot medain data and line of difference 
+colon_clear_median_df <- pval_diff_colon_clear_df %>% 
+	group_by(abx, time_point, tax_otu_label, clearance) %>% 
+	summarise(median = median(abundance) + 0.04) %>% 
+	pivot_wider(names_from = clearance, values_from = median) %>% 
+	ungroup
+
+# get OTUs significantly different between day of infection and at the end of the experiment for mice that clear
+pval_diff_cleared_df <- meta_abund_df %>% 
+	filter(clearance == 'Cleared') %>% # only mice that colonization clears
+	pivot_wider(names_from = 'time_point', values_from = 'abundance') %>% 
+	group_by(abx, OTU) %>% # compare OTUs across timepoints within each antibiotic
+	nest() %>% 
+	mutate(TOI_End = map(.x = data, .f = ~wilcox.test(.x$TOI, .x$End)$p.value), # compare time of infection to end point
+		Initial_TOI = map(.x = data, .f = ~wilcox.test(.x$Initial, .x$TOI)$p.value)) %>% # compare time of infection to initial
+	unnest(TOI_End, Initial_TOI) %>% 
+	pivot_longer(names_to = 'comparison', values_to = 'pvalue', c(TOI_End, Initial_TOI)) %>% # combine all pvalues into one column
+	group_by(abx, OTU, comparison) %>% 
+	mutate(pvalue = p.adjust(pvalue, method = 'BH')) %>% # adjust pvalue
+	filter(pvalue < 0.05) %>% # filter only those below 0.05 after correction
+	unnest(data) %>% 
+	pivot_longer(names_to = 'time_point', values_to = 'abundance', c(Initial, TOI, End)) %>% # unnest abundance
+	filter(!is.na(abundance)) %>% 
+	filter(comparison == 'TOI_End' & time_point %in% c('TOI', 'End') | 
+		comparison == 'Initial_TOI' & time_point %in% c('TOI', 'Initial')) %>% # only keep abundances that match comparison 
+	left_join(select(tax_df, OTU, tax_otu_label), by = 'OTU') %>% # add otu labels
+	group_by(abx, comparison, OTU) %>% 
+	mutate(order = mean(abundance)) %>% # find mean abundance of comparsions to set order in plot
+	ungroup
+
+cleared_median_df <- pval_diff_cleared_df %>% 
+	group_by(abx, comparison, tax_otu_label, time_point) %>% 
+	summarise(median = median(abundance) + 0.04) %>% 
+	pivot_wider(names_from = time_point, values_from = median) %>% 
+	ungroup
+
+diff_abund_cleared_plot <- pval_diff_cleared_df %>% 
+	full_join(cleared_median_df, by = c('abx', 'comparison', 'tax_otu_label')) %>% 
+	mutate(tax_otu_label = gsub('_unclassified', '', tax_otu_label)) %>% 
+	ggplot(aes(x = reorder(tax_otu_label, -order), color = time_point)) + 
+		geom_hline(data = lod_df, aes(yintercept = y), size = 0.5, 
+			linetype = 'solid', color = 'black') + 
+		geom_hline(data = lod_df, aes(yintercept = y), size = 1, 
+			linetype = 'dashed', color = 'white') + 
+		geom_segment(aes(y = Initial, yend = TOI, 
+				xend = reorder(tax_otu_label, -order)), 
+				arrow = arrow(type = 'closed', angle = 10), color = 'black', size = 0.5) + 
+		geom_segment(aes(y = TOI, yend = End,
+				xend = reorder(tax_otu_label, -order)), 
+				arrow = arrow(type = 'closed', angle = 10), color = 'black', size = 0.25) + 
+		geom_point(aes(y = (abundance) + 0.04), 
+			position = position_dodge(width = .7), alpha = 0.2) + 
+		geom_point(aes(y = Initial), color = 'green4', size = 3) + 
+		geom_point(aes(y = TOI), color = 'blue3', size = 3) + 
+		geom_point(aes(y = End), color = 'red3', size = 3) +
+		scale_y_log10(
+	   		breaks = scales::trans_breaks("log10", function(x) 10^x),
+	   		labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
+		coord_flip() + theme_bw() +  
+		labs(x = NULL, y = 'Relative Abundance (%)', color = 'Time Point',
+			title = 'Differences in time of communities able to clear colonization',
+			caption = 'Only significant comparisons plotted (p < 0.05 after Benjamini & Hochberg correction)') + 
+		theme(legend.position = c(0.925, 0.925), 
+			legend.background = element_rect(color = "black"),
+			legend.title = element_text(size = 8),
+			legend.text = element_text(size = 6)) + 
+		geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", 
+			fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE) + 
+		facet_grid(abx~comparison, scales = 'free_y', space = 'free',
+			labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of Infection", TOI_End = "Time of Infection vs End of experiment"))) + 
+		theme(text = element_text(size = 10)) + 
+		guides(colour = guide_legend(override.aes = list(alpha = 1)))
+
+diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>% 
+	full_join(colon_clear_median_df, by = c('abx', 'tax_otu_label', 'time_point')) %>% 
+	mutate(tax_otu_label = gsub('_unclassified', '', tax_otu_label),
+		time_point = factor(time_point, levels = c('Initial', 'TOI', 'End'),
+			labels = c('Initial', 'Time of infection', 'End of experiment'))) %>% 
+	ggplot(aes(x = reorder(tax_otu_label, -order), color = clearance)) + 
+		geom_segment(aes(y = Cleared, yend = Colonized, 
+			xend = reorder(tax_otu_label, -order)), color = 'black') +
+		geom_hline(data = lod_df, aes(yintercept = y), size = 0.5, 
+			linetype = 'solid', color = 'black') + 
+		geom_hline(data = lod_df, aes(yintercept = y), size = 1, 
+			linetype = 'dashed', color = 'white') + 
+		geom_point(aes(y = (abundance) + 0.04), 
+			position = position_dodge(width = .7), alpha = 0.2) + 
+		geom_point(aes(y = Cleared), color = 'red3', size = 3) + 
+		geom_point(aes(y = Colonized), color = 'cyan4', size = 3) + 
+		scale_y_log10(
+	   		breaks = c(0.01, 0.1, 1, 10, 100),
+	   		labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
+		coord_flip() + theme_bw() +  
+		labs(x = NULL, y = 'Relative Abundance (%)', color = 'End Status',
+			title = 'Difference between communities able and unable clear colonization',
+			caption = 'Only significant comparisons plotted (p < 0.05 after Benjamini & Hochberg correction)') + 
+		theme(legend.position = c(0.15, 0.08), 
+			legend.background = element_rect(color = "black"),
+			legend.title = element_text(size = 8),
+			legend.text = element_text(size = 6)) + 
+		geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", 
+			fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE) + 
+		facet_grid(abx~time_point, scales = 'free_y', space = 'free') +
+		theme(text = element_text(size = 10)) + 
+		guides(colour = guide_legend(override.aes = list(alpha = 1))) 
+
+ggsave('results/figures/figure_3_diff_abund_plot.jpg', plot_grid(diff_abund_clear_colon_plot, diff_abund_cleared_plot, labels = c('A', 'B')), 
+	width = 15, height = 10, units = 'in')
+
+
+####
+#	plot difference in abundance of taxa significantly different between time of infection and experiment end 
+####
 test_otus <- function(antibiotic){
 	tmp_shared_clearance <- delta_abund_df %>% 
 		filter(abx %in% antibiotic)
@@ -160,6 +297,7 @@ diff_abund_plot <- plot_df %>%
 		guides(colour = guide_legend(override.aes = list(alpha = 1)))
 
 ggsave('results/figures/figure_3_diff_abund_plot.jpg', diff_abund_plot, width = 15, height = 8, units = 'in')
+
 
 plot_diversity <- function(antibiotic){
 	abx_col <- abx_color %>% 
