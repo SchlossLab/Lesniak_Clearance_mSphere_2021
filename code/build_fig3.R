@@ -131,31 +131,38 @@ end_inter_end <- meta_beta_df %>%
 beta_div_df <- bind_rows(list(initial_distances, initial_inter_intial, TOI_intra_initial, TOI_intra_TOI, 
 	TOI_inter_TOI, end_toi, end_intial, end_intra_end, end_inter_end)) %>% 
 	mutate(comparison = factor(comparison, 
-		levels = c('i_i', 'i_t', 'e_i', 'e_t', 't_t', 'e_e', 'iXi', 'tXt', 'eXe'),
+		levels = c('i_i', 'i_t', 'e_i', 'e_t', 'iXi', 't_t', 'tXt', 'e_e', 'eXe'),
 		labels = c('Initial\nvs\nInitial', 
 			'Initial\nvs\nTOI', 
 			'End\nvs\nInitial', 
 			'End\nvs\nTOI', 
-			'TOI\nvs\nintra\nTOI', 
-			'End\nvs\nintra\nEnd', 
 			'Initial\nvs\ninter\nInitial',
+			'TOI\nvs\nintra\nTOI', 
 			'TOI\nvs\ninter\nTOI',
+			'End\nvs\nintra\nEnd', 
 			'End\nvs\ninter\nEnd')))
 
 beta_plot <- beta_div_df %>% 
+	filter(comparison %in% c('Initial\nvs\nInitial', 
+			'Initial\nvs\nTOI', 
+			'End\nvs\nInitial', 
+			'TOI\nvs\nintra\nTOI',  
+			'End\nvs\nintra\nEnd', 
+			'TOI\nvs\ninter\nTOI',
+			'End\nvs\ninter\nEnd')) %>% 
 	mutate(c_abx = factor(c_abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin'))) %>% 
-	ggplot(aes(x = comparison, y = distances, fill = as.factor(c_dose))) + 
+	ggplot(aes(x = comparison, y = distances, fill = as.factor(c_time_point))) + 
 		coord_cartesian(ylim = c(0,1)) +
 		geom_boxplot() + 
 		facet_grid(c_clearance~c_abx) + 
-		#geom_violin(aes(group = cut_width(day.y, 1)), scale = 'width', fill = abx_col, color = abx_col) + 
 		theme_bw() + 
-		labs(x = NULL, y = 'Theta yc', fill = 'Dose')
+		labs(x = NULL, y = 'Theta yc', fill = 'Time Point') + 
+		theme(legend.position = c(0.08, 0.25),
+			legend.key.size = unit(0.2, 'in'))
 
-ggsave('results/figures/fig3_beta_comparisons_all.jpg', beta_plot)
-
-
-
+####
+#   What OTUs are associated with clearance?
+####
 
 # get OTUs significantly different between colonized and cleared by antibiotic and time point
 pval_diff_colon_clear_df <- meta_abund_df %>% 
@@ -287,5 +294,8 @@ diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
 		theme(text = element_text(size = 10)) + 
 		guides(colour = guide_legend(override.aes = list(alpha = 1))) 
 
-ggsave('results/figures/figure_3_diff_abund_plot.jpg', plot_grid(diff_abund_clear_colon_plot, diff_abund_cleared_plot, labels = c('A', 'B')), 
+ggsave('results/figures/figure_3.jpg', 
+	plot_grid(plot_grid(NULL, plot_grid(beta_plot, labels = c('A')), NULL, rel_widths = c(1, 3, 1), nrow = 1), 
+		plot_grid(diff_abund_clear_colon_plot, diff_abund_cleared_plot, labels = c('B', 'C'), nrow = 1),
+			ncol = 1, rel_heights = c(1,2)), 
 	width = 15, height = 10, units = 'in')
