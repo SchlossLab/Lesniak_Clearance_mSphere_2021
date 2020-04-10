@@ -1,7 +1,7 @@
 ##############
 #
 # run script to generate plots for Figure 3
-#	What assocaites with clearance?
+#	What associates with clearance?
 # 
 # Nick Lesniak 04-08-2020
 #
@@ -19,7 +19,7 @@
 
 library(tidyverse)
 library(cowplot)
-
+library(vegan)
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
@@ -59,12 +59,103 @@ meta_abund_df <- meta_df %>%
 	mutate(time_point = ifelse(time_point == 'Day 0', 'TOI', time_point)) %>% 
 	inner_join(shared_df, by = c('group' = 'Group')) %>% 
 	pivot_longer(names_to = 'OTU', values_to = 'abundance', starts_with('Otu')) %>% # convert abundances to single column
-	select(day, abx, mouse_id, OTU, clearance, time_point, abundance) %>% 
+	select(group, day, abx, mouse_id, OTU, clearance, time_point, abundance) %>% 
 	group_by(mouse_id, time_point) %>% 
 	mutate(total = sum(abundance),
 		abundance = abundance/total * 100) %>% # generate relative abundance
 	group_by(abx, OTU) %>% 
 	ungroup
+
+####
+#   How different are communities at TOI and End?
+####
+
+# plot Theta yc differences for 
+#	initial as control range, 
+#	TOI vs own initial, TOI vs other Initial, 
+#	End vs End, End vs Initial, End vs TOI, End vs other End
+beta_meta_df <- meta_df %>% 
+	filter(clearance %in% c('Cleared', 'Colonized'),
+		time_point != 'Intermediate',
+		cdiff == TRUE) %>% 
+	select(group, abx, dose, clearance, time_point, mouse_id) 
+
+meta_beta_df <- beta_df %>% 
+	inner_join(rename_all(beta_meta_df, list(~paste0('r_', .))), by = c('rows' = 'r_group')) %>% 
+	inner_join(rename_all(beta_meta_df, list(~paste0('c_', .))), by = c('columns' = 'c_group')) %>% 
+	filter()
+
+initial_distances <- meta_beta_df %>% 
+	filter(r_mouse_id != c_mouse_id,
+		c_abx == r_abx,
+		r_time_point == 'Initial' & c_time_point == 'Initial') %>% 
+	mutate(comparison = 'i_i',)
+initial_inter_intial <- meta_beta_df %>% 
+	filter(r_mouse_id != c_mouse_id,
+		c_abx != r_abx,
+		c_time_point == 'Initial' & r_time_point == 'Initial') %>% 
+	mutate(comparison = 'iXi')
+TOI_intra_initial <- meta_beta_df %>% 
+	filter(r_mouse_id == c_mouse_id,
+		c_time_point == 'Day 0' & r_time_point == 'Initial') %>% 
+	mutate(comparison = 'i_t')
+TOI_intra_TOI <- meta_beta_df %>% 
+	filter(r_mouse_id != c_mouse_id,
+		c_abx == r_abx,
+		c_time_point == 'Day 0' & r_time_point == 'Day 0') %>% 
+	mutate(comparison = 't_t')
+TOI_inter_TOI <- meta_beta_df %>% 
+	filter(r_mouse_id != c_mouse_id,
+		c_abx != r_abx,
+		c_time_point == 'Day 0' & r_time_point == 'Day 0') %>% 
+	mutate(comparison = 'tXt')
+end_toi <- meta_beta_df %>% 
+	filter(r_mouse_id == c_mouse_id,
+		c_time_point == 'End' & r_time_point == 'Day 0') %>% 
+	mutate(comparison = 'e_t')
+end_intial <- meta_beta_df %>% 
+	filter(r_mouse_id == c_mouse_id,
+		c_time_point == 'End' & r_time_point == 'Initial') %>% 
+	mutate(comparison = 'e_i')
+end_intra_end <- meta_beta_df %>% 
+	filter(r_mouse_id != c_mouse_id,
+		c_abx == r_abx,
+		c_time_point == 'End' & r_time_point == 'End') %>% 
+	mutate(comparison = 'e_e')
+end_inter_end <- meta_beta_df %>% 
+	filter(r_mouse_id != c_mouse_id,
+		c_abx != r_abx,
+		c_time_point == 'End' & r_time_point == 'End') %>% 
+	mutate(comparison = 'eXe')
+
+beta_div_df <- bind_rows(list(initial_distances, initial_inter_intial, TOI_intra_initial, TOI_intra_TOI, 
+	TOI_inter_TOI, end_toi, end_intial, end_intra_end, end_inter_end)) %>% 
+	mutate(comparison = factor(comparison, 
+		levels = c('i_i', 'i_t', 'e_i', 'e_t', 't_t', 'e_e', 'iXi', 'tXt', 'eXe'),
+		labels = c('Initial\nvs\nInitial', 
+			'Initial\nvs\nTOI', 
+			'End\nvs\nInitial', 
+			'End\nvs\nTOI', 
+			'TOI\nvs\nintra\nTOI', 
+			'End\nvs\nintra\nEnd', 
+			'Initial\nvs\ninter\nInitial',
+			'TOI\nvs\ninter\nTOI',
+			'End\nvs\ninter\nEnd')))
+
+beta_plot <- beta_div_df %>% 
+	mutate(c_abx = factor(c_abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin'))) %>% 
+	ggplot(aes(x = comparison, y = distances)) + 
+		coord_cartesian(ylim = c(0,1)) +
+		geom_boxplot() + 
+		facet_grid(c_clearance~c_abx) + 
+		#geom_violin(aes(group = cut_width(day.y, 1)), scale = 'width', fill = abx_col, color = abx_col) + 
+		theme_bw() + 
+		labs(x = NULL, y = 'Theta yc')
+
+ggsave('results/figures/fig3_all_beta_comparisons.jpg', beta_plot)
+
+
+
 
 # get OTUs significantly different between colonized and cleared by antibiotic and time point
 pval_diff_colon_clear_df <- meta_abund_df %>% 
@@ -198,91 +289,3 @@ diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
 
 ggsave('results/figures/figure_3_diff_abund_plot.jpg', plot_grid(diff_abund_clear_colon_plot, diff_abund_cleared_plot, labels = c('A', 'B')), 
 	width = 15, height = 10, units = 'in')
-
-
-
-plot_diversity <- function(antibiotic){
-	abx_col <- abx_color %>% 
-		filter(abx == antibiotic) %>% 
-		pull(color)
-	abx_meta <- meta_df %>% 
-		filter(abx == antibiotic,
-			cdiff == T) %>% 
-		select(group, mouse_id, day, dose) 
-
-	alpha_sobs_plot <- alpha_df %>% 
-		select(group, sobs) %>% 
-		inner_join(abx_meta, by = c('group')) %>% 
-		ggplot(aes(x = day, y = sobs)) + 
-			geom_violin(aes(group = cut_width(day, 1)), scale = 'width', fill = abx_col, color = abx_col) + 
-	        scale_x_continuous(breaks = -1:10) +
-			theme_bw() + labs(x = 'Day', y = expression(~S[obs])) + 
-			facet_wrap(dose~., ncol = 1)
-
-	alpha_invsimp_plot <- alpha_df %>% 
-		select(group, invsimpson) %>% 
-		inner_join(abx_meta, by = c('group')) %>% 
-		ggplot(aes(x = day, y = invsimpson)) + 
-			geom_violin(aes(group = cut_width(day, 1)), scale = 'width', fill = abx_col, color = abx_col) + 
-	        scale_x_continuous(breaks = -1:10) +
-			theme_bw() + labs(x = 'Day', y = 'Inverse Simpson')+ 
-			facet_wrap(dose~., ncol = 1)
-
-	beta_plot <- beta_df %>% 
-		inner_join(abx_meta, by = c('rows' = 'group')) %>% 
-		inner_join(abx_meta, by = c('columns' = 'group')) %>% 
-		filter(mouse_id.x == mouse_id.y, 
-			dose.x == dose.y,
-			day.x == min(abx_meta$day)) %>% 
-		ggplot(aes(x = day.y, y = distances, group = mouse_id.x)) + 
-			scale_x_continuous(breaks = -1:10) +
-			coord_cartesian(ylim = c(0,1)) +
-			geom_violin(aes(group = cut_width(day.y, 1)), scale = 'width', fill = abx_col, color = abx_col) + 
-			theme_bw() + 
-			labs(x = 'Day', y = 'Theta yc')+ 
-			facet_wrap(dose.x~., ncol = 1)
-
-	return(plot_grid(alpha_sobs_plot, alpha_invsimp_plot, beta_plot, nrow = 1))
-}
-
-ggsave('results/figures/figure_3_clindadiv.jpg', plot_diversity('Clindamycin'))
-ggsave('results/figures/figure_3_strepdiv.jpg', plot_diversity('Streptomycin'))
-ggsave('results/figures/figure_3_cefdiv.jpg', plot_diversity('Cefoperazone'))
-
-plot_day0_abundance <- function(antibiotic, n_taxa){
-	abx_col <- abx_color %>% 
-		filter(abx == antibiotic) %>% 
-		pull(color)
-	abx_group <- meta_df %>% 
-		filter(abx == antibiotic,
-			day == 0) %>% 
-		pull(group)
-	abx_shared <- shared_df %>% 
-		filter(Group %in% abx_group)
-
-	plot <- sum_otu_by_taxa(tax_df, abx_shared, taxa_level = 'Genus', top_n = n_taxa) %>% 
-		left_join(select(meta_df, group, dose), by = c('Group' = 'group')) %>% 
-		group_by(Group) %>% 
-		mutate(total = sum(abundance),
-			relative_abundance = log10(abundance/total * 100)) %>% 
-		ggplot(aes(x = Group, y =taxa, fill = relative_abundance)) + 
-			geom_tile() +
-			scale_fill_gradient(low="white", high=abx_col, limits = c(0,2), na.value = NA, 
-				breaks = c(0, 1, 2), labels = c('', '10', '100')) + 
-			theme_bw() + 
-			facet_wrap(dose~., scales = 'free_x', nrow = 1) +
-			labs(x = NULL, y = NULL, #title = 'Clindamycin Community',
-				fill = 'Relative Abundance (%)\nColor Intesity based on Log10') + 
-			theme(axis.title.x=element_blank(),
-	        	axis.text.x=element_blank(),
-	        	axis.ticks.x=element_blank(),
-	        	axis.text.y = element_text(angle = 45),
-	        	legend.position = 'bottom')
-	return(plot)
-}
-
-clinda_abundance <- plot_day0_abundance('Clindamycin', 10)
-cef_abundance <- plot_day0_abundance('Cefoperazone', 12)
-strep_abundance <- plot_day0_abundance('Streptomycin', 12)
-
-plot_grid(strep_cfu_plot, cef_cfu_plot)
