@@ -144,15 +144,15 @@ beta_div_df <- bind_rows(list(initial_distances, initial_inter_intial, TOI_intra
 
 beta_plot <- beta_div_df %>% 
 	mutate(c_abx = factor(c_abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin'))) %>% 
-	ggplot(aes(x = comparison, y = distances)) + 
+	ggplot(aes(x = comparison, y = distances, fill = as.factor(c_dose))) + 
 		coord_cartesian(ylim = c(0,1)) +
 		geom_boxplot() + 
 		facet_grid(c_clearance~c_abx) + 
 		#geom_violin(aes(group = cut_width(day.y, 1)), scale = 'width', fill = abx_col, color = abx_col) + 
 		theme_bw() + 
-		labs(x = NULL, y = 'Theta yc')
+		labs(x = NULL, y = 'Theta yc', fill = 'Dose')
 
-ggsave('results/figures/fig3_all_beta_comparisons.jpg', beta_plot)
+ggsave('results/figures/fig3_beta_comparisons_all.jpg', beta_plot)
 
 
 
