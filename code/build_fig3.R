@@ -29,9 +29,6 @@ alpha_div_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.uni
 beta_div_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist'
 dist_function <- 'code/read.dist.R'
 
-abx_color <- tibble(abx = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
-	color = c('#D37A1F', '#3A9CBC', abx_col))
-
 # read in data
 meta_df   <- read_tsv(meta_file) %>% 
 	filter(abx %in% c('Clindamycin', 'Streptomycin', 'Cefoperazone'))
