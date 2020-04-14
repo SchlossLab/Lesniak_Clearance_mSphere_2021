@@ -1,0 +1,123 @@
+##############
+#
+# run script to generate plots for Figure 4
+#	What interactions associate with clearance of C. difficile colonization?
+# 
+# Nick Lesniak 04-13-2020
+#
+#  need files:
+#	data/process/abx_cdiff_metadata_clean.txt
+#	data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared
+#	data/process/abx_cdiff_taxonomy_clean.tsv
+#	code/sum_otu_by_taxa.R
+#
+##############
+
+library(SpiecEasi)
+library(igraph)
+library(tidyverse)
+library(cowplot)
+
+seed <- 18
+meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
+shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.shared'
+tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
+
+abx_color <- tibble(abx = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
+	color = c('#D37A1F', '#3A9CBC', '#A40019'))
+
+# read in data
+tax_df <- read_tsv(tax_file)
+network_labels <- tax_df %>% 
+	mutate(otu_number = gsub('OTU ', '', otu_label),
+		tax_otu_label = gsub('_unclassified', '', tax_otu_label),
+		tax_otu_label = gsub(' \\(', '\\\n\\(', tax_otu_label)) %>% 
+	pull(tax_otu_label)
+
+meta_df   <- read_tsv(meta_file) %>% 
+	filter(abx %in% c('Clindamycin', 'Streptomycin', 'Cefoperazone'),
+		cdiff == T, clearance != 'uncolonized', day > 0,)
+shared_df <- read_tsv(shared_file) %>% 
+	select(-numOtus, -label, -X6631) %>% 
+	filter(Group %in% meta_df$group)
+# select only OTUs present in 10% of samples
+otus_present <- shared_df %>% 
+	select(-Group) %>% 
+	summarise_all(function(x){
+			sum(x >= 1) >= .1 * nrow(shared_df)
+		}) %>% 
+	gather(OTU, present) %>% 
+	filter(present == T) %>% 
+	pull(OTU)
+shared_df <- shared_df %>% 
+	select(Group, one_of(otus_present)) %>% 
+	left_join(select(meta_df, group, Cdiff = log10CFU), by = c('Group' = 'group'))
+
+se_pargs <- list(rep.num=100, seed=seed, ncores=4)
+# SPIEC-EASI pipeline: data transformation, sparse inverse covariance estimation and model selection
+get_cdiff_interactions <- function(antibiotic){
+	abx_samples <- meta_df %>% 
+		filter(abx == antibiotic) %>% 
+		pull(group)
+		# select color for antibiotic
+	abx_col <- abx_color %>% 
+		filter(abx == antibiotic) %>% 
+		pull(color)
+
+	se_df <- shared_df %>% 
+		filter(Group %in% abx_samples,
+			!is.na(log10CFU)) %>% 
+		select(-Group) %>% 
+		rename(Cdiff = log10CFU) %>% 
+		as.matrix
+
+	se_model <- spiec.easi(se_df, method = 'mb', lambda.min.ratio = 1e-3, nlambda = 999, # use 99 or 999 for real data
+		sel.criterion = 'bstars', pulsar.select = TRUE, pulsar.params = se_pargs)
+	
+	# set size of vertex proportional to clr-mean
+	vsize    <- rowMeans(clr(se_df, 1))+6
+	# determine edge weights
+	se_beta <- symBeta(getOptBeta(se_model), mode='maxabs')
+	se_edges <- summary(se_beta)
+	# network degree distributions
+	se_network <- adj2igraph(getRefit(se_model))
+	se_dd <- degree.distribution(se_network)
+	# determine network stability (closest to 0.05 is best, increase nlambda if not close)
+	se_stability <- getStability(se_model)
+	
+	se_interaction_matrix <- getRefit(se_model)
+	colnames(se_interaction_matrix) <- rownames(se_interaction_matrix) <- gsub('Otu0*', '', colnames(se_df))
+	first_order_otus <- c(names(which(se_interaction_matrix[,'Cdiff'] > 0)), 'Cdiff')
+	#second_order_otus <- names(apply(se_data[,otus], 1 , sum) > 0)
+	cdiff_interactions <- se_interaction_matrix[first_order_otus, first_order_otus]
+	labels <- c(network_labels[as.numeric(head(colnames(cdiff_interactions), -1))], 'C. difficile')
+	colnames(cdiff_interactions) <- rownames(cdiff_interactions) <- labels
+	#se_interaction_matrix <- se_interaction_matrix[second_order_otus, second_order_otus]
+
+	colnames(se_beta) <- rownames(se_beta) <- gsub('Otu0*', '', colnames(se_df))
+	wt_cdiff_interactions <- se_beta[first_order_otus, first_order_otus]
+	colnames(wt_cdiff_interactions) <- rownames(wt_cdiff_interactions) <- labels
+	wt_first_order_network <- adj2igraph(wt_cdiff_interactions, 
+		vertex.attr = list(name = colnames(wt_cdiff_interactions)))
+
+	vsize <- vsize[gsub('Otu0*', '', names(vsize)) %in% first_order_otus]
+	edge_wt <- abs(E(wt_first_order_network)$weight)
+	edge_direction <- ifelse(E(wt_first_order_network)$weight < 0, 'red', 'blue')
+	network <- adj2igraph(cdiff_interactions, 
+		vertex.attr = list(name = colnames(cdiff_interactions), size = vsize, 
+			color = abx_col, label.color='black', label.size = 8, label.dist=3),
+		edge.attr = list(width = edge_wt*10, color = edge_direction))
+
+	se_output <- list(edge_wts = se_edges, degree_dist = se_dd, stability = se_stability, 
+		interaction_matrix = se_beta, network = network)
+	return(se_output)
+}
+
+
+
+	jpeg(paste0('../results/figures/spieceasi/se_', 
+		antibiotic, '_network.jpg'),
+		width = 5, height = 5, units = 'in', res = 150)
+#	dev.off()
+}
+
