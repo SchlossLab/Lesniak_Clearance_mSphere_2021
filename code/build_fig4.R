@@ -160,10 +160,18 @@ cef_network <- get_cdiff_network('Cefoperazone')
 #	ggplot(aes(x = Degree, y = Frequency, color = abx)) + 
 #	geom_line()
 
+set.seed(2)
+plot(cef_network$cdiff_network, 
+	layout = layout_as_star(cef_network$cdiff_network, center='C. difficile'))
+plot(clinda_network$cdiff_network, 
+	layout = layout_as_star(clinda_network$cdiff_network, center='C. difficile'))
+plot(strep_network$cdiff_network, 
+	layout = layout_as_star(strep_network$cdiff_network, center='C. difficile'))
+dev.off()
 
-	jpeg(paste0('../results/figures/spieceasi/se_', 
-		antibiotic, '_network.jpg'),
-		width = 5, height = 5, units = 'in', res = 150)
-#	dev.off()
+plot_network_otus <- function(antibiotic, network_otus, clearance_status){
+	abx_col <- abx_color %>% 
+		filter(abx == antibiotic) %>% 
+		pull(color)
 }
 
