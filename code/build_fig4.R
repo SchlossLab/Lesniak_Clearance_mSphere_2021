@@ -25,7 +25,8 @@ tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
 
 abx_color <- tibble(abx = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
 	color = c('#D37A1F', '#3A9CBC', '#A40019'))
-
+# arguments for spiec easi, 
+se_pargs <- list(rep.num=99, seed=seed, ncores=4)
 # read in data
 tax_df <- read_tsv(tax_file)
 network_labels <- tax_df %>% 
@@ -53,38 +54,38 @@ shared_df <- shared_df %>%
 	select(Group, one_of(otus_present)) %>% 
 	left_join(select(meta_df, group, Cdiff = log10CFU), by = c('Group' = 'group'))
 
-se_pargs <- list(rep.num=100, seed=seed, ncores=4)
-# SPIEC-EASI pipeline: data transformation, sparse inverse covariance estimation and model selection
-get_cdiff_interactions <- function(antibiotic){
-	abx_samples <- meta_df %>% 
-		filter(abx == antibiotic) %>% 
-		pull(group)
-		# select color for antibiotic
+
+get_cdiff_network <- function(antibiotic, clearance_status){
+	# select color for antibiotic
 	abx_col <- abx_color %>% 
 		filter(abx == antibiotic) %>% 
 		pull(color)
 
-	se_df <- shared_df %>% 
-		filter(Group %in% abx_samples,
-			!is.na(log10CFU)) %>% 
-		select(-Group) %>% 
-		rename(Cdiff = log10CFU) %>% 
+	se_df <- meta_df %>% 
+		filter(abx == antibiotic,
+			clearance %in% clearance_status) %>% 
+		select(group) %>% 
+		left_join(shared_df, by = c('group' = 'Group')) %>% 
+		filter(!is.na(Cdiff)) %>% 
+		select(-group) %>% 
 		as.matrix
-
-	se_model <- spiec.easi(se_df, method = 'mb', lambda.min.ratio = 1e-3, nlambda = 999, # use 99 or 999 for real data
+	# SPIEC-EASI: data transformation, sparse inverse covariance estimation and model selection
+	se_model <- spiec.easi(se_df, method = 'mb', lambda.min.ratio = 1e-3, nlambda = 100,
 		sel.criterion = 'bstars', pulsar.select = TRUE, pulsar.params = se_pargs)
 	
 	# set size of vertex proportional to clr-mean
 	vsize    <- rowMeans(clr(se_df, 1))+6
 	# determine edge weights
 	se_beta <- symBeta(getOptBeta(se_model), mode='maxabs')
-	se_edges <- summary(se_beta)
+	se_edges <- Matrix::summary(se_beta)
 	# network degree distributions
 	se_network <- adj2igraph(getRefit(se_model))
 	se_dd <- degree.distribution(se_network)
 	# determine network stability (closest to 0.05 is best, increase nlambda if not close)
 	se_stability <- getStability(se_model)
-	
+	if(se_stability < 0.045){ stop(paste0('Stability low (', se_stability, 
+		'), increase nlambda or decrease lambda.min.ratio arguments'))}
+
 	se_interaction_matrix <- getRefit(se_model)
 	colnames(se_interaction_matrix) <- rownames(se_interaction_matrix) <- gsub('Otu0*', '', colnames(se_df))
 	first_order_otus <- c(names(which(se_interaction_matrix[,'Cdiff'] > 0)), 'Cdiff')
