@@ -86,31 +86,40 @@ get_cdiff_network <- function(antibiotic, clearance_status){
 	if(se_stability < 0.045){ stop(paste0('Stability low (', se_stability, 
 		'), increase nlambda or decrease lambda.min.ratio arguments'))}
 
+	## setup model output for graphing network
 	se_interaction_matrix <- getRefit(se_model)
+	# name matrix positions
 	colnames(se_interaction_matrix) <- rownames(se_interaction_matrix) <- gsub('Otu0*', '', colnames(se_df))
+	# subset network to only OTUs directly interecting with C. difficile
 	first_order_otus <- c(names(which(se_interaction_matrix[,'Cdiff'] > 0)), 'Cdiff')
 	#second_order_otus <- names(apply(se_data[,otus], 1 , sum) > 0)
 	cdiff_interactions <- se_interaction_matrix[first_order_otus, first_order_otus]
 	labels <- c(network_labels[as.numeric(head(colnames(cdiff_interactions), -1))], 'C. difficile')
 	colnames(cdiff_interactions) <- rownames(cdiff_interactions) <- labels
 	#se_interaction_matrix <- se_interaction_matrix[second_order_otus, second_order_otus]
-
+	# add edge weights
+	# names matrix positions
 	colnames(se_beta) <- rownames(se_beta) <- gsub('Otu0*', '', colnames(se_df))
+	# subset network to OTUs interacting with C difficile
 	wt_cdiff_interactions <- se_beta[first_order_otus, first_order_otus]
 	colnames(wt_cdiff_interactions) <- rownames(wt_cdiff_interactions) <- labels
+	# create igraph object with edge weights
 	wt_first_order_network <- adj2igraph(wt_cdiff_interactions, 
 		vertex.attr = list(name = colnames(wt_cdiff_interactions)))
 
+	# setup network attributes to create igraph network graph for output
 	vsize <- vsize[gsub('Otu0*', '', names(vsize)) %in% first_order_otus]
 	edge_wt <- abs(E(wt_first_order_network)$weight)
 	edge_direction <- ifelse(E(wt_first_order_network)$weight < 0, 'red', 'blue')
+	lab.locs <- radian.rescale(x=1:length(first_order_otus), direction=-1, start=0)
 	network <- adj2igraph(cdiff_interactions, 
-		vertex.attr = list(name = colnames(cdiff_interactions), size = vsize, 
-			color = abx_col, label.color='black', label.size = 8, label.dist=3),
+		vertex.attr = list(name = colnames(cdiff_interactions), size = vsize^2/10, 
+			color = abx_col, label.color='black', label.size = 8, label.dist = 2),
 		edge.attr = list(width = edge_wt*10, color = edge_direction))
 
 	se_output <- list(edge_wts = se_edges, degree_dist = se_dd, stability = se_stability, 
-		interaction_matrix = se_beta, network = network)
+		all_otus = colnames(se_df), otus = first_order_otus, full_network = se_network, 
+		cdiff_network = network)
 	return(se_output)
 }
 
