@@ -21,6 +21,7 @@ library(cowplot)
 seed <- 18
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.shared'
+subsampled_shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
 
 abx_color <- tibble(abx = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
@@ -44,6 +45,9 @@ network_labels <- tax_df %>%
 meta_df   <- read_tsv(meta_file) %>% 
 	filter(abx %in% c('Clindamycin', 'Streptomycin', 'Cefoperazone'),
 		cdiff == T, clearance != 'uncolonized', day > 0,)
+subsampled_shared_df <- read_tsv(subsampled_shared_file) %>% 
+	select(-numOtus, -label) %>% 
+	filter(Group %in% meta_df$group)
 shared_df <- read_tsv(shared_file) %>% 
 	select(-numOtus, -label, -X6631) %>% 
 	filter(Group %in% meta_df$group)
@@ -179,5 +183,70 @@ plot_network_otus <- function(antibiotic, network_otus, clearance_status){
 	abx_col <- abx_color %>% 
 		filter(abx == antibiotic) %>% 
 		pull(color)
+
+	abundance_plot <- meta_df %>% 
+			filter(abx == antibiotic) %>% 
+			select(group, mouse_id, abx, day, clearance, log10CFU) %>% 
+			left_join(subsampled_shared_df, by = c('group' = 'Group')) %>% 
+			gather(OTU, abundance, starts_with('Otu')) %>% 
+			mutate(OTU_number = gsub('Otu0*', '', OTU)) %>% 
+			filter(OTU_number %in% network_otus,
+				clearance %in% clearance_status) %>% 
+			group_by(OTU) %>% 
+			mutate(presence = sum(abundance > 1, na.rm = T) > 5,
+				max_abundance = max(abundance, na.rm = T),
+				transformed_abundance = abundance/max_abundance) %>% 
+			filter(presence == TRUE) %>% 
+			left_join(select(tax_df, OTU, tax_otu_label, Phylum), by = c('OTU')) %>% 
+			group_by(group) %>% 
+			mutate(total = sum(abundance),
+				relative_abundance = log10(abundance/total * 100),
+				taxa = gsub('_unclassified', '', tax_otu_label)) %>% 
+			ggplot(aes(x = group, y =taxa, fill = transformed_abundance)) + 
+				geom_tile() +
+				scale_fill_gradient(low="white", high=abx_col, limits = c(0,2), na.value = NA, 
+					breaks = c(0, 1, 2), labels = c('', '10', '100')) + 
+				theme_bw() + 
+				facet_grid(clearance~day, scales = 'free_x') +
+				labs(x = NULL, y = NULL, #title = 'Clindamycin Community',
+					fill = 'Day 0 Relative Abundance (%)\nColor Intesity based on Log10') + 
+				theme(axis.title.x=element_blank(), # remove mouse id labels
+		        	axis.text.x=element_blank(),
+		        	axis.ticks.x=element_blank(),
+		        	axis.text.y = element_text(angle = 45),
+		        	legend.position = 'bottom')
+
+	cdiff_plot <- meta_df %>% 
+			filter(abx == antibiotic, 
+				clearance %in% clearance_status) %>% 
+			select(group, mouse_id, abx, day, clearance, log10CFU) %>% 
+			mutate(max_abundance = max(log10CFU, na.rm = T),
+				transformed_abundance = log10CFU/max_abundance) %>% 
+			ggplot(aes(x = group, y ='C. difficile', fill = transformed_abundance)) + 
+				geom_tile() +
+				scale_fill_gradient(low="white", high=abx_col, limits = c(1.8/8,1), na.value = NA, 
+					breaks = c(1.8/8, .625, 1), labels = c('0', '10^5', '10^8')) + 
+				theme_bw() + 
+				facet_grid(clearance~day, scales = 'free_x') +
+				labs(x = NULL, y = NULL, fill = 'Color Intensity by CFU') + 
+				theme(axis.title.x=element_blank(), # remove mouse id labels
+		        	axis.text.x=element_blank(),
+		        	axis.ticks.x=element_blank(),
+		        	axis.text.y = element_text(angle = 45),
+		        	legend.position = 'bottom')
+	
+	title <- ggdraw() + draw_label(antibiotic, fontface = 'bold', color = abx_col)
+	output_plot <- plot_grid(title, 
+		plot_grid(abundance_plot, 
+				plot_grid(NULL, cdiff_plot, rel_widths = c(1, 10)), 
+			ncol = 1, rel_heights = c(3,1)), 
+		ncol=1, rel_heights=c(0.1, 1))
+
+	return(output_plot)
 }
 
+clinda_cleared_abundance_plot <- plot_network_otus('Clindamycin', clinda_network$otus, 'Cleared')
+cef_cleared_abundance_plot <- plot_network_otus('Cefoperazone', cef_network$otus, 'Cleared')
+cef_colonized_abundance_plot <- plot_network_otus('Cefoperazone', cef_network$otus, 'Colonized')
+strep_cleared_abundance_plot <- plot_network_otus('Streptomycin', strep_network$otus, 'Cleared')
+strep_colonized_abundance_plot <- plot_network_otus('Streptomycin', strep_network$otus, 'Colonized')
