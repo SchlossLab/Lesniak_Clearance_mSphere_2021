@@ -27,6 +27,12 @@ abx_color <- tibble(abx = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
 	color = c('#D37A1F', '#3A9CBC', '#A40019'))
 # arguments for spiec easi, 
 se_pargs <- list(rep.num=99, seed=seed, ncores=4)
+# function to set offset angle to arrange node labels outside circle
+#  kjhealy/polar-labels.r https://gist.github.com/kjhealy/834774
+radian.rescale <- function(x, start=0, direction=1) {
+  c.rotate <- function(x) (x + start) %% (2 * pi) * direction
+  c.rotate(scales::rescale(x, c(0, 2 * pi), range(x)))
+}
 # read in data
 tax_df <- read_tsv(tax_file)
 network_labels <- tax_df %>% 
