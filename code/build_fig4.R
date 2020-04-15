@@ -123,6 +123,42 @@ get_cdiff_network <- function(antibiotic, clearance_status){
 	return(se_output)
 }
 
+clinda_network <- get_cdiff_network('Clindamycin', 'Cleared')
+strep_network <- get_cdiff_network('Streptomycin')
+cef_network <- get_cdiff_network('Cefoperazone')
+
+# test for differences in centrality
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5927471/
+# https://kateto.net/netscix2016.html
+#bind_rows(tibble(abx = 'Clindamycin',
+#		local_centr = centr_degree(clinda_network$full_network)$res, 
+#		closeness = closeness(clinda_network$full_network),
+#		otu = clinda_network$all_otus),
+#	tibble(abx = 'Cefoperazone',
+#		local_centr = centr_degree(cef_network$full_network)$res, 
+#		closeness = closeness(cef_network$full_network),
+#		otu = cef_network$all_otus),
+#	tibble(abx = 'Streptomycin',
+#		local_centr = centr_degree(strep_network$full_network)$res, 
+#		closeness = closeness(strep_network$full_network),
+#		otu = strep_network$all_otus))
+#
+# no significant difference in degree distribution
+#bind_rows(cbind(abx = 'Clindamycin', as.data.frame(clinda_network$edge_wts), stringsAsFactors = F),
+#	cbind(abx = 'Cefoperazone', as.data.frame(cef_network$edge_wts), stringsAsFactors = F),
+#	cbind(abx = 'Streptomycin', as.data.frame(strep_network$edge_wts), stringsAsFactors = F)) %>% 
+#	ggplot(aes(x, fill = abx)) + 
+#		geom_histogram(binwidth = 0.1) + 
+#		facet_wrap(abx~., scales = 'free_y')
+# no significant difference in degree distribution
+#bind_rows(tibble(abx = 'Clindamycin', Frequency = clinda_network$degree_dist, 
+#		Degree = 0:(length(clinda_network$degree_dist) - 1)),
+#	tibble(abx = 'Cefoperazone', Frequency = cef_network$degree_dist, 
+#		Degree = 0:(length(cef_network$degree_dist) - 1)),
+#	tibble(abx = 'Streptomycin', Frequency = strep_network$degree_dist, 
+#		Degree = 0:(length(strep_network$degree_dist) - 1))) %>% 
+#	ggplot(aes(x = Degree, y = Frequency, color = abx)) + 
+#	geom_line()
 
 
 	jpeg(paste0('../results/figures/spieceasi/se_', 
