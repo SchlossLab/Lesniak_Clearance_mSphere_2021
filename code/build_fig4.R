@@ -63,7 +63,7 @@ get_cdiff_network <- function(antibiotic, clearance_status){
 			clearance %in% clearance_status) %>% 
 		select(group, Cdiff = log10CFU) %>% 
 		filter(!is.na(Cdiff)) %>% 
-		left_join(shared_df, by = c('group' = 'Group')) %>% 
+		inner_join(shared_df, by = c('group' = 'Group')) %>% 
 		select(-group)
 
 	# select only OTUs present in 10% of samples
