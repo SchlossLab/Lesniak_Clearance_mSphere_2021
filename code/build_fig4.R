@@ -134,10 +134,10 @@ get_cdiff_network <- function(antibiotic, clearance_status){
 }
 
 clinda_network <- get_cdiff_network('Clindamycin', 'Cleared')
-strep_network <- get_cdiff_network('Streptomycin')
+strep_network <- get_cdiff_network('Streptomycin', c('Cleared', 'Colonized'))
 strep_network_cleared <- get_cdiff_network('Streptomycin', 'Cleared')
 strep_network_colonized <- get_cdiff_network('Streptomycin', 'Colonized')
-cef_network <- get_cdiff_network('Cefoperazone')
+cef_network <- get_cdiff_network('Cefoperazone', c('Cleared', 'Colonized'))
 cef_network_cleared <- get_cdiff_network('Cefoperazone', 'Cleared')
 cef_network_colonized <- get_cdiff_network('Cefoperazone', 'Colonized')
 
@@ -279,13 +279,12 @@ strep_colonized_abundance_plot <- plot_network_otus('Streptomycin', strep_networ
 
 ggsave('results/figures/figure4.jpg',
 	plot_grid(
-		plot_grid(clinda_cleared_abundance_plot, clinda_network_graph, nrow = 1, rel_widths = c(2,1)), 
-		plot_grid(cef_cleared_abundance_plot, cef_cleared_network_graph, nrow = 1, rel_widths = c(2,1)), 
-		plot_grid(cef_colonized_abundance_plot, cef_colonized_network_graph, nrow = 1, rel_widths = c(2,1)), 
-		plot_grid(strep_cleared_abundance_plot, strep_cleared_network_graph, nrow = 1, rel_widths = c(2,1)), 
-		plot_grid(strep_colonized_abundance_plot, strep_colonized_network_graph, nrow = 1, rel_widths = c(2,1)), 
-		ncol = 1), width = 15, height = 30)
-
-clinda_network_graph
-cef_network_graph
-strep_network_graph
+		plot_grid(
+			plot_grid(clinda_cleared_abundance_plot, clinda_network_graph, nrow = 1, rel_widths = c(2,1)), 
+			plot_grid(cef_cleared_abundance_plot, cef_cleared_network_graph, nrow = 1, rel_widths = c(2,1)), 
+			plot_grid(cef_colonized_abundance_plot, cef_colonized_network_graph, nrow = 1, rel_widths = c(2,1)), 
+			plot_grid(strep_cleared_abundance_plot, strep_cleared_network_graph, nrow = 1, rel_widths = c(2,1)), 
+			plot_grid(strep_colonized_abundance_plot, strep_colonized_network_graph, nrow = 1, rel_widths = c(2,1)), 
+			ncol = 1), 
+		plot_grid(NULL, cef_network_graph, strep_network_graph, ncol = 1, rel_heights = c(1,2,2)),
+		nrow = 1, rel_widths = c(6,2)), width = 20, height = 30)
