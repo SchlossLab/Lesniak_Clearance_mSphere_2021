@@ -74,12 +74,12 @@ get_cdiff_network <- function(antibiotic, clearance_status){
 		gather(OTU, present) %>% 
 		filter(present == T) %>% 
 		pull(OTU)
-
 	se_df <- se_df %>% 
 		select(otus_present) %>% 
 		as.matrix
+
 	# SPIEC-EASI: data transformation, sparse inverse covariance estimation and model selection
-	se_model <- spiec.easi(se_df, method = 'mb', lambda.min.ratio = 1e-3, nlambda = 100,
+	se_model <- spiec.easi(se_df, method = 'mb', lambda.min.ratio = 1e-3, nlambda = 500,
 		sel.criterion = 'bstars', pulsar.select = TRUE, pulsar.params = se_pargs)
 	
 	# set size of vertex proportional to clr-mean
