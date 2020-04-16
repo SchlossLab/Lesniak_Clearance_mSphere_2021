@@ -129,7 +129,8 @@ get_cdiff_network <- function(antibiotic, clearance_status){
 
 	se_output <- list(edge_wts = se_edges, degree_dist = se_dd, stability = se_stability, 
 		all_otus = colnames(se_df), otus = first_order_otus, full_network = se_network, 
-		cdiff_network = network)
+		cdiff_network = network, antibiotic = antibiotic, 
+		clearance = paste(clearance_status, collapse = '_'))
 	return(se_output)
 }
 
@@ -140,39 +141,6 @@ strep_network_colonized <- get_cdiff_network('Streptomycin', 'Colonized')
 cef_network <- get_cdiff_network('Cefoperazone', c('Cleared', 'Colonized'))
 cef_network_cleared <- get_cdiff_network('Cefoperazone', 'Cleared')
 cef_network_colonized <- get_cdiff_network('Cefoperazone', 'Colonized')
-
-# test for differences in centrality
-# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5927471/
-# https://kateto.net/netscix2016.html
-#bind_rows(tibble(abx = 'Clindamycin',
-#		local_centr = centr_degree(clinda_network$full_network)$res, 
-#		closeness = closeness(clinda_network$full_network),
-#		otu = clinda_network$all_otus),
-#	tibble(abx = 'Cefoperazone',
-#		local_centr = centr_degree(cef_network$full_network)$res, 
-#		closeness = closeness(cef_network$full_network),
-#		otu = cef_network$all_otus),
-#	tibble(abx = 'Streptomycin',
-#		local_centr = centr_degree(strep_network$full_network)$res, 
-#		closeness = closeness(strep_network$full_network),
-#		otu = strep_network$all_otus))
-#
-# no significant difference in degree distribution
-#bind_rows(cbind(abx = 'Clindamycin', as.data.frame(clinda_network$edge_wts), stringsAsFactors = F),
-#	cbind(abx = 'Cefoperazone', as.data.frame(cef_network$edge_wts), stringsAsFactors = F),
-#	cbind(abx = 'Streptomycin', as.data.frame(strep_network$edge_wts), stringsAsFactors = F)) %>% 
-#	ggplot(aes(x, fill = abx)) + 
-#		geom_histogram(binwidth = 0.1) + 
-#		facet_wrap(abx~., scales = 'free_y')
-# no significant difference in degree distribution
-#bind_rows(tibble(abx = 'Clindamycin', Frequency = clinda_network$degree_dist, 
-#		Degree = 0:(length(clinda_network$degree_dist) - 1)),
-#	tibble(abx = 'Cefoperazone', Frequency = cef_network$degree_dist, 
-#		Degree = 0:(length(cef_network$degree_dist) - 1)),
-#	tibble(abx = 'Streptomycin', Frequency = strep_network$degree_dist, 
-#		Degree = 0:(length(strep_network$degree_dist) - 1))) %>% 
-#	ggplot(aes(x = Degree, y = Frequency, color = abx)) + 
-#	geom_line()
 
 set.seed(2)
 plot(clinda_network$cdiff_network, edge.label = rep('',100),
@@ -277,7 +245,7 @@ strep_cleared_abundance_plot <- plot_network_otus('Streptomycin', strep_network_
 strep_colonized_abundance_plot <- plot_network_otus('Streptomycin', strep_network_colonized$otus, 'Colonized')
 
 
-ggsave('results/figures/figure4.jpg',
+ggsave('results/figures/figure_4.jpg',
 	plot_grid(
 		plot_grid(
 			plot_grid(clinda_cleared_abundance_plot, clinda_network_graph, nrow = 1, rel_widths = c(2,1)), 
@@ -288,3 +256,86 @@ ggsave('results/figures/figure4.jpg',
 			ncol = 1), 
 		plot_grid(NULL, cef_network_graph, strep_network_graph, ncol = 1, rel_heights = c(1,2,2)),
 		nrow = 1, rel_widths = c(6,2)), width = 20, height = 30)
+
+networks <- list(clinda_network, strep_network, strep_network_cleared, strep_network_colonized, cef_network, cef_network_cleared, cef_network_colonized)
+## degree distribution
+## comparing within antibiotic treatments, degree distribution is similar between cleaered and colonized, 
+## higher degree with network made of both outcomes, and streptomycin is slightly higher overall than cef
+#get_degree <- function(x){
+#	tibble(antibiotic = x$antibiotic,
+#		clearance = x$clearance,
+#		Frequency = x$degree_dist, 
+#		Degree = 0:(length(x$degree_dist) - 1))
+#}
+#ggsave('results/figures/figure_4_degree_dist.jpg',
+#	map_dfr(networks, get_degree) %>% 
+#		ggplot(aes(x = Degree, y = Frequency, color = antibiotic)) + 
+#		geom_line() + 
+#		facet_grid(antibiotic~clearance))
+
+## edge weight distribution
+## no distinct differences in edge distributions, nothing conserved across clearance or antibiotic
+## Clindamycin is nearly equally distributed around 0
+## Streptomycin colonized is slightly biased towards negative edge weights
+## Cefoperazone colonized has a greater amount >0.2 edge weights
+#get_edges <- function(x){
+#	abx <- x$antibiotic
+#	clr <- x$clearance
+#	as_tibble(x$edge_wts) %>% 
+#		mutate(antibiotic = abx,
+#			clearance = clr)
+#}
+#ggsave('results/figures/figure_4_edge_wt_dist.jpg',
+#map_dfr(networks, get_edges) %>% 
+#	ggplot(aes(x, color = clearance)) + 
+#		geom_density() + 
+#		facet_grid(antibiotic~.))
+
+# centrality
+# all look fairly similar
+# slightly lower amount of high degree for comminities remaining colonized
+# Cef has significantly different betweenness, 
+#  cleared communities have much higher betweenness centrality
+#   so cleared communities have slightly more connections 
+#get_centrality <- function(x){
+#	net <- x$full_network
+#	bind_rows(tibble(antibiotic = x$antibiotic,
+#			clearance = x$clearance,
+#			#otu = x$all_otus,
+#			degree = degree(net, mode="in"),
+#			betweenness = betweenness(net, directed=T, weights=NA)) %>% 
+#			gather(metric, value, -antibiotic, -clearance),
+#		tibble(antibiotic = x$antibiotic,
+#			clearance = x$clearance,
+#			edge_betweenness = edge_betweenness(net, directed=T, weights=NA)) %>% 
+#			gather(metric, value, -antibiotic, -clearance))
+#			#alpha_centrality = alpha_centrality(net)
+#}
+#cef_centrality_plot <- map_dfr(networks, get_centrality) %>% 
+#	filter(antibiotic == 'Cefoperazone',
+#		clearance != 'Cleared_Colonized') %>% 
+#	ggplot(aes(x = clearance, y = value)) + 
+#		geom_violin(fill = '#3A9CBC') + 
+#		facet_grid(metric~antibiotic, scales = 'free') + 
+#		guides(fill='none') + theme_bw()
+#clinda_centrality_plot <- map_dfr(networks, get_centrality) %>% 
+#	filter(antibiotic == 'Clindamycin', clearance != 'Cleared_Colonized') %>% 
+#	ggplot(aes(x = clearance, y = value)) + 
+#		geom_violin(fill = '#A40019') + 
+#		facet_grid(metric~antibiotic, scales = 'free') + 
+#		guides(fill='none') + theme_bw()
+#strep_centrality_plot <- map_dfr(networks, get_centrality) %>% 
+#	filter(antibiotic == 'Streptomycin',
+#		clearance != 'Cleared_Colonized') %>% 
+#	ggplot(aes(x = clearance, y = value)) + 
+#		geom_violin(fill = '#D37A1F') + 
+#		facet_grid(metric~antibiotic, scales = 'free') + 
+#		guides(fill='none') + theme_bw()
+#ggsave('results/figures/figure_4_centrality.jpg',
+#	plot_grid(cef_centrality_plot, clinda_centrality_plot, strep_centrality_plot, nrow = 1))
+# compare full strep networks
+#plot(strep_network_colonized$full_network)
+#p1 <- recordPlot()
+#plot(strep_network_cleared$full_network)
+#p2 <- recordPlot()
+#plot_grid(p1, p2)
