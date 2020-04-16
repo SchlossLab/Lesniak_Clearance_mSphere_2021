@@ -51,19 +51,6 @@ subsampled_shared_df <- read_tsv(subsampled_shared_file) %>%
 shared_df <- read_tsv(shared_file) %>% 
 	select(-numOtus, -label, -X6631) %>% 
 	filter(Group %in% meta_df$group)
-# select only OTUs present in 10% of samples
-otus_present <- shared_df %>% 
-	select(-Group) %>% 
-	summarise_all(function(x){
-			sum(x >= 1) >= .1 * nrow(shared_df)
-		}) %>% 
-	gather(OTU, present) %>% 
-	filter(present == T) %>% 
-	pull(OTU)
-shared_df <- shared_df %>% 
-	select(Group, one_of(otus_present)) %>% 
-	left_join(select(meta_df, group, Cdiff = log10CFU), by = c('Group' = 'group'))
-
 
 get_cdiff_network <- function(antibiotic, clearance_status){
 	# select color for antibiotic
@@ -74,10 +61,22 @@ get_cdiff_network <- function(antibiotic, clearance_status){
 	se_df <- meta_df %>% 
 		filter(abx == antibiotic,
 			clearance %in% clearance_status) %>% 
-		select(group) %>% 
-		left_join(shared_df, by = c('group' = 'Group')) %>% 
+		select(group, Cdiff = log10CFU) %>% 
 		filter(!is.na(Cdiff)) %>% 
-		select(-group) %>% 
+		left_join(shared_df, by = c('group' = 'Group')) %>% 
+		select(-group)
+
+	# select only OTUs present in 10% of samples
+	otus_present <- se_df %>% 
+		summarise_all(function(x){
+				sum(x >= 1) >= .1 * nrow(shared_df)
+			}) %>% 
+		gather(OTU, present) %>% 
+		filter(present == T) %>% 
+		pull(OTU)
+
+	se_df <- se_df %>% 
+		select(otus_present) %>% 
 		as.matrix
 	# SPIEC-EASI: data transformation, sparse inverse covariance estimation and model selection
 	se_model <- spiec.easi(se_df, method = 'mb', lambda.min.ratio = 1e-3, nlambda = 100,
