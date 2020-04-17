@@ -52,8 +52,8 @@ colonization_plot <- meta_df %>%
 		T ~ CFU)) %>% 
 	filter(!is.na(CFU)) %>% 
 	ggplot(aes(x = day, y = CFU)) + 
+        geom_line(aes(group = mouse_id), alpha = 0.3, color = '#A40019') + 
 		stat_summary(fun.y=median, geom="line", size = 1, color = '#A40019') + # create median line
-        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), color = '#A40019') + # with bars for IQR
         scale_x_continuous(breaks = -1:10) + # make ticks for each day
 		annotate(x = -1, y = 200, geom = 'label', label = "LOD", # create a dotted line labeled LOD for limit of detection
 			fill = "white", color = 'black', label.size = NA) + 
