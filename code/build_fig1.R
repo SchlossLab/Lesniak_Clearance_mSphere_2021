@@ -37,7 +37,8 @@ shared_df <- read_tsv(shared_file) %>%
 	filter(Group %in% meta_df$group)
 tax_df <- read_tsv(tax_file)
 alpha_df <- read_tsv(alpha_div_file) %>% 
-	filter(group %in% meta_df$group)
+	filter(group %in% meta_df$group,
+		method == 'ave')
 source(sum_taxa_function) # function to create taxanomic labels for OTUs
 	# sum_otu_by_taxa(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0, silent = T){
 source(dist_function) # function to read in distance file and convert from triangle to dataframe
