@@ -71,15 +71,17 @@ abundance_plot <- shared_genus %>%
 	full_join(meta_df, by = c('Group' = 'group')) %>% 
 	group_by(Group) %>% 
 	mutate(total = sum(abundance),
-		relative_abundance = log10(abundance/total * 100),
+		relative_abundance = abundance/total * 100,
 		taxa = gsub('_unclassified', '', taxa)) %>% 
-	ggplot(aes(x = mouse_id, y =taxa, fill = relative_abundance)) + 
+	group_by(day, taxa) %>% 
+	summarise(relative_abundance = log10(mean(relative_abundance) + 0.01)) %>% 
+	ggplot(aes(x = day, y =taxa, fill = relative_abundance)) + 
 		geom_tile() +
 		scale_fill_gradient(low="white", high='#A40019', limits = c(0,2), na.value = NA, 
 			breaks = c(0, 1, 2), labels = c('', '10', '100')) + 
 		theme_bw() + 
 		labs(x = NULL, y = NULL, #title = 'Clindamycin Community',
-			fill = 'Relative Abundance (%)\nColor Intesity based on Log10') + 
+			fill = 'Mean Relative Abundance (%)\nColor Intesity based on Log10') + 
 		theme(axis.title.x=element_blank(),
         	axis.text.x=element_blank(),
         	axis.ticks.x=element_blank(),
