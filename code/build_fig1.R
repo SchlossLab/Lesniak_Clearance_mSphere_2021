@@ -63,7 +63,8 @@ colonization_plot <- meta_df %>%
 		scale_y_log10(
    			breaks = scales::trans_breaks("log10", function(x) 10^x),
    			labels = scales::trans_format("log10", scales::math_format(10^.x))) + # scale y axis log10 and label 10^x
-		theme_bw() + labs(x = 'Day', y = expression(italic('C. difficile')~' CFU'))
+		theme_bw() + labs(x = 'Day', y = expression(italic('C. difficile')~' CFU')) + 
+		theme(panel.grid.minor = element_blank())
 
 shared_genus <- sum_otu_by_taxa(tax_df, shared_df, taxa_level = 'Genus', top_n = 10) # sum at the genus level for the top 10
 
@@ -85,10 +86,9 @@ abundance_plot <- shared_genus %>%
 		theme_bw() + 
 		labs(x = NULL, y = NULL, #title = 'Clindamycin Community',
 			fill = 'Mean Relative Abundance (%)\nColor Intesity based on Log10') + 
-		theme(axis.title.x=element_blank(),
-        	axis.text.x=element_blank(),
-        	axis.ticks.x=element_blank(),
-        	axis.text.y = element_text(angle = 45),
+		theme(panel.grid.minor = element_blank(), panel.grid.major.x = element_blank(),
+			axis.title.x=element_blank(), axis.ticks.x=element_blank(), 
+        	axis.text.x=element_blank(), axis.text.y = element_text(angle = 45),
         	legend.position = 'bottom') +
 		facet_wrap(.~day, nrow = 1, scales = 'free_x')
 
