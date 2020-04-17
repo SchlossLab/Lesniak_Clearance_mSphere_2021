@@ -31,6 +31,7 @@ dist_function <- 'code/read.dist.R'
 
 # read in data
 meta_df   <- read_tsv(meta_file) %>% 
+	mutate(cdiff = ifelse(cdiff == T, 'C. difficile Challenged', 'Mock Challenged')) %>% 
 	filter(abx == 'Clindamycin')
 shared_df <- read_tsv(shared_file) %>% 
 	select(-label, -numOtus) %>% 
@@ -50,7 +51,8 @@ beta_df <- read_dist(beta_div_file) %>%
 colonization_plot <- meta_df %>% 
 	mutate(CFU = case_when(CFU == 0 ~ 60, # shift 0 counts to just below limit of detection line
 		T ~ CFU)) %>% 
-	filter(!is.na(CFU)) %>% 
+	filter(cdiff == 'C. difficile Challenged',
+		!is.na(CFU)) %>% 
 	ggplot(aes(x = day, y = CFU)) + 
         geom_line(aes(group = mouse_id), alpha = 0.3, color = '#A40019') + 
 		stat_summary(fun.y=median, geom="line", size = 1, color = '#A40019') + # create median line
@@ -69,6 +71,7 @@ shared_genus <- sum_otu_by_taxa(tax_df, shared_df, taxa_level = 'Genus', top_n =
 # mice along the x axis, taxonomic classification along the y axis and color intensity by log10 relative abundance
 abundance_plot <- shared_genus %>% 
 	full_join(meta_df, by = c('Group' = 'group')) %>% 
+	filter(cdiff == 'C. difficile Challenged') %>% 
 	group_by(Group) %>% 
 	mutate(total = sum(abundance),
 		relative_abundance = abundance/total * 100,
@@ -87,38 +90,50 @@ abundance_plot <- shared_genus %>%
         	axis.ticks.x=element_blank(),
         	axis.text.y = element_text(angle = 45),
         	legend.position = 'bottom') +
-		facet_wrap(.~day, nrow = 1)
+		facet_wrap(.~day, nrow = 1, scales = 'free_x')
 
 # plot Sobs by day
 alpha_sobs_plot <- alpha_df %>% 
 	select(group, sobs) %>% 
-	left_join(select(meta_df, group, day), by = c('group')) %>% 
-	ggplot(aes(x = day, y = sobs)) + 
-		geom_violin(aes(group = cut_width(day, 1)), scale = 'width', fill = '#A40019', color = '#A40019') + 
+	left_join(select(meta_df, group, day, cdiff), by = c('group')) %>% 
+	ggplot(aes(x = day, y = sobs, color = cdiff, group = interaction(cdiff, day))) + 
+		geom_boxplot(position = 'dodge') + 
+		#geom_point(alpha = 0.4, position = position_jitterdodge()) + 
         scale_x_continuous(breaks = -1:10) +
-		theme_bw() + labs(x = 'Day', y = expression(~S[obs]))
+		scale_color_manual(values = c('#A40019', 'darkgray')) + 
+		theme_bw() + labs(x = 'Day', y = expression(~S[obs])) + 
+		theme(panel.grid.minor = element_blank(),
+			legend.position = 'none')
 
 # plot inverse simpson by day
 alpha_invsimp_plot <- alpha_df %>% 
 	select(group, invsimpson) %>% 
-	left_join(select(meta_df, group, day), by = c('group')) %>% 
-	ggplot(aes(x = day, y = invsimpson)) + 
-		geom_violin(aes(group = cut_width(day, 1)), scale = 'width', fill = '#A40019', color = '#A40019') + 
+	left_join(select(meta_df, group, day, cdiff), by = c('group')) %>% 
+	ggplot(aes(x = day, y = invsimpson, color = cdiff, group = interaction(cdiff, day))) + 
+		geom_boxplot(position = 'dodge') + 
+		#geom_point(alpha = 0.4, position = position_jitterdodge()) + 
         scale_x_continuous(breaks = -1:10) +
-		theme_bw() + labs(x = 'Day', y = 'Inverse Simpson')
+		scale_color_manual(values = c('#A40019', 'darkgray')) + 
+		theme_bw() + labs(x = 'Day', y = 'Inverse Simpson', color = NULL) + 
+		theme(panel.grid.minor = element_blank(),
+			legend.position = 'top')
 
 # plot theta yc by day
 beta_plot <- beta_df %>% 
-	inner_join(select(meta_df, group, mouse_id, day), by = c('rows' = 'group')) %>% 
+	inner_join(select(meta_df, group, mouse_id, day, cdiff), by = c('rows' = 'group')) %>% 
 	inner_join(select(meta_df, group, mouse_id, day), by = c('columns' = 'group')) %>% 
 	filter(mouse_id.x == mouse_id.y, 
 		day.x == -1) %>% 
-		ggplot(aes(x = day.y, y = distances, group = mouse_id.x)) + 
-	        scale_x_continuous(breaks = -1:10) +
-	        coord_cartesian(ylim = c(0,1)) +
-			geom_violin(aes(group = cut_width(day.y, 1)), scale = 'width', fill = '#A40019', color = '#A40019') + 
-			theme_bw() + 
-			labs(x = 'Day', y = 'Theta yc')
+	ggplot(aes(x = day.y, y = distances, group = interaction(cdiff, day.y), color = cdiff)) + 
+        scale_x_continuous(breaks = -1:10) +
+        coord_cartesian(ylim = c(0,1)) +
+		geom_boxplot(position = 'dodge') + 
+		#geom_point(alpha = 0.4, position = position_jitterdodge(jitter.width = 0.25)) + 
+		scale_color_manual(values = c('#A40019', 'darkgray')) + 
+		theme_bw() + 
+		theme(panel.grid.minor = element_blank(),
+			legend.position = 'none') + 
+		labs(x = 'Day', y = 'Theta yc')
 
 # save plot, top row is colonization plot, middle row are diversity plots, bottom row is temporal abundance plot
 ggsave('results/figures/figure_1.jpg', plot_grid(colonization_plot, 
