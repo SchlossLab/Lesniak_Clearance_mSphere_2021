@@ -85,16 +85,19 @@ plot_colonization_abundance <- function(antibiotic, n_taxa){
 		left_join(select(abx_meta, group, dose), by = c('Group' = 'group')) %>% 
 		group_by(Group) %>% 
 		mutate(total = sum(abundance),
-			relative_abundance = log10(abundance/total * 100),
-			taxa = gsub('_unclassified', '', taxa)) %>% 
-		ggplot(aes(x = Group, y =taxa, fill = relative_abundance)) + 
+			relative_abundance = abundance/total * 100,
+			taxa = gsub('_unclassified', '', taxa),
+			day = 'Time of\nInfection') %>% 
+		group_by(dose, taxa, day) %>% 
+		summarise(relative_abundance = log10(mean(relative_abundance) + 0.01)) %>% 
+		ggplot(aes(x = day, y =taxa, fill = relative_abundance)) + 
 			geom_tile() +
 			scale_fill_gradient(low="white", high=abx_col, limits = c(0,2), na.value = NA, 
 				breaks = c(0, 1, 2), labels = c('', '10', '100')) + 
 			theme_bw() + 
 			facet_wrap(dose~., scales = 'free_x', nrow = 1) +
 			labs(x = NULL, y = NULL, #title = 'Clindamycin Community',
-				fill = 'Day 0 Relative Abundance (%)\nColor Intesity based on Log10') + 
+				fill = 'Mean Relative Abundance (%)\nColor Intesity based on Log10') + 
 			theme(axis.title.x=element_blank(), # remove mouse id labels
 	        	axis.text.x=element_blank(),
 	        	axis.ticks.x=element_blank(),
