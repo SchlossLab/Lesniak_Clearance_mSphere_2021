@@ -69,7 +69,6 @@ plot_colonization_abundance <- function(antibiotic, n_taxa){
 	cfu_plot <- abx_meta %>% 
 		ggplot(aes(x = day, y = CFU)) + 
 			stat_summary(fun.y=median, geom="line", size = 1, color = abx_col) +
-	        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), color = abx_col) + 
 	        geom_line(aes(group = mouse_id), alpha = 0.3, color = abx_col) + 
 	        scale_x_continuous(breaks = -1:10) +
 			annotate(x = -1, y = 200, geom = 'label', label = "LOD", 
