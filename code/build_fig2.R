@@ -38,7 +38,7 @@ source(sum_taxa_function) # function to create taxanomic labels for OTUs
 
 
 # plot colonization dynamics and Day 0 abundances for Strep and Cef, faceted by dosage of antibiotic
-plot_colonization_abundance <- function(antibiotic, n_taxa){
+plot_colonization_abundance <- function(antibiotic, n_taxa, label_input){
 	# get vector of antibiotic dosages for labeling
 	dosages <- meta_df %>% 
 		filter(abx == antibiotic) %>% 
@@ -59,27 +59,29 @@ plot_colonization_abundance <- function(antibiotic, n_taxa){
 	# filter metadata and modify dosage for plot labeling
 	abx_meta <- meta_df %>% 
 		filter(cdiff == T, day >= -1, abx == antibiotic) %>% 
-		mutate(CFU = case_when(CFU == 0 ~ 60,
-			T ~ CFU),
+		mutate(CFU = case_when(CFU == 0 ~ 60, T ~ CFU),
 			dose = paste(antibiotic, '-', dose, 'mg/mL'),
 			dose = factor(dose, levels = c(paste(antibiotic, '-', max(dosages), 'mg/mL'), 
 				paste(antibiotic, '-', median(dosages), 'mg/mL') ,paste(antibiotic, '-', min(dosages), 'mg/mL')))) %>% 
 		filter(!is.na(CFU))
 	# plot cfu over time, with median/IQR bars overall plus lines for individual mice
+	lod_label_df <- data.frame(day = 8, CFU = 90, fill = 'white', color = 'black',
+		dose = factor(levels(abx_meta$dose)[1], levels = levels(abx_meta$dose)))
 	cfu_plot <- abx_meta %>% 
 		ggplot(aes(x = day, y = CFU)) + 
 			stat_summary(fun.y=median, geom="line", size = 1, color = abx_col) +
 	        geom_line(aes(group = mouse_id), alpha = 0.3, color = abx_col) + 
 	        scale_x_continuous(breaks = -1:10) +
-			annotate(x = -1, y = 200, geom = 'label', label = "LOD", 
-				fill = "white", color = 'black', label.size = NA) + 
-			geom_hline(yintercept = 101, linetype = 'dashed', size = 0.25) + 
+			geom_hline(yintercept = 90, linetype = 'dashed', size = 0.25) + 
+			geom_label(data = lod_label_df, label = "LOD", color = 'white') + 
+			geom_text(data = lod_label_df, label = "LOD") + 
 			scale_y_log10(
 	   			breaks = scales::trans_breaks("log10", function(x) 10^x),
 	   			labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
 			theme_bw() + 
 			facet_wrap(.~dose, nrow = 1) + 
-			labs(x = 'Day', y = expression(italic('C. difficile')~' CFU'))
+			labs(x = 'Day', y = expression(italic('C. difficile')~' CFU')) + 
+			theme(panel.grid.minor = element_blank())
 	# plot day 0 relative abundance by antibiotic dosage
 	abundance_plot <- sum_otu_by_taxa(tax_df, abx_shared, taxa_level = 'Genus', top_n = n_taxa) %>% 
 		left_join(select(abx_meta, group, dose), by = c('Group' = 'group')) %>% 
@@ -96,22 +98,21 @@ plot_colonization_abundance <- function(antibiotic, n_taxa){
 				breaks = c(0, 1, 2), labels = c('', '10', '100')) + 
 			theme_bw() + 
 			facet_wrap(dose~., scales = 'free_x', nrow = 1) +
-			labs(x = NULL, y = NULL, #title = 'Clindamycin Community',
+			labs(x = NULL, y = NULL, title = paste('Day 0 Community - Top', n_taxa, 'Genus'),
 				fill = 'Mean Relative Abundance (%)\nColor Intesity based on Log10') + 
-			theme(axis.title.x=element_blank(), # remove mouse id labels
-	        	axis.text.x=element_blank(),
-	        	axis.ticks.x=element_blank(),
-	        	axis.text.y = element_text(angle = 45),
+			theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
+	        	axis.ticks.x=element_blank(), axis.text.y = element_text(angle = 45),
 	        	legend.position = 'bottom')
 	# return a plot with top row colonization plot shifted right to align with abundance plot
 	return(plot_grid(
 			plot_grid(NULL, cfu_plot, nrow = 1, rel_widths = c(1,15)),
-		abundance_plot, ncol = 1))
+		abundance_plot, ncol = 1, labels = label_input))
 }
 
 # create plots with the top 12 genus for relative abundance plot
-cef_abundance <- plot_colonization_abundance('Cefoperazone', 12)
-strep_abundance <- plot_colonization_abundance('Streptomycin', 12)
+cef_abundance <- plot_colonization_abundance('Cefoperazone', 12, c('A','C'))
+strep_abundance <- plot_colonization_abundance('Streptomycin', 12, c('B', 'D'))
 
-ggsave('results/figures/figure_2.jpg', plot_grid(cef_abundance, strep_abundance, 
-	labels = c('A', 'B'), ncol =1), width = 14, height = 12)
+ggsave('results/figures/figure_2.jpg', 
+	plot_grid(cef_abundance, strep_abundance, nrow =1), 
+	width = 14, height = 12)
