@@ -202,6 +202,9 @@ pval_diff_cleared_df <- meta_abund_df %>%
 	nest() %>% 
 	mutate(TOI_End = map(.x = data, .f = ~wilcox.test(.x$TOI, .x$End)$p.value), # compare time of infection to end point
 		Initial_TOI = map(.x = data, .f = ~wilcox.test(.x$Initial, .x$TOI)$p.value)) %>% # compare time of infection to initial
+		# did not do paired comparison because strep is missing 4 initial samples and one TOI sample resulting in a loss of all significant results
+		# only comparison gained wit paired is Clindamycin OTU 15 initial VS TOI, which is initial present (~3.5%) in 2 cages, 7 mice, 
+		# decreases in all cages (~0.1% RA), and recovers in one cage but not the other
 	unnest(TOI_End, Initial_TOI) %>% 
 	pivot_longer(names_to = 'comparison', values_to = 'pvalue', c(TOI_End, Initial_TOI)) %>% # combine all pvalues into one column
 	group_by(abx) %>% 
