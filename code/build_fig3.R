@@ -295,3 +295,70 @@ ggsave('results/figures/figure_3.jpg',
 		plot_grid(diff_abund_clear_colon_plot, diff_abund_cleared_plot, labels = c('B', 'C'), nrow = 1),
 			ncol = 1, rel_heights = c(1,2)), 
 	width = 15, height = 10, units = 'in')
+# cef_cleared_df <- meta_abund_df %>% 
+#	filter(abx == 'Cefoperazone', clearance == 'Cleared') %>% # only mice that colonization clears
+#	select(-day, -group, -clearance, -total) %>% 
+#	pivot_wider(names_from = 'time_point', values_from = 'abundance') %>% 
+#	group_by(OTU) %>% # compare OTUs across timepoints within each antibiotic
+#	mutate(median_TOI = median(TOI, na.rm = T), median_end = median(End, na.rm = T), median_in = median(Initial, na.rm = T)) %>%
+#	filter(median_TOI > 0.5 | median_end > 0.5 | median_in > 0.5)  %>% # select otus with median relative abundance > 0.5%
+#	nest() %>% 
+#	mutate(TOI_End = map(.x = data, .f = ~wilcox.test(.x$TOI, .x$End)$p.value), # compare time of infection to end point
+#		Initial_TOI = map(.x = data, .f = ~wilcox.test(.x$Initial, .x$TOI)$p.value))  %>% 
+#	unnest(TOI_End, Initial_TOI) %>% 
+#	pivot_longer(names_to = 'comparison', values_to = 'pvalue', c(TOI_End, Initial_TOI)) %>% # combine all pvalues into one column
+#	ungroup %>% 
+#	filter(pvalue < 0.1) %>% 	
+#	unnest(data) %>% 
+#	pivot_longer(names_to = 'time_point', values_to = 'abundance', c(Initial, TOI, End)) %>% # unnest abundance
+#	filter(!is.na(abundance)) %>% 
+#	filter(comparison == 'TOI_End' & time_point %in% c('TOI', 'End') | 
+#		comparison == 'Initial_TOI' & time_point %in% c('TOI', 'Initial')) %>% # only keep abundances that match comparison 
+#	left_join(select(tax_df, OTU, tax_otu_label), by = 'OTU') %>% # add otu labels
+#	group_by(abx, comparison, OTU) %>% 
+#	mutate(order = mean(abundance)) %>% # find mean abundance of comparsions to set order in plot
+#	ungroup
+#cef_cleared_median_df <- cef_cleared_df %>% 
+#	group_by(abx, comparison, tax_otu_label, time_point) %>% 
+#	summarise(median = median(abundance) + 0.04) %>% 
+#	pivot_wider(names_from = time_point, values_from = median) %>% 
+#	ungroup
+#cef_diff_plot <- cef_cleared_df %>%
+#	full_join(cef_cleared_median_df, by = c('abx', 'comparison', 'tax_otu_label')) %>% 
+#	mutate(tax_otu_label = gsub('_unclassified', '', tax_otu_label),
+#		tax_otu_label = paste0(tax_otu_label, '\n(Uncorrected p-value = ', round(pvalue, 3), ')')) %>% 
+#	ggplot(aes(x = reorder(tax_otu_label, -order), color = time_point)) + 
+#		geom_hline(data = lod_df, aes(yintercept = y), size = 0.5, 
+#			linetype = 'solid', color = 'black') + 
+#		geom_hline(data = lod_df, aes(yintercept = y), size = 1, 
+#			linetype = 'dashed', color = 'white') + 
+#		geom_segment(aes(y = Initial, yend = TOI, 
+#				xend = reorder(tax_otu_label, -order)), 
+#				arrow = arrow(type = 'closed', angle = 10), color = 'black', size = 0.5) + 
+#		geom_segment(aes(y = TOI, yend = End,
+#				xend = reorder(tax_otu_label, -order)), 
+#				arrow = arrow(type = 'closed', angle = 10), color = 'black', size = 0.25) + 
+#		geom_point(aes(y = (abundance) + 0.04), 
+#			position = position_dodge(width = .7), alpha = 0.2) + 
+#		geom_point(aes(y = Initial), color = 'green4', size = 3) + 
+#		geom_point(aes(y = TOI), color = 'blue3', size = 3) + 
+#		geom_point(aes(y = End), color = 'red3', size = 3) +
+#		scale_y_log10(
+#	   		breaks = scales::trans_breaks("log10", function(x) 10^x),
+#	   		labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
+#		coord_flip() + theme_bw() +  
+#		labs(x = NULL, y = 'Relative Abundance (%)', color = 'Time Point',
+#			title = 'Temporal Differences in Cefoperazone communities able to clear colonization',
+#			caption = 'No OTUs are significant after multiple comparisons correction') + 
+#		theme(legend.position = c(0.925, 0.925), 
+#			legend.background = element_rect(color = "black"),
+#			legend.title = element_text(size = 8),
+#			legend.text = element_text(size = 6)) + 
+#		geom_label(data = lod_df, aes(x = x, y = y), label = "LOD", 
+#			fill = "white", color = 'black', label.size = NA, inherit.aes = FALSE) + 
+#		facet_grid(abx~comparison, scales = 'free_y', space = 'free',
+#			labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of Infection", TOI_End = "Time of Infection vs End of experiment"))) + 
+#		theme(text = element_text(size = 10)) + 
+#		guides(colour = guide_legend(override.aes = list(alpha = 1)))
+#ggsave('results/figures/figure_3_cef_cleared.jpg', ceff_diff_plot, width = 8, height = 6, units = 'in')
+#
