@@ -193,12 +193,12 @@ colon_clear_median_df <- pval_diff_colon_clear_df %>%
 
 # get OTUs significantly different between day of infection and at the end of the experiment for mice that clear
 pval_diff_cleared_df <- meta_abund_df %>% 
-	filter(clearance == 'Cleared') %>% # only mice that colonization clears
+	filter(clearance %in% c('Cleared', 'Colonized')) %>% # only mice that colonization clears
+	select(-day, -group, -total) %>% 
 	pivot_wider(names_from = 'time_point', values_from = 'abundance') %>% 
-	group_by(abx, OTU) %>% # compare OTUs across timepoints within each antibiotic
+	group_by(abx, OTU, clearance) %>% # compare OTUs across timepoints within each antibiotic
 	mutate(median_TOI = median(TOI, na.rm = T), median_end = median(End, na.rm = T), median_in = median(Initial, na.rm = T)) %>%
 	filter(median_TOI > 0.5 | median_end > 0.5 | median_in > 0.5)  %>% # select otus with median relative abundance > 0.5%
-	group_by(abx, OTU) %>% # compare OTUs across timepoints within each antibiotic
 	nest() %>% 
 	mutate(TOI_End = map(.x = data, .f = ~wilcox.test(.x$TOI, .x$End)$p.value), # compare time of infection to end point
 		Initial_TOI = map(.x = data, .f = ~wilcox.test(.x$Initial, .x$TOI)$p.value)) %>% # compare time of infection to initial
@@ -221,15 +221,15 @@ pval_diff_cleared_df <- meta_abund_df %>%
 	ungroup
 
 cleared_median_df <- pval_diff_cleared_df %>% 
-	group_by(abx, comparison, tax_otu_label, time_point) %>% 
+	group_by(abx, clearance, comparison, tax_otu_label, time_point) %>% 
 	summarise(median = median(abundance) + 0.04) %>% 
 	pivot_wider(names_from = time_point, values_from = median) %>% 
 	ungroup
 
-diff_abund_cleared_plot <- pval_diff_cleared_df %>% 
+plot_temporal_diff_by_clearance <- function(end_status){
 	full_join(cleared_median_df, by = c('abx', 'comparison', 'tax_otu_label')) %>% 
 	mutate(tax_otu_label = gsub('_unclassified', '', tax_otu_label)) %>% 
-	ggplot(aes(x = reorder(tax_otu_label, -order), color = time_point)) + 
+		filter(clearance == end_status) %>% 
 		geom_hline(data = lod_df, aes(yintercept = y), size = 0.5, 
 			linetype = 'solid', color = 'black') + 
 		geom_hline(data = lod_df, aes(yintercept = y), size = 1, 
@@ -250,7 +250,7 @@ diff_abund_cleared_plot <- pval_diff_cleared_df %>%
 	   		labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
 		coord_flip() + theme_bw() +  
 		labs(x = NULL, y = 'Relative Abundance (%)', color = 'Time Point',
-			title = 'Differences in time of communities able to clear colonization',
+				title = paste('Temporal Differences of communities that result result in being', end_status),
 			caption = 'Only significant comparisons plotted (p < 0.05 after Benjamini & Hochberg correction)') + 
 		theme(legend.position = c(0.925, 0.925), 
 			legend.background = element_rect(color = "black"),
@@ -262,6 +262,9 @@ diff_abund_cleared_plot <- pval_diff_cleared_df %>%
 			labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of Infection", TOI_End = "Time of Infection vs End of experiment"))) + 
 		theme(text = element_text(size = 10)) + 
 		guides(colour = guide_legend(override.aes = list(alpha = 1)))
+}
+diff_abund_cleared_plot <- plot_temporal_diff_by_clearance('Cleared')
+diff_abund_colon_plot <- plot_temporal_diff_by_clearance('Colonized')
 
 diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>% 
 	full_join(colon_clear_median_df, by = c('abx', 'tax_otu_label', 'time_point')) %>% 
@@ -297,10 +300,13 @@ diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
 		guides(colour = guide_legend(override.aes = list(alpha = 1))) 
 
 ggsave('results/figures/figure_3.jpg', 
-	plot_grid(plot_grid(NULL, plot_grid(beta_plot, labels = c('A')), NULL, rel_widths = c(1, 3, 1), nrow = 1), 
-		plot_grid(diff_abund_clear_colon_plot, diff_abund_cleared_plot, labels = c('B', 'C'), nrow = 1),
-			ncol = 1, rel_heights = c(1,2)), 
-	width = 15, height = 10, units = 'in')
+	plot_grid(
+		plot_grid(NULL, plot_grid(beta_plot, labels = c('A')), NULL, rel_widths = c(1, 3, 1), nrow = 1), 
+		plot_grid(NULL, plot_grid(diff_abund_clear_colon_plot, labels = c('B')), NULL, rel_widths = c(1, 3, 1), nrow = 1), 
+		plot_grid(diff_abund_cleared_plot, diff_abund_colon_plot, labels = c('C', NULL), nrow = 1),
+		ncol = 1, rel_heights = c(2, 3, 3)), 
+	width = 15, height = 25, units = 'in')
+
 # cef_cleared_df <- meta_abund_df %>% 
 #	filter(abx == 'Cefoperazone', clearance == 'Cleared') %>% # only mice that colonization clears
 #	select(-day, -group, -clearance, -total) %>% 
