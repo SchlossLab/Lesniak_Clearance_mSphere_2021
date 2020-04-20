@@ -19,7 +19,6 @@
 
 library(tidyverse)
 library(cowplot)
-library(vegan)
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
