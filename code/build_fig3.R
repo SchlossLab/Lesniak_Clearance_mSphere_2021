@@ -162,25 +162,28 @@ beta_plot <- beta_div_df %>%
 
 # get OTUs significantly different between colonized and cleared by antibiotic and time point
 pval_diff_colon_clear_df <- meta_abund_df %>% 
+	select(-group, -day, -total) %>% 
 	filter(abx != 'Clindamycin', 
 		clearance %in% c('Colonized', 'Cleared')) %>%  # Only compare mice that are either colonized or cleared
-	pivot_wider(names_from = 'clearance', values_from = 'abundance') %>% 
-	group_by(abx, time_point, OTU) %>% # compare each OTU abundance within each antibiotic in each time point 
-	mutate(median_col = median(Colonized, na.rm = T), median_cle = median(Cleared, na.rm = T)) %>%
-	filter(median_col > 0.5 | median_cle > 0.5)  %>% # select otus with median relative abundance > 0.5%
+	group_by(abx, clearance, time_point, OTU) %>% # compare each OTU abundance within each antibiotic in each time point 
+	mutate(median_abundance = median(abundance)) %>%
+	group_by(abx, time_point, OTU) %>% 
+	filter(max(median_abundance) > 0.5)  %>% # select otus with median relative abundance > 0.5% in either group
 	nest() %>% 
-	mutate(pvalue = map(.x = data, .f = ~wilcox.test(.x$Cleared, .x$Colonized)$p.value)) %>% # compare cleared vs colonized
+	mutate(pvalue = map(.x = data, .f = ~ wilcox.test(
+				pull( filter(.x, clearance == 'Cleared'), abundance), 
+				pull( filter(.x, clearance == 'Colonized'), abundance))$p.value)) %>% # compare cleared vs colonized
 	unnest(pvalue) %>% 
 	group_by(abx) %>% 
 	mutate(pvalue = p.adjust(pvalue, method = 'BH')) %>% # correct p values
 	filter(pvalue < 0.05) %>% # select only those above 0.05 after pvalue correction
 	unnest(data) %>% 
-	pivot_longer(names_to = 'clearance', values_to = 'abundance', c(Colonized, Cleared)) %>% # unnest and recreate abundance column
-	filter(!is.na(abundance)) %>% 
-	left_join(select(tax_df, OTU, tax_otu_label), by = 'OTU') %>% # add otu labels
-	group_by(abx, time_point, OTU) %>% 
-	mutate(order = mean(abundance)) %>% # find mean abundance of comparsions to set order in plot
-	ungroup
+	#pivot_longer(names_to = 'clearance', values_to = 'abundance', c(Colonized, Cleared)) %>% # unnest and recreate abundance column
+	#filter(!is.na(abundance)) %>% 
+	left_join(select(tax_df, OTU, tax_otu_label), by = 'OTU') # add otu labels
+# find mean abundance of comparsions to set order in plot
+pval_diff_colon_clear_df <- pval_diff_colon_clear_df %>% 
+	group_by(abx, OTU) %>% 
 # create median df for plot medain data and line of difference 
 colon_clear_median_df <- pval_diff_colon_clear_df %>% 
 	group_by(abx, time_point, tax_otu_label, clearance) %>% 
