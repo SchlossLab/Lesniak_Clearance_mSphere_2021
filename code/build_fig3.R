@@ -62,7 +62,7 @@ meta_abund_df <- meta_df %>%
 	group_by(abx, OTU) %>% 
 	ungroup
 
-####
+###############################################################################
 #   How different are communities at TOI and End?
 ####
 
@@ -156,9 +156,11 @@ beta_plot <- beta_div_df %>%
 		theme(legend.position = c(0.08, 0.25),
 			legend.key.size = unit(0.2, 'in'))
 
-####
+###############################################################################
 #   What OTUs are associated with clearance?
 ####
+
+### Compare differences between communities that clear to those that cannot ###
 
 # get OTUs significantly different between colonized and cleared by antibiotic and time point
 pval_diff_colon_clear_df <- meta_abund_df %>% 
@@ -195,6 +197,64 @@ colon_clear_median_df <- pval_diff_colon_clear_df %>%
 	summarise(median = median(abundance) + 0.04) %>% 
 	pivot_wider(names_from = clearance, values_from = median) %>% 
 	ungroup
+# create plot df with factored timepoints to correct placement
+pval_diff_colon_clear_df <- pval_diff_colon_clear_df %>% 
+	full_join(colon_clear_median_df, by = c('abx', 'tax_otu_label', 'time_point')) %>% 
+	mutate(tax_otu_label = gsub('_unclassified', '', tax_otu_label),
+		time_point = factor(time_point, levels = c('Initial', 'TOI', 'End'),
+			labels = c('Initial', 'Time of infection', 'End of experiment'))) 
+# create label df to eliminate over plotting of labels
+colon_clear_otu_label <- pval_diff_colon_clear_df %>% 
+		select(abx, order, tax_otu_label) %>% 
+		unique
+# create df to plot LOD on one set of graphs instead of all
+lod_label_df <- pval_diff_colon_clear_df %>% 
+	filter(abx == 'Streptomycin') %>% 
+	filter(order == max(order)) %>% 
+	select(abx, tax_otu_label, order) %>% 
+	unique %>% 
+	inner_join(distinct(select(pval_diff_colon_clear_df, abx, time_point)),
+		by = c('abx')) %>% 
+	mutate(y = min_rel_abund, fill = 'white', color = 'black')
+# plot difference between colonized and cleared communities by abx/time point
+diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>% 
+	ggplot(aes(x = -order, color = clearance)) + 
+		# specify otu labels by row number
+		scale_x_continuous(breaks = -colon_clear_otu_label$order, 
+			labels = colon_clear_otu_label$tax_otu_label, expand = c(0,0)) + 
+		# limit of detection
+		geom_hline(data = lod_df, aes(yintercept = y), size = 0.5, 
+			linetype = 'solid', color = 'black') + 
+		geom_hline(data = lod_df, aes(yintercept = y), size = 1, 
+			linetype = 'dashed', color = 'white') + 
+		geom_label(data = lod_label_df, aes(y = y), label = 'LOD', color = 'white') + 
+		geom_text(data = lod_label_df, aes(y = y), label = 'LOD', color = 'black') + 
+		#  barbell geom
+		geom_segment(aes(y = Cleared, yend = Colonized, xend = -order), color = 'black') +
+		geom_point(aes(y = (abundance) + 0.04), 
+			position = position_dodge(width = .7), alpha = 0.2) + 
+		geom_point(aes(y = Cleared), color = 'red3', size = 3) + 
+		geom_point(aes(y = Colonized), color = 'cyan4', size = 3) + 
+		# plot layout
+		scale_y_log10(
+	   		breaks = c(0.01, 0.1, 1, 10, 100),
+	   		labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
+		coord_flip() + theme_bw() + 
+		labs(x = NULL, y = 'Relative Abundance (%)', color = 'End Status',
+			title = 'Difference between communities able and unable clear colonization',
+			caption = 'Only significant comparisons plotted (p < 0.05 after Benjamini & Hochberg correction)') + 
+		theme(panel.grid.minor.x = element_blank(),
+			legend.position = c(0.15, 0.08), 
+			legend.background = element_rect(color = "black"),
+			legend.title = element_text(size = 8),
+			legend.text = element_text(size = 6)) + 
+		facet_grid(abx~time_point, scales = 'free', space = 'free') +
+		theme(text = element_text(size = 10)) + 
+		guides(colour = guide_legend(override.aes = list(alpha = 1))) 
+
+
+#### Compare the changes with in a mouse between time points , split by end status #####
+
 
 # get OTUs significantly different between day of infection and at the end of the experiment for mice that clear
 pval_diff_cleared_df <- meta_abund_df %>% 
@@ -227,7 +287,7 @@ pval_diff_cleared_df <- pval_diff_cleared_df %>%
 	summarise(order = mean(abundance)) %>% 
 	arrange(clearance, abx, order) %>% 
 	ungroup %>% 
-	mutate(order = row_number()) %>% # use row number inorder to maintain order within facets
+	mutate(order = row_number()) %>% # use absolute row number inorder to maintain order within facets
 	inner_join(pval_diff_cleared_df, by = c('abx', 'clearance', 'OTU'))
 # create median df for summary barbell geom
 cleared_median_df <- pval_diff_cleared_df %>% 
@@ -245,19 +305,22 @@ lod_label_df <- pval_diff_cleared_df %>%
 	inner_join(distinct(select(pval_diff_cleared_df, abx, comparison)),
 		by = c('abx')) %>% 
 	mutate(y = min_rel_abund, fill = 'white', color = 'black', time_point = NA)
-
+# plot differences between time points by clearance/time/abx
 plot_temporal_diff_by_clearance <- function(end_status){
 	plot_df <- pval_diff_cleared_df %>% 
 		full_join(cleared_median_df, by = c('abx', 'clearance', 'comparison', 'tax_otu_label')) %>% 
 		filter(clearance == end_status) %>% 
 		mutate(tax_otu_label = gsub('_unclassified', '', tax_otu_label))
+	# create label df to eliminate over plotting of labels
 	otu_label <- plot_df %>% 
 		select(abx, comparison, order, tax_otu_label) %>% 
 		unique
 	output_plot <- plot_df %>% 
 		ggplot(aes(x = -order, color = time_point)) + 
+			# specify labels for row numbers
 			scale_x_continuous(breaks = -otu_label$order, 
 				labels = otu_label$tax_otu_label, expand = c(0,0)) + 
+			# limit of detection line
 			geom_hline(data = lod_df, aes(yintercept = y), size = 0.5, 
 				linetype = 'solid', color = 'black') + 
 			geom_hline(data = lod_df, aes(yintercept = y), size = 1, 
@@ -266,6 +329,7 @@ plot_temporal_diff_by_clearance <- function(end_status){
 				aes(y = y), label = 'LOD', color = 'white') + 
 			geom_text(data = filter(lod_label_df, clearance == end_status), 
 				aes(y = y), label = 'LOD', color = 'black') + 
+			# points with arrows indicating direction of change
 			geom_segment(aes(y = Initial, yend = TOI, xend = -order), 
 					arrow = arrow(type = 'closed', angle = 10), color = 'black', size = 0.5) + 
 			geom_segment(aes(y = TOI, yend = End, xend = -order), 
@@ -275,6 +339,7 @@ plot_temporal_diff_by_clearance <- function(end_status){
 			geom_point(aes(y = Initial), color = 'green4', size = 3) + 
 			geom_point(aes(y = TOI), color = 'blue3', size = 3) + 
 			geom_point(aes(y = End), color = 'red3', size = 3) +
+			# plot layout
 			scale_y_log10(limits = c(0.04,100),
 		   		breaks = scales::trans_breaks("log10", function(x) 10^x),
 		   		labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
@@ -295,57 +360,11 @@ plot_temporal_diff_by_clearance <- function(end_status){
 diff_abund_cleared_plot <- plot_temporal_diff_by_clearance('Cleared')
 diff_abund_colon_plot <- plot_temporal_diff_by_clearance('Colonized')
 
-pval_diff_colon_clear_df <- pval_diff_colon_clear_df %>% 
-	full_join(colon_clear_median_df, by = c('abx', 'tax_otu_label', 'time_point')) %>% 
-	mutate(tax_otu_label = gsub('_unclassified', '', tax_otu_label),
-		time_point = factor(time_point, levels = c('Initial', 'TOI', 'End'),
-			labels = c('Initial', 'Time of infection', 'End of experiment'))) 
-colon_clear_otu_label <- pval_diff_colon_clear_df %>% 
-		select(abx, order, tax_otu_label) %>% 
-		unique
-lod_label_df <- pval_diff_colon_clear_df %>% 
-	filter(abx == 'Streptomycin') %>% 
-	filter(order == max(order)) %>% 
-	select(abx, tax_otu_label, order) %>% 
-	unique %>% 
-	inner_join(distinct(select(pval_diff_colon_clear_df, abx, time_point)),
-		by = c('abx')) %>% 
-	mutate(y = min_rel_abund, fill = 'white', color = 'black')
-diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>% 
-	ggplot(aes(x = -order, color = clearance)) + 
-		scale_x_continuous(breaks = -colon_clear_otu_label$order, 
-			labels = colon_clear_otu_label$tax_otu_label, expand = c(0,0)) + 
-		labs(x = NULL, y = 'Relative Abundance (%)', color = 'End Status',
-			title = 'Difference between communities able and unable clear colonization',
-			caption = 'Only significant comparisons plotted (p < 0.05 after Benjamini & Hochberg correction)') + 
-		theme(panel.grid.minor.x = element_blank(),
-			legend.position = c(0.15, 0.08), 
-			legend.background = element_rect(color = "black"),
-			legend.title = element_text(size = 8),
-			legend.text = element_text(size = 6)) + 
-		geom_hline(data = lod_df, aes(yintercept = y), size = 0.5, 
-			linetype = 'solid', color = 'black') + 
-		geom_hline(data = lod_df, aes(yintercept = y), size = 1, 
-			linetype = 'dashed', color = 'white') + 
-		geom_label(data = lod_label_df, aes(y = y), label = 'LOD', color = 'white') + 
-		geom_text(data = lod_label_df, aes(y = y), label = 'LOD', color = 'black') + 
-		geom_segment(aes(y = Cleared, yend = Colonized, xend = -order), color = 'black') +
-		geom_point(aes(y = (abundance) + 0.04), 
-			position = position_dodge(width = .7), alpha = 0.2) + 
-		geom_point(aes(y = Cleared), color = 'red3', size = 3) + 
-		geom_point(aes(y = Colonized), color = 'cyan4', size = 3) + 
-		scale_y_log10(
-	   		breaks = c(0.01, 0.1, 1, 10, 100),
-	   		labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
-		coord_flip() + theme_bw() + 
-		facet_grid(abx~time_point, scales = 'free', space = 'free') +
-		theme(text = element_text(size = 10)) + 
-		guides(colour = guide_legend(override.aes = list(alpha = 1))) 
 
 ggsave('results/figures/figure_3.jpg', 
 	plot_grid(
 		plot_grid(NULL, plot_grid(beta_plot, labels = c('A')), NULL, rel_widths = c(1, 3, 1), nrow = 1), 
-		plot_grid(NULL, plot_grid(diff_abund_clear_colon_plot, labels = c('B')), NULL, rel_widths = c(1, 3, 1), nrow = 1), 
+		plot_grid(NULL, plot_grid(diff_abund_clear_colon_plot, labels = c('B')), NULL, rel_widths = c(1, 5, 1), nrow = 1), 
 		plot_grid(diff_abund_cleared_plot, diff_abund_colon_plot, labels = c('C', NULL), nrow = 1),
 		ncol = 1, rel_heights = c(2, 3, 3)), 
 	width = 15, height = 25, units = 'in')
