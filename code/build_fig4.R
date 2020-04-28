@@ -152,39 +152,6 @@ plot(strep_network$cdiff_network,  edge.label = rep('',100),
 strep_network_graph <- recordPlot()
 
 networks <- list(clinda_network, strep_network, cef_network, strep_colonized_network, cef_colonized_network)
-## degree distribution
-## comparing within antibiotic treatments, degree distribution is similar between cleaered and colonized, 
-## higher degree with network made of both outcomes, and streptomycin is slightly higher overall than cef
-#get_degree <- function(x){
-#	tibble(antibiotic = x$antibiotic,
-#		clearance = x$clearance,
-#		Frequency = x$degree_dist, 
-#		Degree = 0:(length(x$degree_dist) - 1))
-#}
-#ggsave('results/figures/figure_4_degree_dist.jpg',
-#	map_dfr(networks, get_degree) %>% 
-#		ggplot(aes(x = Degree, y = Frequency, color = antibiotic)) + 
-#		geom_line() + 
-#		facet_grid(antibiotic~clearance))
-
-## edge weight distribution
-## no distinct differences in edge distributions, nothing conserved across clearance or antibiotic
-## Clindamycin is nearly equally distributed around 0
-## Streptomycin colonized is slightly biased towards negative edge weights
-## Cefoperazone colonized has a greater amount >0.2 edge weights
-#get_edges <- function(x){
-#	abx <- x$antibiotic
-#	clr <- x$clearance
-#	as_tibble(x$edge_wts) %>% 
-#		mutate(antibiotic = abx,
-#			clearance = clr)
-#}
-#ggsave('results/figures/figure_4_edge_wt_dist.jpg',
-#map_dfr(networks, get_edges) %>% 
-#	ggplot(aes(x, color = clearance)) + 
-#		geom_density() + 
-#		facet_grid(antibiotic~.))
-
 # centrality
 # all look fairly similar
 # slightly lower amount of high degree for comminities remaining colonized
