@@ -305,21 +305,34 @@ lod_label_df <- pval_diff_cleared_df %>%
 	inner_join(distinct(select(pval_diff_cleared_df, abx, comparison)),
 		by = c('abx')) %>% 
 	mutate(y = min_rel_abund, fill = 'white', color = 'black', time_point = NA)
+
+# create column noting which OTUs are in both comparisons
+pval_diff_cleared_df <- pval_diff_cleared_df %>% 
+	select(abx, clearance, OTU) %>% 
+	distinct %>% 
+	group_by(abx) %>% 
+	count(OTU) %>% 
+	mutate(both = n > 1) %>% 
+	full_join(pval_diff_cleared_df, by = c('abx', 'OTU')) %>% 
+	ungroup
+
 # plot differences between time points by clearance/time/abx
 plot_temporal_diff_by_clearance <- function(end_status){
 	plot_df <- pval_diff_cleared_df %>% 
 		full_join(cleared_median_df, by = c('abx', 'clearance', 'comparison', 'tax_otu_label')) %>% 
 		filter(clearance == end_status) %>% 
 		mutate(tax_otu_label = gsub('_unclassified', '', tax_otu_label))
-	# create label df to eliminate over plotting of labels
+	# create label df to eliminate over plotting of labels and bold OTUs in both comparisons
 	otu_label <- plot_df %>% 
-		select(abx, comparison, order, tax_otu_label) %>% 
+		select(abx, comparison, order, tax_otu_label, both) %>% 
+		mutate(tax_otu_label = ifelse(both == T, paste0('bold("', tax_otu_label, '")'), 
+			paste0('"', tax_otu_label, '"'))) %>% 
 		unique
 	output_plot <- plot_df %>% 
 		ggplot(aes(x = -order, color = time_point)) + 
 			# specify labels for row numbers
 			scale_x_continuous(breaks = -otu_label$order, 
-				labels = otu_label$tax_otu_label, expand = c(0,0)) + 
+				labels = parse(text = otu_label$tax_otu_label), expand = c(0,0)) + 
 			# limit of detection line
 			geom_hline(data = lod_df, aes(yintercept = y), size = 0.5, 
 				linetype = 'solid', color = 'black') + 
@@ -347,14 +360,14 @@ plot_temporal_diff_by_clearance <- function(end_status){
 			facet_grid(abx~comparison, scales = 'free_y', space = 'free',
 				labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of Infection", TOI_End = "Time of Infection vs End of experiment"))) + 
 			labs(x = NULL, y = 'Relative Abundance (%)', color = 'Time Point',
-				title = paste('Temporal Differences of communities that result result in being', end_status),
+				title = paste('Temporal Differences of communities that result in ', end_status),
 				caption = 'Only significant comparisons plotted (p < 0.05 after Benjamini & Hochberg correction)') + 
 			theme(panel.grid.minor = element_blank(),
 				legend.position = c(0.925, 0.925), 
 				legend.background = element_rect(color = "black"),
 				legend.title = element_text(size = 8),
-				legend.text = element_text(size = 6)) + 
-			theme(text = element_text(size = 10)) + 
+				legend.text = element_text(size = 6),
+				text = element_text(size = 10)) + 
 			guides(colour = guide_legend(override.aes = list(alpha = 1)))
 }
 diff_abund_cleared_plot <- plot_temporal_diff_by_clearance('Cleared')
