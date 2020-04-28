@@ -135,12 +135,10 @@ get_cdiff_network <- function(antibiotic, clearance_status){
 }
 
 clinda_network <- get_cdiff_network('Clindamycin', 'Cleared')
-strep_network <- get_cdiff_network('Streptomycin', c('Cleared', 'Colonized'))
-strep_network_cleared <- get_cdiff_network('Streptomycin', 'Cleared')
-strep_network_colonized <- get_cdiff_network('Streptomycin', 'Colonized')
-cef_network <- get_cdiff_network('Cefoperazone', c('Cleared', 'Colonized'))
-cef_network_cleared <- get_cdiff_network('Cefoperazone', 'Cleared')
-cef_network_colonized <- get_cdiff_network('Cefoperazone', 'Colonized')
+strep_network <- get_cdiff_network('Streptomycin', 'Cleared')
+cef_network <- get_cdiff_network('Cefoperazone', 'Cleared')
+strep_colonized_network <- get_cdiff_network('Streptomycin', 'Colonized')
+cef_colonized_network <- get_cdiff_network('Cefoperazone', 'Colonized')
 
 set.seed(2)
 plot(clinda_network$cdiff_network, edge.label = rep('',100),
@@ -149,115 +147,11 @@ clinda_network_graph <- recordPlot()
 plot(cef_network$cdiff_network,  edge.label = rep('',100),
 	layout = layout_as_star(cef_network$cdiff_network, center='C. difficile'))
 cef_network_graph <- recordPlot()
-plot(cef_network_cleared$cdiff_network,  edge.label = rep('',100),
-	layout = layout_as_star(cef_network_cleared$cdiff_network, center='C. difficile'))
-cef_cleared_network_graph <- recordPlot()
-plot(cef_network_colonized$cdiff_network,  edge.label = rep('',100),
-	layout = layout_as_star(cef_network_colonized$cdiff_network, center='C. difficile'))
-cef_colonized_network_graph <- recordPlot()
 plot(strep_network$cdiff_network,  edge.label = rep('',100),
 	layout = layout_as_star(strep_network$cdiff_network, center='C. difficile'))
 strep_network_graph <- recordPlot()
-plot(strep_network_cleared$cdiff_network,  edge.label = rep('',100),
-	layout = layout_as_star(strep_network_cleared$cdiff_network, center='C. difficile'))
-strep_cleared_network_graph <- recordPlot()
-plot(strep_network_colonized$cdiff_network,  edge.label = rep('',100),
-	layout = layout_as_star(strep_network_colonized$cdiff_network, center='C. difficile'))
-strep_colonized_network_graph <- recordPlot()
 
-plot_network_otus <- function(antibiotic, network_otus, clearance_status){
-	abx_col <- abx_color %>% 
-		filter(abx == antibiotic) %>% 
-		pull(color)
-
-	abundance_plot <- meta_df %>% 
-			filter(abx == antibiotic) %>% 
-			select(group, mouse_id, abx, day, clearance, log10CFU) %>% 
-			left_join(subsampled_shared_df, by = c('group' = 'Group')) %>% 
-			gather(OTU, abundance, starts_with('Otu')) %>% 
-			mutate(OTU_number = gsub('Otu0*', '', OTU)) %>% 
-			filter(OTU_number %in% network_otus,
-				clearance %in% clearance_status) %>% 
-			group_by(OTU) %>% 
-			mutate(presence = sum(abundance > 1, na.rm = T) > 5,
-				max_abundance = max(abundance, na.rm = T),
-				transformed_abundance = abundance/max_abundance) %>% 
-			filter(presence == TRUE) %>% 
-			left_join(select(tax_df, OTU, tax_otu_label, Phylum), by = c('OTU')) %>% 
-			group_by(group) %>% 
-			mutate(total = sum(abundance),
-				relative_abundance = log10(abundance/total * 100),
-				taxa = gsub('_unclassified', '', tax_otu_label)) %>% 
-			ggplot(aes(x = group, y =taxa, fill = relative_abundance)) + 
-				geom_tile() +
-				scale_fill_gradient(low="white", high=abx_col, limits = c(0,2), na.value = NA, 
-					breaks = c(0, 1, 2), labels = c('', '10', '100')) + 
-				theme_bw() + 
-				facet_grid(.~day, scales = 'free_x') +
-				labs(x = NULL, y = NULL, #title = 'Clindamycin Community',
-					fill = 'Color Intesity based on\nLog10 Relative Abundance') + 
-				theme(axis.title.x=element_blank(), # remove mouse id labels
-		        	axis.text.x=element_blank(),
-		        	axis.ticks.x=element_blank(),
-		        	axis.text.y = element_text(angle = 45),
-		        	legend.position = 'bottom',
-		        	legend.text = element_text(size = 6),
-		        	legend.title = element_text(size = 6),
-		        	legend.key.size = unit(0.9, "lines"))
-
-	cdiff_plot <- meta_df %>% 
-			filter(abx == antibiotic, 
-				clearance %in% clearance_status) %>% 
-			select(group, mouse_id, abx, day, clearance, log10CFU) %>% 
-			mutate(max_abundance = max(log10CFU, na.rm = T),
-				transformed_abundance = log10CFU/max_abundance) %>% 
-			ggplot(aes(x = group, y ='C. difficile', fill = transformed_abundance)) + 
-				geom_tile() +
-				scale_fill_gradient(low="white", high=abx_col, limits = c(1.8/8,1), na.value = NA, 
-					breaks = c(1.8/8, .625, 1), labels = c('0', '10^5', '10^8')) + 
-				theme_bw() + 
-				facet_grid(.~day, scales = 'free_x') +
-				labs(x = NULL, y = NULL, fill = 'Color Intensity by CFU') + 
-				theme(axis.title.x=element_blank(), # remove mouse id labels
-					axis.text.x=element_blank(),
-					axis.ticks.x=element_blank(),
-					axis.text.y = element_text(angle = 45),
-					legend.position = 'bottom',
-					legend.text = element_text(size = 6),
-					legend.title = element_text(size = 6),
-					legend.key.size = unit(0.9, "lines"))
-	
-	title <- ggdraw() + draw_label(paste0(antibiotic, ' - C. difficile ', clearance_status), 
-		fontface = 'bold', color = abx_col)
-	output_plot <- plot_grid(title, 
-		plot_grid(abundance_plot, 
-				plot_grid(NULL, cdiff_plot, rel_widths = c(1, 10)), 
-			ncol = 1, rel_heights = c(3,2)), 
-		ncol=1, rel_heights=c(0.1, 1))
-
-	return(output_plot)
-}
-
-clinda_cleared_abundance_plot <- plot_network_otus('Clindamycin', clinda_network$otus, 'Cleared')
-cef_cleared_abundance_plot <- plot_network_otus('Cefoperazone', cef_network_cleared$otus, 'Cleared')
-cef_colonized_abundance_plot <- plot_network_otus('Cefoperazone', cef_network_colonized$otus, 'Colonized')
-strep_cleared_abundance_plot <- plot_network_otus('Streptomycin', strep_network_cleared$otus, 'Cleared')
-strep_colonized_abundance_plot <- plot_network_otus('Streptomycin', strep_network_colonized$otus, 'Colonized')
-
-
-ggsave('results/figures/figure_4.jpg',
-	plot_grid(
-		plot_grid(
-			plot_grid(clinda_cleared_abundance_plot, clinda_network_graph, nrow = 1, rel_widths = c(2,1)), 
-			plot_grid(cef_cleared_abundance_plot, cef_cleared_network_graph, nrow = 1, rel_widths = c(2,1)), 
-			plot_grid(cef_colonized_abundance_plot, cef_colonized_network_graph, nrow = 1, rel_widths = c(2,1)), 
-			plot_grid(strep_cleared_abundance_plot, strep_cleared_network_graph, nrow = 1, rel_widths = c(2,1)), 
-			plot_grid(strep_colonized_abundance_plot, strep_colonized_network_graph, nrow = 1, rel_widths = c(2,1)), 
-			ncol = 1), 
-		plot_grid(NULL, cef_network_graph, strep_network_graph, ncol = 1, rel_heights = c(1,2,2)),
-		nrow = 1, rel_widths = c(6,2)), width = 20, height = 30)
-
-networks <- list(clinda_network, strep_network, strep_network_cleared, strep_network_colonized, cef_network, cef_network_cleared, cef_network_colonized)
+networks <- list(clinda_network, strep_network, cef_network, strep_colonized_network, cef_colonized_network)
 ## degree distribution
 ## comparing within antibiotic treatments, degree distribution is similar between cleaered and colonized, 
 ## higher degree with network made of both outcomes, and streptomycin is slightly higher overall than cef
@@ -297,45 +191,37 @@ networks <- list(clinda_network, strep_network, strep_network_cleared, strep_net
 # Cef has significantly different betweenness, 
 #  cleared communities have much higher betweenness centrality
 #   so cleared communities have slightly more connections 
-#get_centrality <- function(x){
-#	net <- x$full_network
-#	bind_rows(tibble(antibiotic = x$antibiotic,
-#			clearance = x$clearance,
-#			#otu = x$all_otus,
-#			degree = degree(net, mode="in"),
-#			betweenness = betweenness(net, directed=T, weights=NA)) %>% 
-#			gather(metric, value, -antibiotic, -clearance),
-#		tibble(antibiotic = x$antibiotic,
-#			clearance = x$clearance,
-#			edge_betweenness = edge_betweenness(net, directed=T, weights=NA)) %>% 
-#			gather(metric, value, -antibiotic, -clearance))
-#			#alpha_centrality = alpha_centrality(net)
-#}
-#cef_centrality_plot <- map_dfr(networks, get_centrality) %>% 
-#	filter(antibiotic == 'Cefoperazone',
-#		clearance != 'Cleared_Colonized') %>% 
-#	ggplot(aes(x = clearance, y = value)) + 
-#		geom_violin(fill = '#3A9CBC') + 
-#		facet_grid(metric~antibiotic, scales = 'free') + 
-#		guides(fill='none') + theme_bw()
-#clinda_centrality_plot <- map_dfr(networks, get_centrality) %>% 
-#	filter(antibiotic == 'Clindamycin', clearance != 'Cleared_Colonized') %>% 
-#	ggplot(aes(x = clearance, y = value)) + 
-#		geom_violin(fill = '#A40019') + 
-#		facet_grid(metric~antibiotic, scales = 'free') + 
-#		guides(fill='none') + theme_bw()
-#strep_centrality_plot <- map_dfr(networks, get_centrality) %>% 
-#	filter(antibiotic == 'Streptomycin',
-#		clearance != 'Cleared_Colonized') %>% 
-#	ggplot(aes(x = clearance, y = value)) + 
-#		geom_violin(fill = '#D37A1F') + 
-#		facet_grid(metric~antibiotic, scales = 'free') + 
-#		guides(fill='none') + theme_bw()
-#ggsave('results/figures/figure_4_centrality.jpg',
-#	plot_grid(cef_centrality_plot, clinda_centrality_plot, strep_centrality_plot, nrow = 1))
-# compare full strep networks
-#plot(strep_network_colonized$full_network)
-#p1 <- recordPlot()
-#plot(strep_network_cleared$full_network)
-#p2 <- recordPlot()
-#plot_grid(p1, p2)
+get_centrality <- function(x){
+	net <- x$full_network
+	bind_rows(tibble(antibiotic = x$antibiotic,
+			clearance = x$clearance,
+			#otu = x$all_otus,
+			degree = degree(net, mode="in"),
+			betweenness = betweenness(net, directed=T, weights=NA)) %>% 
+			gather(metric, value, -antibiotic, -clearance),
+		tibble(antibiotic = x$antibiotic,
+			clearance = x$clearance,
+			edge_betweenness = edge_betweenness(net, directed=T, weights=NA)) %>% 
+			gather(metric, value, -antibiotic, -clearance))
+}
+
+centrality_plot <- map_dfr(networks, get_centrality) %>% 
+	ggplot(aes(x = clearance, y = log2(value), fill = antibiotic)) + 
+		geom_boxplot() + 
+		scale_fill_manual(values = abx_color$color, limits = abx_color$abx) + 
+		facet_grid(metric~antibiotic, scales = 'free') + 
+		guides(fill='none') + theme_bw() + 
+		labs(x = NULL, y = NULL) 
+
+ggsave('results/figures/figure_4.jpg',
+	plot_grid(
+		plot_grid(
+			plot_grid(
+				plot_grid(cef_network_graph, labels = c('Cefoperazone'), label_colour = '#3A9CBC'),
+				plot_grid(clinda_network_graph, labels = c('Clindamycin'), label_colour = '#A40019'),
+				plot_grid(strep_network_graph, labels = c('Streptomycin'), label_colour = '#D37A1F'), nrow = 1),
+			plot_grid(NULL, label_size = 9, label_fontface = "plain",
+				labels = c('Nodes sized by abundance, Edges width by edge weight and colored red for negative and blue for positive')),
+			ncol = 1, rel_heights = c(9,1)),
+		centrality_plot, nrow = 1, rel_widths = c(3,1), labels = c('A', 'B')), 
+	width = 25, height = 10)
