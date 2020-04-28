@@ -160,26 +160,27 @@ networks <- list(clinda_network, strep_network, cef_network, strep_colonized_net
 #   so cleared communities have slightly more connections 
 get_centrality <- function(x){
 	net <- x$full_network
-	bind_rows(tibble(antibiotic = x$antibiotic,
-			clearance = x$clearance,
-			#otu = x$all_otus,
-			degree = degree(net, mode="in"),
-			betweenness = betweenness(net, directed=T, weights=NA)) %>% 
-			gather(metric, value, -antibiotic, -clearance),
-		tibble(antibiotic = x$antibiotic,
-			clearance = x$clearance,
-			edge_betweenness = edge_betweenness(net, directed=T, weights=NA)) %>% 
-			gather(metric, value, -antibiotic, -clearance))
+	tibble(antibiotic = x$antibiotic,
+		clearance = x$clearance,
+		#otu = x$all_otus,
+		degree = degree(net, mode="in"), # number of its adjacent edges
+		betweenness = betweenness(net, directed=T, weights=NA)) %>% # the number of shortest paths going through node
+		gather(metric, value, -antibiotic, -clearance)
 }
 
 centrality_plot <- map_dfr(networks, get_centrality) %>% 
-	ggplot(aes(x = clearance, y = log2(value), fill = antibiotic)) + 
+	ggplot(aes(x = antibiotic, y = value, fill = clearance, color = antibiotic)) + 
 		geom_boxplot() + 
-		scale_fill_manual(values = abx_color$color, limits = abx_color$abx) + 
-		facet_grid(metric~antibiotic, scales = 'free') + 
-		guides(fill='none') + theme_bw() + 
-		labs(x = NULL, y = NULL) 
+		scale_color_manual(values = abx_color$color, limits = abx_color$abx) + 
+		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) + 
+		facet_wrap(.~metric, scales = 'free') + 
+		scale_y_log10() + 
+		guides(color = 'none') + theme_bw() + 
+		labs(x = NULL, y = NULL, fill = NULL) +
+		theme(legend.position = c(0.08, 0.9),
+			legend.background = element_rect(color = "black"))
 
+dev.off()
 ggsave('results/figures/figure_4.jpg',
 	plot_grid(
 		plot_grid(
@@ -190,5 +191,5 @@ ggsave('results/figures/figure_4.jpg',
 			plot_grid(NULL, label_size = 9, label_fontface = "plain",
 				labels = c('Nodes sized by abundance, Edges width by edge weight and colored red for negative and blue for positive')),
 			ncol = 1, rel_heights = c(9,1)),
-		centrality_plot, nrow = 1, rel_widths = c(3,1), labels = c('A', 'B')), 
+		plot_grid(NULL, centrality_plot, NULL, ncol = 1, rel_heights = c(1, 6, 1)), nrow = 1, rel_widths = c(3,2), labels = c('A', 'B')), 
 	width = 25, height = 10)
