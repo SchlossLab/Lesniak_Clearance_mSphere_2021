@@ -154,7 +154,8 @@ beta_plot <- beta_div_df %>%
 		theme_bw() + 
 		labs(x = NULL, y = 'Theta yc', fill = 'Time Point') + 
 		theme(legend.position = c(0.08, 0.25),
-			legend.key.size = unit(0.2, 'in'))
+			legend.key.size = unit(0.2, 'in'),
+			legend.background = element_rect(color = "black"))
 
 ###############################################################################
 #   What OTUs are associated with clearance?
@@ -244,7 +245,7 @@ diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
 			title = 'Difference between communities able and unable clear colonization',
 			caption = 'Only significant comparisons plotted (p < 0.05 after Benjamini & Hochberg correction)') + 
 		theme(panel.grid.minor.x = element_blank(),
-			legend.position = c(0.15, 0.08), 
+			legend.position = c(0.1, 0.95), 
 			legend.background = element_rect(color = "black"),
 			legend.title = element_text(size = 8),
 			legend.text = element_text(size = 6)) + 
