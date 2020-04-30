@@ -1,6 +1,6 @@
 ######################################################################
 # Date: 04-29-2020
-# Title: ML pipeline adapted from Begum Topcuoglu
+# Title: ML pipeline adapted from Topcuoglu mBio 2020
 ######################################################################
 
 ######################################################################
@@ -30,10 +30,10 @@
 # The dependinces for this script are consolidated in the first part
 deps = c("dplyr", "tictoc", "caret" ,"rpart", "xgboost", "randomForest", "kernlab","LiblineaR", "pROC", "tidyverse");
 for (dep in deps){
-  if (dep %in% installed.packages()[,"Package"] == FALSE){
-    install.packages(as.character(dep), quiet=TRUE, repos = "http://cran.us.r-project.org", dependencies=TRUE);
-  }
-  library(dep, verbose=FALSE, character.only=TRUE)
+	if (dep %in% installed.packages()[,"Package"] == FALSE){
+		install.packages(as.character(dep), quiet=TRUE, repos = "http://cran.us.r-project.org", dependencies=TRUE);
+	}
+	library(dep, verbose=FALSE, character.only=TRUE)
 }
 # Load in needed functions and libraries
 source('code/learning/model_selection.R')
@@ -48,25 +48,25 @@ source('code/learning/compute_correlation_matrix.R')
 # Labels: - C. difficile clearance
 
 
-# Read in metadata and select only sample names and clearance columns
-meta <- read_tsv('data/process/abx_cdiff_metadata_clean.txt')  
+# Read in metadata
+meta <- read_tsv('data/process/abx_cdiff_metadata_clean.txt',
+	col_types = 'cd--dcdlll-cdd---cddcc')  
 # Read in OTU table and remove label and numOtus columns
-shared <- read_tsv('data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared') %>%
-  select(-label, -numOtus) %>% 
-  rename(sample = Group)
+shared <- read_tsv('data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared',
+	col_types = cols(.default = 'd', Group = 'c', label = '-', numOtus = '-'))
+# Filter metadata and select only sample names and clearance columns
 # Merge metadata and OTU table.
-# Group advanced adenomas and cancers together as cancer and normal, high risk normal and non-advanced adenomas as normal
-# Then remove the sample ID column
+# Then remove the group column
 data <- meta %>% 
-  filter(clearance %in% c('Cleared', 'Colonized'),
-    day == 0) %>% 
-  select(dx = clearance, sample = group) %>% 
-  inner_join(shared, by=c("sample"))  %>% 
-  select(-sample) %>% 
-  drop_na()
+	filter(clearance %in% c('Cleared', 'Colonized'),
+		day == 0, cdiff == T) %>% 
+	select(dx = clearance, Group = group) %>% 
+	inner_join(shared, by=c("Group"))  %>% 
+	select(-Group) %>% 
+	drop_na()
 
 # create correlation matrix of data
-calc_corr_matrix(select(data, -dx))
+#calc_corr_matrix(select(data, -dx))
 
 # We want the diagnosis column to be a factor
 data$dx <- factor(data$dx)
