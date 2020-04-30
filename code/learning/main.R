@@ -82,7 +82,6 @@ data <- data[sample(1:nrow(data)), ]
 # We will run main.R from command line with arguments
 #  - These arguments will be saved into variable "input"
 #  - First argument is the seed number which is the array index
-#  - Second argument is the model name (one of the list above)
 
 input <- commandArgs(trailingOnly=TRUE)
 seed <- as.numeric(input[1])
