@@ -25,6 +25,7 @@
 # Logs
 #SBATCH --mail-user=nlesniak@umich.edu
 #SBATCH --mail-type=END,FAIL
+#SBATCH -o scratch/slurm/output.%a.out
 
 # Array
 #SBATCH --array=1-100
