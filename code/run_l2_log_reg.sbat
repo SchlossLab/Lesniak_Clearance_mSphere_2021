@@ -7,7 +7,7 @@
 ###############################
 
 # Name
-#SBATCH --job-name=run_mothur
+#SBATCH --job-name=run_L2_log_reg
 
 # Resources
 # For MPI, increase ntasks-per-node
