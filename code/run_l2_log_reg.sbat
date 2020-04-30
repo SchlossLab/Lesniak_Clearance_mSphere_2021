@@ -46,10 +46,10 @@ echo 'Starting'
 # each with its own unique array id ($SLURM_ARRAY_TASK_ID)
 
 
-cat $PBS_NODEFILE
-qstat -f $PBS_JOBID
+cat $SLURM_JOB_NODELIST
+qstat -f $SLURM_JOBID
 
-cd $PBS_O_WORKDIR
+cd $SLURM_SUBMIT_DIR
 
 # vector index starts at 0 so shift array by one
 
@@ -65,6 +65,6 @@ Rscript code/learning/main.R seed
 
 echo "Script complete"
 echo "sbatch working directory absolute is"
-echo $PBS_O_WORKDIR
-qstat -f $PBS_JOBID
+echo $SLURM_SUBMIT_DIR
+qstat -f $SLURM_JOBID
 exit
