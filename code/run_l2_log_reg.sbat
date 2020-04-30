@@ -47,7 +47,7 @@ echo 'Starting'
 
 
 cat $SLURM_JOB_NODELIST
-qstat -f $SLURM_JOBID
+scontrol show job $SLURM_JOBID
 
 cd $SLURM_SUBMIT_DIR
 
@@ -66,5 +66,5 @@ Rscript code/learning/main.R seed
 echo "Script complete"
 echo "sbatch working directory absolute is"
 echo $SLURM_SUBMIT_DIR
-qstat -f $SLURM_JOBID
+scontrol show job $SLURM_JOBID
 exit
