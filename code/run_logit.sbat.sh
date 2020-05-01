@@ -16,16 +16,16 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=4GB
-#SBATCH --time=200:00:00
+#SBATCH --time=20:00:00
 
 # Account
 #SBATCH --account=pschloss1
 #SBATCH --partition=standard
 
 # Logs
-#SBATCH --mail-user=begumtop@umich.edu
-#SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --output=%x-%j.out
+#SBATCH --mail-user=nlesniak@umich.edu
+#SBATCH --mail-type=END,FAIL
+#SBATCH -o scratch/slurm/output.%a.out
 
 # Environment
 #SBATCH --export=ALL
@@ -46,5 +46,5 @@ seed=$(($SLURM_ARRAY_TASK_ID - 1))
 # Making output dir for snakemake cluster logs
 mkdir -p logs/slurm/
 
-Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level otu --data  test/data/input_data.csv --hyperparams data/default_hyperparameters.csv --outcome dx
+Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level otu --data  data/process/clearance_ml.csv --hyperparams data/raw/default_hyperparameters.csv --outcome dx
 
