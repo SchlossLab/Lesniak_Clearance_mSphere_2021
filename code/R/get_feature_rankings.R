@@ -68,7 +68,7 @@ create_feature_rankings <- function(data, model_name){
 # ----------- Read in saved weights for linear models in temp folder ---------->
 # List the files with feature weights with the pattern that has an "L" which only selects linear models.
 # Correlated files for linear models has the weights for OTUs in trained model:
-cor_files <- list.files(path= 'data/temp', pattern='all_imp_features_cor_results_L.*', full.names = TRUE)
+cor_files <- list.files(path= 'data/temp/otu', pattern='all_imp_features_cor_results_L.*', full.names = TRUE)
 
 # Take each file 1-100 and add ranks as a column to it.
 # Then save that file with the "_feature_ranking_#" extension
@@ -80,5 +80,5 @@ for(file_name in cor_files){
   model_name <- as.character(importance_data$model[1])# get the model name from table
 create_feature_rankings(importance_data, model_name) %>%
     as.data.frame() %>%
-    write_tsv(., paste0("data/temp/", model_name, "_feature_ranking_", i, ".tsv"))
+    write_tsv(., paste0("data/temp/otu/", model_name, "_feature_ranking_", i, ".tsv"))
 }

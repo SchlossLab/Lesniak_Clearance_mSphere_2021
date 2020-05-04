@@ -3,7 +3,7 @@ RANK=feature_ranking
 
 # Define the directories we will use in the script
 SEARCH_DIR=data/temp
-FINAL_DIR=data/process
+FINAL_DIR=data/processle
 
 # 1. Keep the first line of File0 and remove the first line of all the other files (File[0-99]) and
 #		output it to the FINAL_DIR location
