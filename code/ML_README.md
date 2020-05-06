@@ -80,7 +80,7 @@ Usage:
 ### Example
 
 ```
-Rscript code/R/main.R --seed 1 --model L2_Logistic_Regression --data test/data/small_input_data.csv --hyperparams test/data/hyperparams.csv --outcome dx --level otu
+Rscript code/R/main.R --seed 1 --model L2_Logistic_Regression --data test/data/small_input_data.csv --hyperparams test/data/hyperparams.csv --outcome dx --level crc_model
 ```
 
 ### Overview
@@ -122,10 +122,10 @@ NOTE: Everything needs to be run from the project directory.
 
 To test the pipeline with a pre-prepared test dataset, go to `test/README.md`
 
-1. Generate your own input data and match the formatting to the `test/data/small_input_data.csv` example.
+1. Generate your own input data with `code/R/setup_model_data.R` to setup your data. This will preprocess the data and generate the correlation matrix. You need to edit this script to fit your the specific needs of you data. You will subset your data, preprocess it and then generate a correlation matrix. You can specify the limits of the correlation matix within this script. Your output file should match the formatting of the `test/data/small_input_data.csv` example.
 Specifically:
-	- First column should be the outcome of interest.
-	- Remaining columns should be the features, one feature per column.
+  - First column should be the outcome of interest.
+  - Remaining columns should be the features, one feature per column.
 
 2. This pipeline consists of the following scripts:
 
@@ -146,18 +146,18 @@ Specifically:
 
 	A) Run the scripts one by one with different seeds:
 
-	`Rscript code/R/main.R --seed 1 --permutation --model L2_Logistic_Regression --data test/data/small_input_data.csv --hyperparams test/data/hyperparams.csv --outcome dx`
+	`Rscript code/R/main.R --seed 1 --permutation --model L2_Logistic_Regression --data test/data/small_input_data.csv --hyperparams test/data/hyperparams.csv --outcome dx --level crc_level`
 
-	`Rscript code/R/main.R --seed 2 --permutation --model L2_Logistic_Regression --data test/data/small_input_data.csv --hyperparams test/data/hyperparams.csv --outcome dx`
+	`Rscript code/R/main.R --seed 2 --permutation --model L2_Logistic_Regression --data test/data/small_input_data.csv --hyperparams test/data/hyperparams.csv --outcome dx --level crc_level`
 
 
 						`...`
 
-	`Rscript code/R/main.R --seed 100 --permutation --model L2_Logistic_Regression --data test/data/small_input_data.csv --hyperparams test/data/hyperparams.csv --outcome dx`
+	`Rscript code/R/main.R --seed 100 --permutation --model L2_Logistic_Regression --data test/data/small_input_data.csv --hyperparams test/data/hyperparams.csv --outcome dx --level crc_level`
 
   B) Run it parallelized for each datasplit (seed). We do this in our High Performing Computer (Great Lakes) by submitting an array job where the seed is automatically assigned [0-100] and each script is submitted at the same time - an example is present in the `code/slurm/L2_Logistic_Regression.sh` script.
 
 
 4. After we run the pipeline 100 times, we will have saved 100 files for AUROC values, 100 files for training times, 100 files for AUROC values for each tuned hyperparameter, 100 files for feature importances of perfectly correlated features, 100 files for feature importances of non-perfectly correlated features. These individual files will all be saved to `data/temp`. We can then merge these files and save them to `data/process`.
 
-		`bash cat_csv_files.sh`
+		`bash bash/cat_csv_files.sh`
