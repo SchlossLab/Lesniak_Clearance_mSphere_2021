@@ -28,8 +28,8 @@
 #   (2) data/process/sig_flat_corr_matrix.csv - CSV with correlated features
 ######################################################################
 
-meta_file <- ##### insert metadata file name #####
-feature_file <- ##### insert features file name #####
+meta_file <- 'data/process/abx_cdiff_metadata_clean.txt'
+feature_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 
 ################### IMPORT LIBRARIES and FUNCTIONS ###################
 # The dependinces for this script are consolidated in the first part
@@ -45,16 +45,17 @@ source('code/R/compute_correlation_matrix.R')
 ######################################################################
 
 
-
 ######################## DATA PREPARATION #############################
 
 
 # ----------------------- Read in data --------------------------------
 # Read in metadata
-meta <- read_tsv(meta_file)  
+meta <- read_tsv(meta_file,
+	col_types = 'cd--dcdlll-cdd---cddcc')
 
 # Read in OTU table and remove label and numOtus columns
-features <- read_tsv(feature_file)
+features <- read_tsv(feature_file,
+	col_types = cols(.default = 'd', Group = 'c', label = '-', numOtus = '-'))
 # ---------------------------------------------------------------------
 
 
@@ -65,8 +66,7 @@ features <- read_tsv(feature_file)
 data <- meta %>% 
 	filter(clearance %in% c('Cleared', 'Colonized'),
 		day == 0, cdiff == T) %>% 
-	mutate(cleared = clearance == 'Cleared') %>% 
-	select(cleared, Group = group) %>% 
+	select(clearance, Group = group) %>% 
 	inner_join(features, by=c("Group"))  %>% 
 	select(-Group) %>% 
 	drop_na()
@@ -86,6 +86,6 @@ write_csv(dataTransformed, 'data/process/input_data.csv')
 # Create correlation matrix of machine learning data
 #   filters correlation >= cor_value and p values < p_value
 #   default values are cor_value = 1, and p_value = 0.1
-compute_correlation_matrix('data/process/input_data.csv', 'cleared', 
-	cor_value = 0.8, p_value = 0.01)
+compute_correlation_matrix('data/process/input_data.csv', 'clearance', 
+	cor_value = 0.8, p_value = 0.05)
 # ---------------------------------------------------------------------
