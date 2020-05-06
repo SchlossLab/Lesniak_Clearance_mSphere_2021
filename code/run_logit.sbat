@@ -25,7 +25,7 @@
 # Logs
 #SBATCH --mail-user=nlesniak@umich.edu
 #SBATCH --mail-type=END,FAIL
-#SBATCH -o scratch/slurm/output.%a.out
+#SBATCH -o scratch/slurm/logit.output.%a.out
 
 # Environment
 #SBATCH --export=ALL
@@ -46,5 +46,5 @@ seed=$(($SLURM_ARRAY_TASK_ID - 1))
 # Making output dir for snakemake cluster logs
 mkdir -p logs/slurm/
 
-Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level otu --data  data/process/ml_data.csv --hyperparams data/default_hyperparameters.csv --outcome cleared
+Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level otu --data  data/process/input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
 
