@@ -31,7 +31,8 @@ sum_otu_by_taxa <- function(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0, s
     gather(OTU, abundance, starts_with('Otu')) %>% 
     inner_join(select(taxonomy_df, OTU, taxa = one_of(taxa_level)), by = 'OTU') %>% 
     group_by(Group, taxa) %>%
-    summarize(abundance = sum(abundance))
+    summarise(abundance = sum(abundance)) %>% 
+    ungroup
 
   if(top_n > 0){
     if(silent == F){
