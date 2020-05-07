@@ -30,6 +30,7 @@
 
 meta_file <- 'data/process/abx_cdiff_metadata_clean.txt'
 feature_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
+tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
 
 ################### IMPORT LIBRARIES and FUNCTIONS ###################
 # The dependinces for this script are consolidated in the first part
@@ -42,6 +43,7 @@ for (dep in deps){
 }
 # Load in needed functions and libraries
 source('code/R/compute_correlation_matrix.R')
+source('code/sum_otu_by_taxa.R')
 ######################################################################
 
 
@@ -50,26 +52,58 @@ source('code/R/compute_correlation_matrix.R')
 
 # ----------------------- Read in data --------------------------------
 # Read in metadata
-meta <- read_tsv(meta_file,
-	col_types = 'cd--dcdlll-cdd---cddcc')
+meta_df <- read_tsv(meta_file,
+	col_types = 'cdc-dcdlll-cdd---cddcc')
 
 # Read in OTU table and remove label and numOtus columns
-features <- read_tsv(feature_file,
+features_df <- read_tsv(feature_file,
 	col_types = cols(.default = 'd', Group = 'c', label = '-', numOtus = '-'))
+
+# Read in taxonomy data
+tax_df <- read_tsv(tax_file, col_types = cols(.default = 'c')) 
+
 # ---------------------------------------------------------------------
 
 
 # ----------------- Select samples and features -----------------------
 # Filter metadata and select only sample names and outcome columns
+ meta_df <- meta_df %>% 
+	filter(abx %in% c('Clindamycin', 'Cefoperazone', 'Streptomycin'),
+		clearance %in% c('Cleared', 'Colonized'),
+		day == 0, cdiff == T) %>% 
+	select(Group = group, cage, abx, clearance) %>% 
+# Create features for potentially confounding variables
+	mutate(abx_used = 1, cage_present = 1, cage = paste0('cage_', cage)) %>% 
+	spread(abx, abx_used, fill = 0) %>% 
+	spread(cage, cage_present, fill = 0)
+	
 # Merge metadata and feature data.
 # Then remove the sample name column
-data <- meta %>% 
-	filter(clearance %in% c('Cleared', 'Colonized'),
-		day == 0, cdiff == T) %>% 
-	select(clearance, Group = group) %>% 
-	inner_join(features, by=c("Group"))  %>% 
+otu_data <- meta_df %>% 
+	inner_join(features, by = "Group")  %>% 
 	select(-Group) %>% 
 	drop_na()
+
+genus_data <- sum_otu_by_taxa(tax_df, features, 'Genus') %>% 
+	spread(taxa, abundance) %>% 
+	inner_join(meta_df, by = 'Group')  %>% 
+	select(-Group) %>% 
+	drop_na()
+
+family_data <- sum_otu_by_taxa(tax_df, features, 'Family') %>% 
+	spread(taxa, abundance) %>% 
+	inner_join(meta_df, by = 'Group')  %>% 
+	select(-Group) %>% 
+	drop_na()
+
+order_data <- sum_otu_by_taxa(tax_df, features, 'Order') %>% 
+	spread(taxa, abundance) %>% 
+	inner_join(meta_df, by = 'Group')  %>% 
+	select(-Group) %>% 
+	drop_na()
+
+
+
 # ---------------------------------------------------------------------
 
 save_data <- function(data, level){
@@ -93,3 +127,6 @@ save_data <- function(data, level){
 }
 
 save_data(otu_data, 'otu')
+save_data(genus_data, 'genus')
+save_data(family_data, 'family')
+save_data(order_data, 'order')
