@@ -80,23 +80,23 @@ tax_df <- read_tsv(tax_file, col_types = cols(.default = 'c'))
 # Merge metadata and feature data.
 # Then remove the sample name column
 otu_data <- meta_df %>% 
-	inner_join(features, by = "Group")  %>% 
+	inner_join(features_df, by = "Group")  %>% 
 	select(-Group) %>% 
 	drop_na()
 
-genus_data <- sum_otu_by_taxa(tax_df, features, 'Genus') %>% 
+genus_data <- sum_otu_by_taxa(tax_df, features_df, 'Genus') %>% 
 	spread(taxa, abundance) %>% 
 	inner_join(meta_df, by = 'Group')  %>% 
 	select(-Group) %>% 
 	drop_na()
 
-family_data <- sum_otu_by_taxa(tax_df, features, 'Family') %>% 
+family_data <- sum_otu_by_taxa(tax_df, features_df, 'Family') %>% 
 	spread(taxa, abundance) %>% 
 	inner_join(meta_df, by = 'Group')  %>% 
 	select(-Group) %>% 
 	drop_na()
 
-order_data <- sum_otu_by_taxa(tax_df, features, 'Order') %>% 
+order_data <- sum_otu_by_taxa(tax_df, features_df, 'Order') %>% 
 	spread(taxa, abundance) %>% 
 	inner_join(meta_df, by = 'Group')  %>% 
 	select(-Group) %>% 
