@@ -100,7 +100,10 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
     summarise(test = sample(cage, 1)) %>% 
     pull(test)
   # sample the test and training set to ensure equal numbers and reduce bias of cages with greater number of mice
-  training_samples <- filter(cages, !cage %in% test_cages) %>% pull(rowid) %>% sample(., 40, replace = T)
+  training_samples <- c(filter(cages, !cage %in% test_cages, clearance == 'Cleared') %>% 
+      pull(rowid) %>% sample(., 24, replace = T),
+    filter(cages, !cage %in% test_cages, clearance == 'Colonized') %>% 
+      pull(rowid) %>% sample(., 16, replace = T))
   test_samples <- filter(cages, cage %in% test_cages) %>% pull(rowid) %>% sample(., 4, replace = T)
   train_data <- data[training_samples, ]
   test_data <- data[test_samples, ]
