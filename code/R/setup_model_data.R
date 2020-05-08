@@ -67,46 +67,46 @@ tax_df <- read_tsv(tax_file, col_types = cols(.default = 'c'))
 
 # ----------------- Select samples and features -----------------------
 # Filter metadata and select only sample names and outcome columns
- meta_df <- meta_df %>% 
+ model_df <- meta_df %>% 
 	filter(abx %in% c('Clindamycin', 'Cefoperazone', 'Streptomycin'),
 		clearance %in% c('Cleared', 'Colonized'),
 		day == 0, cdiff == T) %>% 
+	mutate(cage = paste(grep('^.{3}', abx, value = TRUE), dose_level, 'cage', cage, sep = '_')) %>% 
 	select(Group = group, cage, abx, clearance) %>% 
 # Create features for potentially confounding variables
-	mutate(abx_used = 1, cage_present = 1, cage = paste0('cage_', cage)) %>% 
+	mutate(abx_used = 1, cage_present = 1) %>% 
 	spread(abx, abx_used, fill = 0) %>% 
 	spread(cage, cage_present, fill = 0)
 	
 # Merge metadata and feature data.
 # Then remove the sample name column
-otu_data <- meta_df %>% 
-	inner_join(features_df, by = "Group")  %>% 
-	select(-Group) %>% 
-	drop_na()
-
+otu_data <- model_df %>% 
+	inner_join(features_df, by = "Group")
+	
 genus_data <- sum_otu_by_taxa(tax_df, features_df, 'Genus') %>% 
 	spread(taxa, abundance) %>% 
-	inner_join(meta_df, by = 'Group')  %>% 
-	select(-Group) %>% 
-	drop_na()
+	inner_join(model_df, by = 'Group')
 
 family_data <- sum_otu_by_taxa(tax_df, features_df, 'Family') %>% 
 	spread(taxa, abundance) %>% 
-	inner_join(meta_df, by = 'Group')  %>% 
-	select(-Group) %>% 
-	drop_na()
+	inner_join(model_df, by = 'Group')
 
 order_data <- sum_otu_by_taxa(tax_df, features_df, 'Order') %>% 
 	spread(taxa, abundance) %>% 
-	inner_join(meta_df, by = 'Group')  %>% 
-	select(-Group) %>% 
-	drop_na()
-
-
-
+	inner_join(model_df, by = 'Group')
+# save names of row samples
+otu_data %>% 
+	select(Group) %>% 
+	left_join(meta_df, by = c('Group' = 'group')) %>% 
+	select(Group, cage, clearance) %>% 
+	write_csv('data/process/sample_names.txt')
 # ---------------------------------------------------------------------
 
+
 save_data <- function(data, level){
+	data <- data %>% 
+		select(-Group) %>% 
+		drop_na()
 	# ---------------------- Process model data ---------------------------
 	# Remove features with near zero variance and scale remaining from 0 to 1
 	preProcValues <- preProcess(data, method = c("nzv", "range"))

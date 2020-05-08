@@ -86,21 +86,24 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
   # ------------------80-20 Datasplit for each seed------------------------->
   # Do the 80-20 data-split
   # Stratified data partitioning %80 training - %20 testing
-  inTraining <- createDataPartition(data[,outcome], p = .80, list = FALSE)
-  train_data <- data[ inTraining,]
-  test_data  <- data[-inTraining,]
+  #inTraining <- createDataPartition(data[,outcome], p = .80, list = FALSE)
+  #train_data <- data[ inTraining,]
+  #test_data  <- data[-inTraining,]
 
   # Leave out test data by cages
   # Read in cage/sample name from 
-  cages <- read_csv('data/process/sample_names.txt') %>% 
+  cages <- read_csv('data/process/sample_names.txt', col_types = 'ccc') %>% 
     rowid_to_column() # add row id as column to use to select samples by row number
   # leave out two cages for testing , since a few cages only have one sample
-  test_cages <- sample(unique(cages$cage), 2)
+  test_cages <- cages %>% 
+    group_by(clearance) %>% 
+    summarise(test = sample(cage, 1)) %>% 
+    pull(test)
   # sample the test and training set to ensure equal numbers and reduce bias of cages with greater number of mice
   training_samples <- filter(cages, !cage %in% test_cages) %>% pull(rowid) %>% sample(., 40, replace = T)
   test_samples <- filter(cages, cage %in% test_cages) %>% pull(rowid) %>% sample(., 4, replace = T)
-  train_data <- data[training_samples, ]
-  test_data <- data[test_samples, ]
+  train_data <- cages[training_samples, ]
+  test_data <- cages[test_samples, ]
 
   # ----------------------------------------------------------------------->
 
