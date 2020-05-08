@@ -102,8 +102,8 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
   # sample the test and training set to ensure equal numbers and reduce bias of cages with greater number of mice
   training_samples <- filter(cages, !cage %in% test_cages) %>% pull(rowid) %>% sample(., 40, replace = T)
   test_samples <- filter(cages, cage %in% test_cages) %>% pull(rowid) %>% sample(., 4, replace = T)
-  train_data <- cages[training_samples, ]
-  test_data <- cages[test_samples, ]
+  train_data <- data[training_samples, ]
+  test_data <- data[test_samples, ]
 
   # ----------------------------------------------------------------------->
 
