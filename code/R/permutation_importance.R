@@ -74,7 +74,8 @@ permutation_importance <- function(model, full, first_outcome, second_outcome, o
   specificity <- r$byClass[[2]]
   # Return dataframe with sample names and individual results
   test_by_sample <- test_set %>% 
-    select(Group, clearance) %>% 
+    select(Group, clearance) %>%
+    bind_cols(rpartProbs) %>%  
     mutate(seed = seed,
       auroc = base_auc,
       auprc = auprc,

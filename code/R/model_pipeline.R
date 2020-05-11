@@ -255,6 +255,7 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
     specificity <- r$byClass[[2]]
     test_by_sample <- test_samples %>% 
       select(Group, clearance) %>% 
+      bind_cols(rpartProbs) %>% 
       mutate(seed = split_number,
         auroc = test_auc,
         auprc = auprc,
