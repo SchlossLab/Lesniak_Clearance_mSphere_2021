@@ -50,7 +50,7 @@ for (dep in deps){
 
 
 ####################### DEFINE FUNCTION  #############################
-permutation_importance <- function(model, full, first_outcome, second_outcome, outcome, level){
+permutation_importance <- function(model, full, first_outcome, second_outcome, outcome, level, test_set){
 
   # Set outcome as first column if null
   #if(is.null(outcome)){
@@ -72,6 +72,13 @@ permutation_importance <- function(model, full, first_outcome, second_outcome, o
   r <- confusionMatrix(as.factor(p_class), full[,outcome])
   sensitivity <- r$byClass[[1]]
   specificity <- r$byClass[[2]]
+  # Return dataframe with sample names and individual results
+  test_by_sample <- test_set %>% 
+    select(Group, clearance) %>% 
+    mutate(auroc = base_auc,
+      auprc = auprc,
+      sensitivity = sensitivity,
+      specificity = specificity)
 
   # ----------- Read in the correlation matrix of full dataset---------->
   # Get the correlation matrix made by full dataset
@@ -233,6 +240,6 @@ permutation_importance <- function(model, full, first_outcome, second_outcome, o
   walltime <- secs$toc-secs$tic
   print(walltime)
   # Save the original AUC, non-correlated importances and correlated importances
-  roc_results <- list(base_auc, non_corr_imp, correlated_auc_results, sensitivity, specificity, auprc)
+  roc_results <- list(base_auc, non_corr_imp, correlated_auc_results, sensitivity, specificity, auprc, test_by_sample)
   return(roc_results)
 }

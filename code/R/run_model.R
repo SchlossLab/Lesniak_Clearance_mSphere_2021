@@ -116,6 +116,17 @@ run_model <-
            mutate(model=model) %>%
            write_csv(path=paste0("data/temp/", level,"/all_imp_features_cor_results_", model,"_", seed, ".csv"), col_names = TRUE)
 
+
+        # ------------------------------------------------------------------
+        # Save test results by sample
+       results_by_sample <- results[10]
+        # Convert to dataframe and add a column noting the model name
+       dataframe <- data.frame(results_by_sample) %>%
+           mutate(model=model) %>%
+           write_csv(path=paste0("data/temp/", level,"/all_sample_results_", model,"_", seed, ".csv"))
+        # ------------------------------------------------------------------
+
+
         # Stop walltime for running model
        secs <- toc()
         # Save elapsed time

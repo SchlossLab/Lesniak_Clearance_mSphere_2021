@@ -204,7 +204,7 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
       #     1. Predict held-out test-data
       #     2. Calculate ROC and AUROC values on this prediction
       #     3. Get the feature importances for correlated and uncorrelated feautures
-      roc_results <- permutation_importance(trained_model, test_data, first_outcome, second_outcome, outcome, level)
+      roc_results <- permutation_importance(trained_model, test_data, first_outcome, second_outcome, outcome, level, test_samples)
       test_auc <- roc_results[[1]]  # Predict the base test importance
       feature_importance_non_cor <- roc_results[2] # save permutation results
       # Get feature weights
@@ -212,19 +212,21 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
       auprc <-roc_results[[6]]
       sensitivity <-roc_results[[4]]
       specificity <-roc_results[[5]]
+      test_by_sample <-roc_results[[7]]
     }
     else{
       # We will use the permutation_importance function here to:
       #     1. Predict held-out test-data
       #     2. Calculate ROC and AUROC values on this prediction
       #     3. Get the feature importances for correlated and uncorrelated feautures
-      roc_results <- permutation_importance(trained_model, test_data, first_outcome, second_outcome, outcome, level)
+      roc_results <- permutation_importance(trained_model, test_data, first_outcome, second_outcome, outcome, level, test_samples)
       test_auc <- roc_results[[1]] # Predict the base test importance
       feature_importance_non_cor <- roc_results[2] # save permutation results of non-cor
       feature_importance_cor <- roc_results[3] # save permutation results of cor
       auprc <-roc_results[[6]]
       sensitivity <-roc_results[[4]]
       specificity <-roc_results[[5]]
+      test_by_sample <-roc_results[[7]]
     }
   }else{
     print("No permutation test being performed.")
@@ -251,12 +253,19 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
     r <- confusionMatrix(as.factor(p_class), test_data[,outcome])
     sensitivity <- r$byClass[[1]]
     specificity <- r$byClass[[2]]
+    test_by_sample <- test_samples %>% 
+      select(Group, clearance) %>% 
+      mutate(auroc = test_auc,
+        auprc = auprc,
+        sensitivity = sensitivity,
+        specificity = specificity)
+    
   }
 
   # ---------------------------------------------------------------------------------->
 
   # ----------------------------Save metrics as vector ------------------------------->
   # Return all the metrics
-  results <- list(cv_auc, test_auc, results_individual, feature_importance_non_cor, feature_importance_cor, trained_model, sensitivity, specificity, auprc)
+  results <- list(cv_auc, test_auc, results_individual, feature_importance_non_cor, feature_importance_cor, trained_model, sensitivity, specificity, auprc, test_by_sample)
   return(results)
 }
