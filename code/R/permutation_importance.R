@@ -50,7 +50,7 @@ for (dep in deps){
 
 
 ####################### DEFINE FUNCTION  #############################
-permutation_importance <- function(model, full, first_outcome, second_outcome, outcome, level, test_set){
+permutation_importance <- function(model, full, first_outcome, second_outcome, outcome, level, test_set, seed){
 
   # Set outcome as first column if null
   #if(is.null(outcome)){
@@ -75,7 +75,8 @@ permutation_importance <- function(model, full, first_outcome, second_outcome, o
   # Return dataframe with sample names and individual results
   test_by_sample <- test_set %>% 
     select(Group, clearance) %>% 
-    mutate(auroc = base_auc,
+    mutate(seed = seed,
+      auroc = base_auc,
       auprc = auprc,
       sensitivity = sensitivity,
       specificity = specificity)

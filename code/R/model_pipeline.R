@@ -204,7 +204,7 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
       #     1. Predict held-out test-data
       #     2. Calculate ROC and AUROC values on this prediction
       #     3. Get the feature importances for correlated and uncorrelated feautures
-      roc_results <- permutation_importance(trained_model, test_data, first_outcome, second_outcome, outcome, level, test_samples)
+      roc_results <- permutation_importance(trained_model, test_data, first_outcome, second_outcome, outcome, level, test_samples, split_number)
       test_auc <- roc_results[[1]]  # Predict the base test importance
       feature_importance_non_cor <- roc_results[2] # save permutation results
       # Get feature weights
@@ -219,7 +219,7 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
       #     1. Predict held-out test-data
       #     2. Calculate ROC and AUROC values on this prediction
       #     3. Get the feature importances for correlated and uncorrelated feautures
-      roc_results <- permutation_importance(trained_model, test_data, first_outcome, second_outcome, outcome, level, test_samples)
+      roc_results <- permutation_importance(trained_model, test_data, first_outcome, second_outcome, outcome, level, test_samples, split_number)
       test_auc <- roc_results[[1]] # Predict the base test importance
       feature_importance_non_cor <- roc_results[2] # save permutation results of non-cor
       feature_importance_cor <- roc_results[3] # save permutation results of cor
@@ -255,7 +255,8 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
     specificity <- r$byClass[[2]]
     test_by_sample <- test_samples %>% 
       select(Group, clearance) %>% 
-      mutate(auroc = test_auc,
+      mutate(seed = split_number,
+        auroc = test_auc,
         auprc = auprc,
         sensitivity = sensitivity,
         specificity = specificity)
