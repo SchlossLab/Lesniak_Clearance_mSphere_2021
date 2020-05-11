@@ -104,9 +104,13 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
       pull(rowid) %>% sample(., 24, replace = T),
     filter(cages, !cage %in% test_cages, clearance == 'Colonized') %>% 
       pull(rowid) %>% sample(., 16, replace = T))
-  test_samples <- filter(cages, cage %in% test_cages) %>% pull(rowid) %>% sample(., 4, replace = T)
+  test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(4, replace = T)
+  # if all test cases are the same, resample until both outcomes are included
+  while(length(unique(test_samples$clearance)) == 1){
+    test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(4, replace = T)
+  }
   train_data <- data[training_samples, ]
-  test_data <- data[test_samples, ]
+  test_data <- data[test_samples$rowid, ]
 
   # ----------------------------------------------------------------------->
 
