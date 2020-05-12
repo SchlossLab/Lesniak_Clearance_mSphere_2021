@@ -109,7 +109,7 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
       pull(rowid) %>% sample(., 14, replace = T))
   test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(9, replace = T)
   # if all test cases are the same, resample until both outcomes are included
-  while(all(table(test_samples$clearance) < 3)) == 1){
+  while(all(table(test_samples$clearance) < 3)){
     test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(9, replace = T)
   }
   train_data <- data[training_samples, ]
