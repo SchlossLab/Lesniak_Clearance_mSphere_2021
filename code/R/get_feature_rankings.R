@@ -9,6 +9,8 @@
 # That will create a combined tsv file for each linear model with 100 datasplits
 ######################################################################
 
+args <- commandArgs(trailingOnly = TRUE)
+model_dir <- as.character(args[1])
 
 ######################################################################
 #----------------- Read in necessary libraries -------------------#
@@ -24,10 +26,6 @@ for (dep in deps){
 ######################################################################
 #----------------- Define the functions we will use -----------------#
 ######################################################################
-
-source("code/learning/functions.R")
-
-
 
 create_feature_rankings <- function(data, model_name){
     # If the models are linear, we saved the weights of every OTU for each datasplit
@@ -68,7 +66,7 @@ create_feature_rankings <- function(data, model_name){
 # ----------- Read in saved weights for linear models in temp folder ---------->
 # List the files with feature weights with the pattern that has an "L" which only selects linear models.
 # Correlated files for linear models has the weights for OTUs in trained model:
-cor_files <- list.files(path= 'data/temp/otu', pattern='all_imp_features_cor_results_L.*', full.names = TRUE)
+cor_files <- list.files(path= paste0('data/temp/', model_dir), pattern='all_imp_features_cor_results_L.*', full.names = TRUE)
 
 # Take each file 1-100 and add ranks as a column to it.
 # Then save that file with the "_feature_ranking_#" extension
@@ -76,9 +74,10 @@ cor_files <- list.files(path= 'data/temp/otu', pattern='all_imp_features_cor_res
 i <- 0
 for(file_name in cor_files){
   i <- i + 1
-  importance_data <- read_files(file_name)
+  importance_data <- read_csv(file_name, 
+    col_type = c(.default = col_double(), model = col_character()))
   model_name <- as.character(importance_data$model[1])# get the model name from table
 create_feature_rankings(importance_data, model_name) %>%
     as.data.frame() %>%
-    write_tsv(., paste0("data/temp/otu/", model_name, "_feature_ranking_", i, ".tsv"))
+    write_tsv(., paste0("data/temp/", model_dir, "/", model_name, "_feature_ranking_", i, ".tsv"))
 }
