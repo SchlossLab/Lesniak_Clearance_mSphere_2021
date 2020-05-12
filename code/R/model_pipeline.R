@@ -115,7 +115,7 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
   test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(n_test, replace = T)
   # if all test cases are the same, resample until both outcomes are included
   while(sum(test_samples$clearance == 'Cleared') <= round(0.25 * n_test) | 
-    sum(test_samples$clearance == 'Colonized') <= round(0.25 * n_test))){
+    sum(test_samples$clearance == 'Colonized') <= round(0.25 * n_test)){
     test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(n_test, replace = T)
   }
   train_data <- data[training_samples, ]
