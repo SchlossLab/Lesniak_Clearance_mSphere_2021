@@ -140,8 +140,8 @@ Specifically:
 	         - `"path/to/inputfile"` is the path to your formatted dataset, in quotes.
 	          - `"outcome"` is the outcome state to be predicted by the model, in quotes.
 
-      -  **NOTE**: in the current iteration of this pipeline, running`generate_corr_matrix.R` on your own dataset will overwrite the correlation matrix used in the test data, which will cause errors if you try to run the test model afterwards. The test correlation matrix can be restored using `git checkout data/process/sig_flat_corr_matrix.csv`. Running this command will in turn overwrite the correlation matrix generated from your own dataset.
-
+      -  **NOTE**: If you generate a correlation matrix indepedent of `code/R/setup_model_data.R`, it must be named `data/process/sig_flat_corr_matrix_LEVEL.csv`, replacing LEVEL with the name of the modeling experiment you use to trun the pipeline.
+      
 3. We want to run the pipeline 100 times with different seeds so that we can evaluate variability in modeling results. We can do this in different ways.
 
 	A) Run the scripts one by one with different seeds:
