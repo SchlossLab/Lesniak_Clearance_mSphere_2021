@@ -95,19 +95,22 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
   cages <- read_csv('data/process/sample_names.txt', col_types = 'ccc') %>% 
     rowid_to_column() # add row id as column to use to select samples by row number
   # leave out two cages for testing , since a few cages only have one sample
-  test_cages <- cages %>% 
-    group_by(clearance) %>% 
-    summarise(test = sample(cage, 1)) %>% 
-    pull(test)
+  test_cages <- sample(unique(cages$cage), 3)
+  test_outcomes <- count(filter(cages, cage %in% test_cages), clearance)
+  # if all test cases are the same, resample until both outcomes are included
+  while(all(test_outcomes$n <= 1)){
+      test_cages <- sample(unique(cages$cage), 3)
+      test_outcomes <- count(filter(cages, cage %in% test_cages), clearance)
+  }
   # sample the test and training set to ensure equal numbers and reduce bias of cages with greater number of mice
   training_samples <- c(filter(cages, !cage %in% test_cages, clearance == 'Cleared') %>% 
-      pull(rowid) %>% sample(., 24, replace = T),
+      pull(rowid) %>% sample(., 22, replace = T),
     filter(cages, !cage %in% test_cages, clearance == 'Colonized') %>% 
-      pull(rowid) %>% sample(., 16, replace = T))
-  test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(4, replace = T)
+      pull(rowid) %>% sample(., 14, replace = T))
+  test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(9, replace = T)
   # if all test cases are the same, resample until both outcomes are included
-  while(length(unique(test_samples$clearance)) == 1){
-    test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(4, replace = T)
+  while(all(table(test_samples$clearance) < 3)) == 1){
+    test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(9, replace = T)
   }
   train_data <- data[training_samples, ]
   test_data <- data[test_samples$rowid, ]
