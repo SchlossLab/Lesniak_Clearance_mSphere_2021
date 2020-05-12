@@ -95,14 +95,15 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
   cages <- read_csv('data/process/sample_names.txt', col_types = 'ccc') %>% 
     rowid_to_column() # add row id as column to use to select samples by row number
   # leave out cages for testing, setup sample numbers
-  cv_test_split <- 30
+  cv_test_split <- 20
   n_test <- round((cv_test_split/100) * 45)
   n_cv <- round(((100 - cv_test_split)/100) * 45)
   n_cages <- round(n_test/2.81)
   test_cages <- sample(unique(cages$cage), n_cages)
   test_outcomes <- count(filter(cages, cage %in% test_cages), clearance)
   # if all test cases are the same, resample until both outcomes are included
-  while(all(test_outcomes$n <= 1)){
+  while(all(test_outcomes$n <= 1) | (!length(test_outcomes$n) == 2)){
+    print('redrawing')
       test_cages <- sample(unique(cages$cage), n_cages)
       test_outcomes <- count(filter(cages, cage %in% test_cages), clearance)
   }
@@ -113,7 +114,8 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
       pull(rowid) %>% sample(., round(0.4 * n_cv), replace = T))
   test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(n_test, replace = T)
   # if all test cases are the same, resample until both outcomes are included
-  while(all(table(test_samples$clearance) =< round(0.25 * n_test))){
+  while(sum(test_samples$clearance == 'Cleared') <= round(0.25 * n_test) | 
+    sum(test_samples$clearance == 'Colonized') <= round(0.25 * n_test))){
     test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(n_test, replace = T)
   }
   train_data <- data[training_samples, ]
