@@ -22,6 +22,7 @@ do
 
     for model in "L2_Logistic_Regression" "Decision_Tree" "Random_Forest" 
     do
+      	head -1 $SEARCH_DIR/all_sample_results_"$model"_1.csv  > $SEARCH_DIR/combined_all_sample_results_"$model".csv; tail -n +2 -q $SEARCH_DIR/all_sample_results_"$model"_*.csv >> $SEARCH_DIR/combined_all_sample_results_"$model".csv
         head -1 $SEARCH_DIR/all_hp_results_"$model"_1.csv  > $SEARCH_DIR/combined_all_hp_results_"$model".csv; tail -n +2 -q $SEARCH_DIR/all_hp_results_"$model"_*.csv >> $SEARCH_DIR/combined_all_hp_results_"$model".csv
         head -1 $SEARCH_DIR/best_hp_results_"$model"_1.csv  > $SEARCH_DIR/combined_best_hp_results_"$model".csv; tail -n +2 -q $SEARCH_DIR/best_hp_results_"$model"_*.csv >> $SEARCH_DIR/combined_best_hp_results_"$model".csv
         head -1 $SEARCH_DIR/all_imp_features_non_cor_results_"$model"_1.csv > $SEARCH_DIR/combined_all_imp_features_non_cor_results_"$model".csv; tail -n +2 -q $SEARCH_DIR/all_imp_features_non_cor_results_"$model"_*.csv >> $SEARCH_DIR/combined_all_imp_features_non_cor_results_"$model".csv
@@ -30,6 +31,7 @@ do
         head -1 $SEARCH_DIR/traintime_"$model"_1.csv  > $SEARCH_DIR/traintime_"$model".csv; tail -n +2 -q $SEARCH_DIR/traintime_"$model"_*.csv >> $SEARCH_DIR/traintime_"$model".csv
 
         mv $SEARCH_DIR/traintime_"$model".csv $FINAL_DIR/traintime_"$model".csv
+        mv $SEARCH_DIR/combined_all_sample_results_"$model".csv $FINAL_DIR/combined_all_sample_results_"$model".csv
         mv $SEARCH_DIR/combined_all_hp_results_"$model".csv $FINAL_DIR/combined_all_hp_results_"$model".csv
         mv $SEARCH_DIR/combined_best_hp_results_"$model".csv $FINAL_DIR/combined_best_hp_results_"$model".csv
     	mv $SEARCH_DIR/combined_all_imp_features_non_cor_results_"$model".csv $FINAL_DIR/combined_all_imp_features_non_cor_results_"$model".csv
