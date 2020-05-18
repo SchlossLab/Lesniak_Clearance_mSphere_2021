@@ -91,9 +91,10 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
   test_data  <- data[-inTraining,]
 
   #  # Leave out test data by cages
-  #  # Read in cage/sample name from 
-  #  cages <- read_csv('data/process/sample_names.txt', col_types = 'ccc') %>% 
-  #    rowid_to_column() # add row id as column to use to select samples by row number
+  # Read in cage/sample name from 
+  cages <- read_csv('data/process/sample_names.txt', col_types = 'ccc') %>% 
+    rowid_to_column() # add row id as column to use to select samples by row number
+  test_samples <- cages[-inTraining,]
   #  # leave out cages for testing, setup sample numbers
   #  cv_test_split <- 20
   #  n_test <- round((cv_test_split/100) * 45)
