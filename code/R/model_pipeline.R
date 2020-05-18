@@ -87,39 +87,39 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
   # Do the 80-20 data-split
   # Stratified data partitioning %80 training - %20 testing
   #inTraining <- createDataPartition(data[,outcome], p = .80, list = FALSE)
-  #train_data <- data[ inTraining,]
-  #test_data  <- data[-inTraining,]
+  train_data <- data[ inTraining,]
+  test_data  <- data[-inTraining,]
 
-  # Leave out test data by cages
-  # Read in cage/sample name from 
-  cages <- read_csv('data/process/sample_names.txt', col_types = 'ccc') %>% 
-    rowid_to_column() # add row id as column to use to select samples by row number
-  # leave out cages for testing, setup sample numbers
-  cv_test_split <- 20
-  n_test <- round((cv_test_split/100) * 45)
-  n_cv <- round(((100 - cv_test_split)/100) * 45)
-  n_cages <- round(n_test/2.81)
-  test_cages <- sample(unique(cages$cage), n_cages)
-  test_outcomes <- count(filter(cages, cage %in% test_cages), clearance)
-  # if all test cases are the same, resample until both outcomes are included
-  while(all(test_outcomes$n <= 1) | (!length(test_outcomes$n) == 2)){
-    print('redrawing')
-      test_cages <- sample(unique(cages$cage), n_cages)
-      test_outcomes <- count(filter(cages, cage %in% test_cages), clearance)
-  }
-  # sample the test and training set to ensure equal numbers and reduce bias of cages with greater number of mice
-  training_samples <- c(filter(cages, !cage %in% test_cages, clearance == 'Cleared') %>% 
-      pull(rowid) %>% sample(., round(.6 * n_cv), replace = T),
-    filter(cages, !cage %in% test_cages, clearance == 'Colonized') %>% 
-      pull(rowid) %>% sample(., round(0.4 * n_cv), replace = T))
-  test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(n_test, replace = T)
-  # if all test cases are the same, resample until both outcomes are included
-  while(sum(test_samples$clearance == 'Cleared') <= round(0.25 * n_test) | 
-    sum(test_samples$clearance == 'Colonized') <= round(0.25 * n_test)){
-    test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(n_test, replace = T)
-  }
-  train_data <- data[training_samples, ]
-  test_data <- data[test_samples$rowid, ]
+  #  # Leave out test data by cages
+  #  # Read in cage/sample name from 
+  #  cages <- read_csv('data/process/sample_names.txt', col_types = 'ccc') %>% 
+  #    rowid_to_column() # add row id as column to use to select samples by row number
+  #  # leave out cages for testing, setup sample numbers
+  #  cv_test_split <- 20
+  #  n_test <- round((cv_test_split/100) * 45)
+  #  n_cv <- round(((100 - cv_test_split)/100) * 45)
+  #  n_cages <- round(n_test/2.81)
+  #  test_cages <- sample(unique(cages$cage), n_cages)
+  #  test_outcomes <- count(filter(cages, cage %in% test_cages), clearance)
+  #  # if all test cases are the same, resample until both outcomes are included
+  #  while(all(test_outcomes$n <= 1) | (!length(test_outcomes$n) == 2)){
+  #    print('redrawing')
+  #      test_cages <- sample(unique(cages$cage), n_cages)
+  #      test_outcomes <- count(filter(cages, cage %in% test_cages), clearance)
+  #  }
+  #  # sample the test and training set to ensure equal numbers and reduce bias of cages with greater number of mice
+  #  training_samples <- c(filter(cages, !cage %in% test_cages, clearance == 'Cleared') %>% 
+  #      pull(rowid) %>% sample(., round(.6 * n_cv), replace = T),
+  #    filter(cages, !cage %in% test_cages, clearance == 'Colonized') %>% 
+  #      pull(rowid) %>% sample(., round(0.4 * n_cv), replace = T))
+  #  test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(n_test, replace = T)
+  #  # if all test cases are the same, resample until both outcomes are included
+  #  while(sum(test_samples$clearance == 'Cleared') <= round(0.25 * n_test) | 
+  #    sum(test_samples$clearance == 'Colonized') <= round(0.25 * n_test)){
+  #    test_samples <- filter(cages, cage %in% test_cages) %>% sample_n(n_test, replace = T)
+  #  }
+  #  train_data <- data[training_samples, ]
+  #  test_data <- data[test_samples$rowid, ]
 
   # ----------------------------------------------------------------------->
 
