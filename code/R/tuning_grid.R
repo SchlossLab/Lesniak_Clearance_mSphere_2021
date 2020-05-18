@@ -61,7 +61,7 @@ tuning_grid <- function(train_data, model, outcome, hyperparameters=NULL){
 #     1. Train the model with final hp decision to use model to predict
 #     2. Return 2class summary and save predictions to calculate cvROC
 #     3. Save the predictions and class probabilities/decision values.
-  folds <- 5
+  folds <- 2
   cvIndex <- createMultiFolds(factor(train_data[,outcome]), folds, times=100)
   cv <- trainControl(method="repeatedcv",
                      number=folds,

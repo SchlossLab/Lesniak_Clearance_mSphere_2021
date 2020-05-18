@@ -86,7 +86,7 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
   # ------------------80-20 Datasplit for each seed------------------------->
   # Do the 80-20 data-split
   # Stratified data partitioning %80 training - %20 testing
-  #inTraining <- createDataPartition(data[,outcome], p = .80, list = FALSE)
+  inTraining <- createDataPartition(data[,outcome], p = .50, list = FALSE)
   train_data <- data[ inTraining,]
   test_data  <- data[-inTraining,]
 
