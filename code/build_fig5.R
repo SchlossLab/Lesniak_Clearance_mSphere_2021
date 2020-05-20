@@ -52,7 +52,7 @@ model_perf_plot <- l2_performance_df %>%
 	ggplot(aes(x = validation, y = AUC, fill = model)) +
 		geom_boxplot(alpha=0.5, fatten = 2) +
 		geom_hline(yintercept = 0.5, linetype="dashed") +
-		coord_flip(ylim = c(0.4, 1)) +
+		coord_cartesian(ylim = c(0.4, 1)) +
 		theme_bw() +
 		theme(plot.margin=unit(c(0,1.1,0,0),"cm"),
 		      legend.justification=c(1,0),
@@ -208,19 +208,19 @@ logit <- read_files(paste0("data/process/", model_dir,
 # Define the function to get the  most important top 20 OTUs
 # Order the dataframe from smallest new_auc to largest.
 # Because the smallest new_auc means that that OTU decreased AUC a lot when permuted
-non_cor_files <-  list.files(path= paste0('data/process/', model_dir), 
-  pattern='combined_all_imp_features_non_cor_.*', full.names = TRUE)
-for(file_name in non_cor_files){
-  importance_data <- read_files(file_name)
-  get_interp_info(importance_data, 'L2_Logistic_Regression') %>%
-    as.data.frame() %>%
-    write_tsv(., paste0("data/process/", model_dir, "/L2_Logistic_Regression_non_cor_importance.tsv"))
-}
+top_20_file <- paste0("data/process/", model_dir, 
+	"/L2_Logistic_Regression_non_cor_importance.tsv")
+if(!file.exists(top_20_file)){
+	importance_data <- read_files(paste0("data/process/", model_dir,
+		"/combined_all_imp_features_non_cor_results_L2_Logistic_Regression.csv"))
+	get_interp_info(importance_data, 'L2_Logistic_Regression') %>%
+	    as.data.frame() %>%
+	    write_tsv(., paste0("data/process/", model_dir, "/L2_Logistic_Regression_non_cor_importance.tsv"))
+	}
 
-top_20_otus <-  read_tsv(paste0("data/process/", model_dir, 
-	"/L2_Logistic_Regression_non_cor_importance.tsv")) %>%
-    arrange(imp) %>%
-    head(20)
+top_20_otus <-  read_tsv(top_20_file) %>%
+    arrange(imp) %>% 
+    head(36)
 
 # Grab the base test auc values for 100 datasplits
 data_base <- logit %>%
@@ -275,7 +275,7 @@ perm_imp_plot <- ggplot() +
 		axis.title.x=element_blank(),
 		axis.text.x=element_blank(),
 		axis.ticks = element_line(colour = "black", size = 1.1)) + 
-	scale_x_discrete(name = "L2_Logistic_Regression") + 
+	scale_x_discrete(name = expression(paste(L[2], "-regularized logistic regression"))) +
 	theme(axis.text.x=element_text(size = 10, colour='black'))
 
 
@@ -288,6 +288,27 @@ perm_imp_plot <- ggplot() +
 #------------------ Do the features make sense? -------------------- #
 ######################################################################
 # plot abundance by outcome
+shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
+full_meta_df <- read_tsv(meta_file)
+shared_df <- read_tsv(shared_file) 
+total_abundance <- sum(shared_df[1,-c(1:3)])
+
+top_otu_abundance_plot <- shared_df %>% 
+	inner_join(distinct(select(l2_sample_perf_df, Group, clearance)), by = 'Group') %>% 
+	inner_join(select(full_meta_df, Group = group, abx), by = 'Group') %>% 
+	select(clearance, abx, one_of(top_20_otus$names)) %>% 
+	pivot_longer(cols = c(-clearance, -abx), names_to = 'otu', values_to = 'abundance') %>% 
+	mutate(abundance = (100 * abundance/total_abundance) + .05) %>% 
+	inner_join(label_df, by = c('otu' = 'key')) %>% 
+	inner_join(data_full, by = 'label') %>% 
+	ggplot(aes(x = reorder(names, -new_auc), y = abundance, color = clearance)) + 
+		geom_boxplot() + 
+		scale_y_log10() +
+		coord_flip() + 
+		facet_wrap(.~abx) + 
+		theme_bw() +
+		labs(y = 'Percent Relative Abundance', x = NULL, color = NULL) + 
+		theme(panel.grid.minor.y = element_blank())
 
 
 # -------------------------------------------------------------------->
@@ -301,10 +322,11 @@ perm_imp_plot <- ggplot() +
 
 ggsave(paste0("results/figures/Figure_5_L2_Logistic_Regression_", model_dir, ".jpg"), 
 	plot = plot_grid(
-		plot_grid(
-			ggdraw(add_sub(model_perf_plot, 'Red point is the post-validation cumulative test AUC', size=7)),
-			logit_graph, 
+			model_perf_plot,
 			ggdraw(add_sub(perm_imp_plot, "AUROC with the OTU permuted randomly", size=10, vpadding=grid::unit(0,"lines"), y=5, x=0.65, vjust=4.75)),
-			labels = c('A', 'B', 'C'), rel_widths = c(1,2,2), nrow = 1), 
-		perf_by_sample_plot, labels = c('', 'C'), ncol = 1),
-	width = 14, height = 10, units="in")
+			top_otu_abundance_plot,
+			labels = c('A', 'B', 'C'), rel_widths = c(1,2,2), nrow = 1),
+	width = 18, height = 10, units="in")
+
+ggsave(paste0("results/figures/Figure_S5_L2_Logistic_Regression_sample_dist_", model_dir, ".jpg"), 
+	plot = perf_by_sample_plot, width = 14, height = 10, units="in")
