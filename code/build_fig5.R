@@ -139,21 +139,21 @@ logit_graph <- plot_feature_ranks(logit_imp) +
 
 
 diff_samples <- c()
-for(outcome in c('maintained', 'decreased')){
+for(outcome in c('Cleared', 'Colonized')){
 	# filter samples by true outcome
 	data <- l2_sample_perf_df %>% 
-		filter(cdiff_colonization %in% outcome)
+		filter(clearance %in% outcome)
 	# for each mouse, test if prediction for mouse is significantly different
 	# from prediction for group
 	all_mice <- unique(data$Group)
 	for(individual in all_mice){
 		subset_sample <- data %>% 
 			filter(Group %in% individual) %>% 
-			pull(maintained)
+			pull(Cleared)
 		subset_group <- data %>% 
 			filter(!Group %in% individual) %>% 
-			pull(maintained)
-		if(outcome == 'maintained'){
+			pull(Cleared)
+		if(outcome == 'Cleared'){
 			pvalue <- wilcox.test(subset_sample, subset_group, alternative = 'less')$p.value
 		} else {
 			pvalue <- wilcox.test(subset_sample, subset_group, alternative = 'greater')$p.value
@@ -170,8 +170,8 @@ diff_samples <- diff_samples %>%
  			T ~ 'Not Significant'))
 
 medain_df <- l2_sample_perf_df %>% 
-	group_by(cdiff_colonization) %>% 
-	summarise(maintained = median(maintained)) %>% 
+	group_by(clearance) %>% 
+	summarise(Cleared = median(Cleared)) %>% 
 	ungroup
 
 perf_by_sample_plot <- l2_sample_perf_df %>%
@@ -179,15 +179,15 @@ perf_by_sample_plot <- l2_sample_perf_df %>%
 	left_join(meta_df, by = 'Group') %>% 
 	mutate(mouse = paste0(' Sample ', mouse, ')'),
 		label = str_replace(label, '\\)', mouse)) %>% 
-	ggplot(aes(x = Group, y = maintained, color = significant)) +
-		facet_wrap(.~cdiff_colonization, scales = 'free') + 
+	ggplot(aes(x = label, y = Cleared, color = significant)) +
+		facet_wrap(.~clearance, scales = 'free') + 
 		geom_boxplot() + 
-		geom_hline(data = medain_df, aes(yintercept = maintained)) + 
+		geom_hline(data = medain_df, aes(yintercept = Cleared)) + 
 		coord_flip() + 
 		scale_color_manual(values = c('grey3', 'red3', 'pink')) + 
 		theme_bw() + 
 		theme(legend.position = 'none') + 
-		labs(x=NULL, y = 'Probabilty Colonization is Maintained',
+		labs(x=NULL, y = 'Probabilty Colonization is Cleared',
 			caption = 'Red data are significant with multiple comparison correction/nPink data are significant without correction')
 
 # -------------------------------------------------------------------->
