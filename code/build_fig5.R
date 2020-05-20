@@ -37,12 +37,12 @@ tax_df <- read_tsv(tax_file) %>%
 l2_performance <- paste0('data/process/', model_dir, 
 	'/combined_best_hp_results_L2_Logistic_Regression.csv')
 l2_performance_df <- read_csv(l2_performance)
-samples <- read_csv(paste0('data/process/', model_dir, '_sample_names.txt'))
-outcomes <- read_csv(paste0('data/process/', model_dir, '_input_data.csv'))
+#samples <- read_csv(paste0('data/process/', model_dir, '_sample_names.txt'))
+#outcomes <- read_csv(paste0('data/process/', model_dir, '_input_data.csv'))
 l2_performance_by_sample <- paste0('data/process/', model_dir, 
 	'/combined_all_sample_results_L2_Logistic_Regression.csv')
-l2_sample_perf_df <- read_csv(l2_performance_by_sample) %>% 
-	inner_join(tibble(Group = samples$Group, cdiff_colonization = outcomes$cdiff_colonization))
+l2_sample_perf_df <- read_csv(l2_performance_by_sample) #%>% 
+	#inner_join(tibble(Group = samples$Group, cdiff_colonization = outcomes$cdiff_colonization))
 
 
 # plot the aucs
