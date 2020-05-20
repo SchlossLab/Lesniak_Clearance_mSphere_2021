@@ -21,7 +21,7 @@ model_dir <- as.character(args[1])
 
 # read in data and create key/label to add description to features
 meta_file <- 'data/process/abx_cdiff_metadata_clean.txt'
-meta_df <- read_tsv(meta_file)[1,] %>% 
+meta_df <- read_tsv(meta_file) %>% 
 	transmute(key = paste(abx, dose_level, 'cage', cage, sep = '_'),
 		label = paste0(abx, ' ', dose_level, ' (Cage ', cage, ')'),
 		Group = group, mouse = mouse) %>% 
