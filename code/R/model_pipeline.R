@@ -92,7 +92,7 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
 
   #  # Leave out test data by cages
   # Read in cage/sample name from 
-  cages <- read_csv('data/process/sample_names.txt', col_types = 'ccc') %>% 
+  cages <- read_csv('data/process/', level, '_sample_names.txt', col_types = 'ccc') %>% 
     rowid_to_column() # add row id as column to use to select samples by row number
   test_samples <- cages[-inTraining,]
   #  # leave out cages for testing, setup sample numbers

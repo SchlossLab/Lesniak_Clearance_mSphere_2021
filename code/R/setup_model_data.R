@@ -32,6 +32,8 @@ meta_file <- 'data/process/abx_cdiff_metadata_clean.txt'
 feature_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
 
+level <- 'otu'
+
 ################### IMPORT LIBRARIES and FUNCTIONS ###################
 # The dependinces for this script are consolidated in the first part
 deps = c("tidyverse", "caret", "Hmisc");
@@ -83,30 +85,31 @@ tax_df <- read_tsv(tax_file, col_types = cols(.default = 'c'))
 otu_data <- model_df %>% 
 	inner_join(features_df, by = "Group")
 	
-genus_data <- sum_otu_by_taxa(tax_df, features_df, 'Genus') %>% 
-	spread(taxa, abundance) %>% 
-	inner_join(model_df, by = 'Group')
+#genus_data <- sum_otu_by_taxa(tax_df, features_df, 'Genus') %>% 
+#	spread(taxa, abundance) %>% 
+#	inner_join(model_df, by = 'Group')
+#
+#family_data <- sum_otu_by_taxa(tax_df, features_df, 'Family') %>% 
+#	spread(taxa, abundance) %>% 
+#	inner_join(model_df, by = 'Group')
+#
+#order_data <- sum_otu_by_taxa(tax_df, features_df, 'Order') %>% 
+#	spread(taxa, abundance) %>% 
+#	inner_join(model_df, by = 'Group')
 
-family_data <- sum_otu_by_taxa(tax_df, features_df, 'Family') %>% 
-	spread(taxa, abundance) %>% 
-	inner_join(model_df, by = 'Group')
-
-order_data <- sum_otu_by_taxa(tax_df, features_df, 'Order') %>% 
-	spread(taxa, abundance) %>% 
-	inner_join(model_df, by = 'Group')
 # save names of row samples
 otu_data %>% 
 	select(Group) %>% 
 	left_join(meta_df, by = c('Group' = 'group')) %>% 
 	select(Group, cage, clearance) %>% 
-	write_csv('data/process/sample_names.txt')
+	write_csv('data/process/', level, '_sample_names.txt') %>% 
+	drop_na()
 # ---------------------------------------------------------------------
 
 
 save_data <- function(data, level){
 	data <- data %>% 
-		select(-Group) %>% 
-		drop_na()
+		select(-Group)
 	# ---------------------- Process model data ---------------------------
 	# Remove features with near zero variance and scale remaining from 0 to 1
 	preProcValues <- preProcess(data, method = c("nzv", "range"))
@@ -126,7 +129,7 @@ save_data <- function(data, level){
 	# ---------------------------------------------------------------------
 }
 
-save_data(otu_data, 'otu')
-save_data(genus_data, 'genus')
-save_data(family_data, 'family')
-save_data(order_data, 'order')
+save_data(otu_data, level)
+#save_data(genus_data, 'genus')
+#save_data(family_data, 'family')
+#save_data(order_data, 'order')
