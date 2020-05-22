@@ -295,6 +295,38 @@ rel_abund_misclass_samples <- top_otu_abundance %>%
 
 
 
+fac_anaerobes <- label_df %>% 
+	filter(grepl('Escher|Staph|Enteroc|Strepto|Lactob|Pseudomo', label_df$label))
+
+
+mice <- l2_sample_perf_df %>% 
+	left_join(full_meta_df, by = c('Group' = 'group')) %>% 
+	pull(mouse_id) %>% 
+	unique
+
+full_meta_df %>% 
+	filter(mouse_id %in% mice) %>% 
+	select(mouse_id, day, clearance, abx, CFU, Group = group) %>% 
+	inner_join(select(shared_df, Group, ), by = 'Group') %>% 
+	pivot_longer(cols = starts_with('Otu0'), names_to = 'otu', values_to = 'abundance') %>% 
+	inner_join(fac_anaerobes, by = c('otu' = 'key')) %>% 
+	mutate(abundance = (100 * abundance/total_abundance) + .05) %>% 
+	filter(day > 0) %>% 
+	group_by(label) %>% 
+	mutate(n_abundance = sum(abundance > 0.1) > 4) %>% 
+	filter(n_abundance) %>% 
+	ggplot(aes(x = day, y = abundance, color = label)) + 
+		stat_summary(fun.y = function(x) median(x), geom = "line", size = 3) + # Median darker
+		geom_line(aes(group = interaction(mouse_id, label)), alpha = 0.3) + 
+		scale_y_log10() + 
+		facet_grid(abx~clearance)
+
+
+
+# -------------------------------------------------------------------->
+
+
+
 ######################################################################
 #-----------------------Save figure -------------------------------- #
 ######################################################################
