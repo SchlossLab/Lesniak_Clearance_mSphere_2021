@@ -294,33 +294,48 @@ rel_abund_misclass_samples <- top_otu_abundance %>%
 # -------------------------------------------------------------------->
 
 
-
-fac_anaerobes <- label_df %>% 
-	filter(grepl('Escher|Staph|Enteroc|Strepto|Lactob|Pseudomo', label_df$label))
-
+######################################################################
+#-------------------Plot facultative anaerobes---------------------- #
+######################################################################
 
 mice <- l2_sample_perf_df %>% 
 	left_join(full_meta_df, by = c('Group' = 'group')) %>% 
 	pull(mouse_id) %>% 
 	unique
 
-full_meta_df %>% 
+fac_anaerobe_plot <- full_meta_df %>% 
 	filter(mouse_id %in% mice) %>% 
 	select(mouse_id, day, clearance, abx, CFU, Group = group) %>% 
-	inner_join(select(shared_df, Group, ), by = 'Group') %>% 
+	inner_join(select(shared_df, Group, Otu000010, Otu000011), by = 'Group') %>% 
 	pivot_longer(cols = starts_with('Otu0'), names_to = 'otu', values_to = 'abundance') %>% 
-	inner_join(fac_anaerobes, by = c('otu' = 'key')) %>% 
+	inner_join(label_df, by = c('otu' = 'key')) %>% 
 	mutate(abundance = (100 * abundance/total_abundance) + .05) %>% 
 	filter(day > 0) %>% 
-	group_by(label) %>% 
-	mutate(n_abundance = sum(abundance > 0.1) > 4) %>% 
-	filter(n_abundance) %>% 
 	ggplot(aes(x = day, y = abundance, color = label)) + 
 		stat_summary(fun.y = function(x) median(x), geom = "line", size = 3) + # Median darker
 		geom_line(aes(group = interaction(mouse_id, label)), alpha = 0.3) + 
+		scale_x_continuous(breaks = 1:10) + 
 		scale_y_log10() + 
-		facet_grid(abx~clearance)
+		facet_grid(abx~clearance) + 
+		theme_bw() + 
+		theme(legend.position = c(0.8, 0.5),
+			panel.grid.minor = element_blank()) +
+		labs(x = 'Day', y = 'Relative Abundance', color = NULL)
 
+cfu_plot <- full_meta_df %>% 
+	filter(mouse_id %in% mice) %>% 
+	select(mouse_id, day, clearance, abx, CFU, Group = group) %>% 
+	filter(day > 0) %>% 
+	ggplot(aes(x = day, y = CFU)) + 
+		stat_summary(fun.y = function(x) median(x), geom = "line", size = 3) + # Median darker
+		geom_line(aes(group = mouse_id), alpha = 0.3) + 
+		scale_x_continuous(breaks = 1:10) + 
+		scale_y_log10() + 
+		facet_grid(abx~clearance) + 
+		theme_bw() + 
+		theme(legend.position = c(0.8, 0.5),
+			panel.grid.minor = element_blank()) + 
+		labs(x = 'Day', y = expression(italic('C. difficile')~' CFU'))
 
 
 # -------------------------------------------------------------------->
@@ -345,4 +360,9 @@ ggsave(paste0("results/figures/Figure_S5_L2_Logistic_Regression_sample_dist_", m
 	plot = plot_grid(plot_grid(NULL, perf_by_sample_plot, rel_heights = c(1, 19), ncol = 1), 
 			rel_abund_misclass_samples, 
 		labels = c('A', 'B'), rel_widths = c(1,2)), 
+	width = 16, height = 8, units="in")
+
+ggsave(paste0("results/figures/Figure_S5_fac_anaerobes_", model_dir, ".jpg"), 
+	plot = plot_grid(fac_anaerobe_plot, cfu_plot, 
+		labels = c('A', 'B')),  
 	width = 16, height = 8, units="in")
