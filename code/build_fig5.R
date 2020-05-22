@@ -208,9 +208,9 @@ logit <- read_files(paste0("data/process/", model_dir,
 # Define the function to get the  most important top 20 OTUs
 # Order the dataframe from smallest new_auc to largest.
 # Because the smallest new_auc means that that OTU decreased AUC a lot when permuted
-top_20_file <- paste0("data/process/", model_dir, 
+top_features_file <- paste0("data/process/", model_dir, 
 	"/L2_Logistic_Regression_non_cor_importance.tsv")
-if(!file.exists(top_20_file)){
+if(!file.exists(top_features_file)){
 	importance_data <- read_files(paste0("data/process/", model_dir,
 		"/combined_all_imp_features_non_cor_results_L2_Logistic_Regression.csv"))
 	get_interp_info(importance_data, 'L2_Logistic_Regression') %>%
@@ -218,7 +218,7 @@ if(!file.exists(top_20_file)){
 	    write_tsv(., paste0("data/process/", model_dir, "/L2_Logistic_Regression_non_cor_importance.tsv"))
 	}
 
-top_20_otus <-  read_tsv(top_20_file) %>%
+top_features <-  read_tsv(top_features_file) %>%
     arrange(imp) %>% 
     head(36)
 
@@ -236,11 +236,11 @@ data_base_medians <- logit %>%
 
 # Get the new test aucs for 100 datasplits for each OTU permuted
 # So the full dataset with importance info on non-correlated OTUs
-data_full <- read_files(paste0("data/process/", model_dir, 
+data_full <- read_csv(paste0("data/process/", model_dir, 
 	"/combined_all_imp_features_non_cor_results_L2_Logistic_Regression.csv")) %>%
 	# Keep OTUs and their AUCs for the ones that are in the top 5 changed
 	# (decreased the most)
-	filter(names %in% top_20_otus$names) %>%
+	filter(names %in% top_features$names) %>%
 	inner_join(label_df, by = c('names' = 'key')) %>% 
 	mutate(names = label) %>% 
   group_by(names)
@@ -262,7 +262,8 @@ perm_imp_plot <- ggplot() +
 	#geom_hline(yintercept = lowerq, alpha=0.5) +
 	coord_flip() +
 	theme_classic() +
-	labs(y = " AUROC with the OTU permuted randomly") +
+	labs(y = "AUROC with the OTU permuted randomly",
+		x = expression(paste(L[2], "-regularized logistic regression"))) +
 	theme(plot.margin=unit(c(1.5,3,1.5,3),"mm"),
 		legend.position="none",
 		axis.title = element_text(size=10),
@@ -272,14 +273,8 @@ perm_imp_plot <- ggplot() +
 		panel.grid.minor = element_blank(),
 		panel.background = element_blank(),
 		axis.text.y=element_text(size = 8, colour='black'),
-		axis.title.x=element_blank(),
-		axis.text.x=element_blank(),
-		axis.ticks = element_line(colour = "black", size = 1.1)) + 
-	scale_x_discrete(name = expression(paste(L[2], "-regularized logistic regression"))) +
+		axis.ticks = element_line(colour = "black", size = 1.1)) +
 	theme(axis.text.x=element_text(size = 10, colour='black'))
-
-
-
 
 # -------------------------------------------------------------------->
 
@@ -323,7 +318,7 @@ top_otu_abundance_plot <- shared_df %>%
 ggsave(paste0("results/figures/Figure_5_L2_Logistic_Regression_", model_dir, ".jpg"), 
 	plot = plot_grid(
 			model_perf_plot,
-			ggdraw(add_sub(perm_imp_plot, "AUROC with the OTU permuted randomly", size=10, vpadding=grid::unit(0,"lines"), y=5, x=0.65, vjust=4.75)),
+			plot_grid(NULL, perm_imp_plot, NULL, rel_heights = c(1,45,2), ncol = 1),
 			top_otu_abundance_plot,
 			labels = c('A', 'B', 'C'), rel_widths = c(1,2,2), nrow = 1),
 	width = 18, height = 10, units="in")
