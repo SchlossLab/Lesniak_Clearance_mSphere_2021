@@ -49,7 +49,7 @@ l2_sample_perf_df <- read_csv(l2_performance_by_sample) #%>%
 model_perf_plot <- l2_performance_df %>% 
 	rename(`Test\nAUC` = test_aucs, `CV\nAUC` = cv_aucs) %>% 
 	pivot_longer(cols = contains('AUC'), values_to = 'AUC', names_to = 'validation', ) %>% 
-	ggplot(aes(x = validation, y = AUC, fill = model)) +
+	ggplot(aes(x = validation, y = AUC)) +
 		geom_boxplot(alpha=0.5, fatten = 2) +
 		geom_hline(yintercept = 0.5, linetype="dashed") +
 		coord_cartesian(ylim = c(0.4, 1)) +
