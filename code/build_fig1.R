@@ -138,4 +138,4 @@ beta_plot <- beta_df %>%
 # save plot, top row is colonization plot, middle row are diversity plots, bottom row is temporal abundance plot
 ggsave('results/figures/figure_1.jpg', plot_grid(colonization_plot, 
 	plot_grid(alpha_sobs_plot, alpha_invsimp_plot, beta_plot, nrow = 1, labels = c('B', 'C', 'D')), 
-	abundance_plot, ncol = 1, labels = c('A', '', 'D'), rel_heights = c(1, 1, 2)), width = 10, height = 10)
+	abundance_plot, ncol = 1, labels = c('A', '', 'E'), rel_heights = c(1, 1, 2)), width = 10, height = 10)
