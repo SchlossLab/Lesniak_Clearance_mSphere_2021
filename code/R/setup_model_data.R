@@ -75,10 +75,11 @@ tax_df <- read_tsv(tax_file, col_types = cols(.default = 'c'))
 		day == 0, cdiff == T) %>% 
 	mutate(cage = paste(grep('^.{3}', abx, value = TRUE), dose_level, 'cage', cage, sep = '_')) %>% 
 	select(Group = group, cage, abx, clearance) %>% 
+	select(-abx, -cage) 
 # Create features for potentially confounding variables
-	mutate(abx_used = 1, cage_present = 1) %>% 
-	spread(abx, abx_used, fill = 0) %>% 
-	spread(cage, cage_present, fill = 0)
+#	mutate(abx_used = 1, cage_present = 1) %>% 
+#	spread(abx, abx_used, fill = 0) %>% 
+#	spread(cage, cage_present, fill = 0)
 	
 # Merge metadata and feature data.
 # Then remove the sample name column
@@ -104,7 +105,7 @@ otu_data %>%
 	left_join(meta_df, by = c('Group' = 'group')) %>% 
 	select(Group, cage, clearance) %>% 
 	write_csv(paste0('data/process/', level, '_sample_names.txt')) 
-	
+
 # ---------------------------------------------------------------------
 
 
