@@ -44,7 +44,7 @@ seed=$(($SLURM_ARRAY_TASK_ID - 1))
 #####################
 
 
-Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level otu --data  data/process/otu_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
-Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level genus --data  data/process/genus_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
-Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level family --data  data/process/family_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
-Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level order --data  data/process/order_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
+Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level random_outcome --data  data/process/otu_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
+#Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level genus --data  data/process/genus_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
+#Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level family --data  data/process/family_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
+#Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level order --data  data/process/order_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation

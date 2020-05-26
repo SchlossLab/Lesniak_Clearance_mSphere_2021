@@ -52,7 +52,7 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
     }
 
 		# Let's make sure that the first column in the data frame is the outcome variable
-		temp_data <- data.frame(outcome = data[,outcome])
+		temp_data <- data.frame(outcome = sample(data[,outcome]))
 		colnames(temp_data) <- outcome
 		data <- cbind(temp_data, data[, !(colnames(data) %in% outcome)]) # want the outcome column to appear first
   }
