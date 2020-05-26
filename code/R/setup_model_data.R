@@ -55,7 +55,7 @@ source('code/sum_otu_by_taxa.R')
 # ----------------------- Read in data --------------------------------
 # Read in metadata
 meta_df <- read_tsv(meta_file,
-	col_types = 'cdc-dcdlll-cdd---cddcc')
+	col_types = 'cdc-dcdlll-cdd---cdd-cc')
 
 # Read in OTU table and remove label and numOtus columns
 features_df <- read_tsv(feature_file,
@@ -83,7 +83,8 @@ tax_df <- read_tsv(tax_file, col_types = cols(.default = 'c'))
 # Merge metadata and feature data.
 # Then remove the sample name column
 otu_data <- model_df %>% 
-	inner_join(features_df, by = "Group")
+	inner_join(features_df, by = "Group")%>% 
+	drop_na()
 	
 #genus_data <- sum_otu_by_taxa(tax_df, features_df, 'Genus') %>% 
 #	spread(taxa, abundance) %>% 
@@ -102,8 +103,8 @@ otu_data %>%
 	select(Group) %>% 
 	left_join(meta_df, by = c('Group' = 'group')) %>% 
 	select(Group, cage, clearance) %>% 
-	write_csv('data/process/', level, '_sample_names.txt') %>% 
-	drop_na()
+	write_csv(paste0('data/process/', level, '_sample_names.txt')) 
+	
 # ---------------------------------------------------------------------
 
 
