@@ -1,368 +1,195 @@
 ##############
 #
-# run script to generate plots for Figure 5
-#	How do communities predict/classify clearance/colonization?
+# run script to generate plots for Figure 4
+#	What interactions associate with clearance of C. difficile colonization?
 # 
-# Nick Lesniak 04-28-2020
+# Nick Lesniak 04-13-2020
 #
 #  need files:
+#	data/process/abx_cdiff_metadata_clean.txt
+#	data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared
 #	data/process/abx_cdiff_taxonomy_clean.tsv
-#	
+#	code/sum_otu_by_taxa.R
 #
 ##############
 
+library(SpiecEasi)
+library(igraph)
 library(tidyverse)
 library(cowplot)
-library(pROC)
-source("code/R/functions.R")
 
-args <- commandArgs(trailingOnly = TRUE)
-model_dir <- as.character(args[1])
-
-# read in data and create key/label to add description to features
-meta_file <- 'data/process/abx_cdiff_metadata_clean.txt'
-meta_df <- read_tsv(meta_file) %>% 
-	transmute(key = paste(abx, dose_level, 'cage', cage, sep = '_'),
-		label = paste0(abx, ' ', dose_level, ' (Cage ', cage, ')'),
-		Group = group, mouse = mouse) %>% 
-		unique
-abx_df <- read_tsv(meta_file) %>% 
-	transmute(key = abx, label = abx) %>% 
-	unique
+seed <- 18
+meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
+shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.shared'
+subsampled_shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
 tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
-tax_df <- read_tsv(tax_file) %>% 
-	mutate(tax_otu_label = gsub('_unclassified', '', tax_otu_label))  %>% 
-	select(key = OTU, label = tax_otu_label)
-# read in model performance
-l2_performance <- paste0('data/process/', model_dir, 
-	'/combined_best_hp_results_L2_Logistic_Regression.csv')
-l2_performance_df <- read_csv(l2_performance)
-#samples <- read_csv(paste0('data/process/', model_dir, '_sample_names.txt'))
-#outcomes <- read_csv(paste0('data/process/', model_dir, '_input_data.csv'))
-l2_performance_by_sample <- paste0('data/process/', model_dir, 
-	'/combined_all_sample_results_L2_Logistic_Regression.csv')
-l2_sample_perf_df <- read_csv(l2_performance_by_sample) #%>% 
-	#inner_join(tibble(Group = samples$Group, cdiff_colonization = outcomes$cdiff_colonization))
 
+abx_color <- tibble(abx = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
+	color = c('#D37A1F', '#3A9CBC', '#A40019'))
+# arguments for spiec easi, 
+se_pargs <- list(rep.num=99, seed=seed, ncores=4)
+# function to set offset angle to arrange node labels outside circle
+#  kjhealy/polar-labels.r https://gist.github.com/kjhealy/834774
+radian.rescale <- function(x, start=0, direction=1) {
+  c.rotate <- function(x) (x + start) %% (2 * pi) * direction
+  c.rotate(scales::rescale(x, c(0, 2 * pi), range(x)))
+}
+# read in data
+tax_df <- read_tsv(tax_file)
+network_labels <- tax_df %>% 
+	mutate(otu_number = gsub('OTU ', '', otu_label),
+		tax_otu_label = gsub('_unclassified', '', tax_otu_label),
+		tax_otu_label = gsub(' \\(', '\\\n\\(', tax_otu_label)) %>% 
+	pull(tax_otu_label)
 
-# plot the aucs
-model_perf_plot <- l2_performance_df %>% 
-	rename(`Test\nAUC` = test_aucs, `CV\nAUC` = cv_aucs) %>% 
-	pivot_longer(cols = contains('AUC'), values_to = 'AUC', names_to = 'validation', ) %>% 
-	ggplot(aes(x = validation, y = AUC)) +
-		geom_boxplot(alpha=0.5, fatten = 2) +
-		geom_hline(yintercept = 0.5, linetype="dashed") +
-		coord_cartesian(ylim = c(0.4, 1)) +
-		theme_bw() +
-		theme(plot.margin=unit(c(0,1.1,0,0),"cm"),
-		      legend.justification=c(1,0),
-		      legend.position='none',
-		      panel.grid.major.y = element_blank(),
-		      panel.grid.major.x = element_line( size=0.6),
-		      panel.grid.minor = element_blank(),
-		      panel.background = element_blank(),
-		      text = element_text(size = 12),
-		      axis.text.x=element_text(size = 10, colour='black'),
-		      axis.text.y=element_text(size = 10, colour='black'),
-		      axis.title.y=element_text(size = 10),
-		      axis.title.x=element_text(size = 10),
-		      panel.border = element_rect(linetype="solid", colour = "black", fill=NA, size=1.5)) + 
-		labs(x = NULL, y = "AUROC")
+meta_df   <- read_tsv(meta_file) %>% 
+	filter(abx %in% c('Clindamycin', 'Streptomycin', 'Cefoperazone'),
+		cdiff == T, clearance != 'uncolonized', day > 0,)
+subsampled_shared_df <- read_tsv(subsampled_shared_file) %>% 
+	select(-numOtus, -label) %>% 
+	filter(Group %in% meta_df$group)
+shared_df <- read_tsv(shared_file) %>% 
+	select(-numOtus, -label, -X6631) %>% 
+	filter(Group %in% meta_df$group)
 
+get_cdiff_network <- function(antibiotic, clearance_status){
+	# select color for antibiotic
+	abx_col <- abx_color %>% 
+		filter(abx == antibiotic) %>% 
+		pull(color)
 
-## Feature importance
+	se_df <- meta_df %>% 
+		filter(abx == antibiotic,
+			clearance %in% clearance_status) %>% 
+		select(group, Cdiff = log10CFU) %>% 
+		filter(!is.na(Cdiff)) %>% 
+		inner_join(shared_df, by = c('group' = 'Group')) %>% 
+		select(-group)
 
-# ------------------- Re-organize feature importance  ----------------->
-# This function:
-#     1. Takes in a combined (100 split) feature rankings for each model) and the model name
-#     2. Returns the top 5 ranked (1-5 with 1 being the highest ranked) OTUs (ranks of the OTU for 100 splits)
-get_feature_ranked_files <- function(file_name, model_name){
-  importance_data <- read_tsv(file_name)
-  ranks <- get_interp_info(importance_data, model_name) %>%
-    as.data.frame()
-  return(ranks)
+	# select only OTUs present in 10% of samples
+	otus_present <- se_df %>% 
+		summarise_all(function(x){
+				sum(x >= 1) >= .1 * nrow(shared_df)
+			}) %>% 
+		gather(OTU, present) %>% 
+		filter(present == T) %>% 
+		pull(OTU)
+	se_df <- se_df %>% 
+		select(otus_present) %>% 
+		as.matrix
+
+	# SPIEC-EASI: data transformation, sparse inverse covariance estimation and model selection
+	se_model <- spiec.easi(se_df, method = 'mb', lambda.min.ratio = 1e-3, nlambda = 500,
+		sel.criterion = 'bstars', pulsar.select = TRUE, pulsar.params = se_pargs)
+	
+	# set size of vertex proportional to clr-mean
+	vsize    <- rowMeans(clr(se_df, 1))+6
+	# determine edge weights
+	se_beta <- symBeta(getOptBeta(se_model), mode='maxabs')
+	se_edges <- Matrix::summary(se_beta)
+	# network degree distributions
+	se_network <- adj2igraph(getRefit(se_model))
+	se_dd <- degree.distribution(se_network)
+	# determine network stability (closest to 0.05 is best, increase nlambda if not close)
+	se_stability <- getStability(se_model)
+	if(se_stability < 0.045){ stop(paste0('Stability low (', se_stability, 
+		'), increase nlambda or decrease lambda.min.ratio arguments'))}
+
+	## setup model output for graphing network
+	se_interaction_matrix <- getRefit(se_model)
+	# name matrix positions
+	colnames(se_interaction_matrix) <- rownames(se_interaction_matrix) <- gsub('Otu0*', '', colnames(se_df))
+	# subset network to only OTUs directly interecting with C. difficile
+	first_order_otus <- c(names(which(se_interaction_matrix[,'Cdiff'] > 0)), 'Cdiff')
+	#second_order_otus <- names(apply(se_data[,otus], 1 , sum) > 0)
+	cdiff_interactions <- se_interaction_matrix[first_order_otus, first_order_otus]
+	labels <- c(network_labels[as.numeric(head(colnames(cdiff_interactions), -1))], 'C. difficile')
+	colnames(cdiff_interactions) <- rownames(cdiff_interactions) <- labels
+	#se_interaction_matrix <- se_interaction_matrix[second_order_otus, second_order_otus]
+	# add edge weights
+	# names matrix positions
+	colnames(se_beta) <- rownames(se_beta) <- gsub('Otu0*', '', colnames(se_df))
+	# subset network to OTUs interacting with C difficile
+	wt_cdiff_interactions <- se_beta[first_order_otus, first_order_otus]
+	colnames(wt_cdiff_interactions) <- rownames(wt_cdiff_interactions) <- labels
+	# create igraph object with edge weights
+	wt_first_order_network <- adj2igraph(wt_cdiff_interactions, 
+		vertex.attr = list(name = colnames(wt_cdiff_interactions)))
+
+	# setup network attributes to create igraph network graph for output
+	vsize <- vsize[gsub('Otu0*', '', names(vsize)) %in% first_order_otus]
+	edge_wt <- abs(E(wt_first_order_network)$weight)
+	edge_direction <- ifelse(E(wt_first_order_network)$weight < 0, 'red', 'blue')
+	lab.locs <- radian.rescale(x=1:length(first_order_otus), direction=-1, start=0)
+	network <- adj2igraph(cdiff_interactions, 
+		vertex.attr = list(name = colnames(cdiff_interactions), size = vsize^2/10, 
+			color = abx_col, label.color='black', label.cex = 0.7, label.dist = 2, 
+			label.degree = lab.locs),
+		edge.attr = list(width = edge_wt*10, color = edge_direction))
+
+	se_output <- list(edge_wts = se_edges, degree_dist = se_dd, stability = se_stability, 
+		all_otus = colnames(se_df), otus = first_order_otus, full_network = se_network, 
+		cdiff_network = network, antibiotic = antibiotic, 
+		clearance = paste(clearance_status, collapse = '_'))
+	return(se_output)
 }
 
-# This function:
-#     1. Top 5 ranked (1-5 lowest rank) OTUs (ranks of the OTU for 100 splits)
-#     2. Returns a plot. Each datapoint is the rank of the OTU at one datasplit.
-                        
-plot_feature_ranks <- function(data){
-    # Plot from highest median ranked OTU to least (only top 5) and thir ranks that lay between 1-100
-    # Rank 1 is the highest rank
-    plot <- ggplot(data, aes(reorder(data$label, -data$rank, FUN = median), data$rank)) +
-      geom_point(aes(colour= factor(data$sign)), size=1.5) + # datapoints lighter color
-      scale_color_manual(values=c("#56B4E9","red3", "#999999"),
-      	breaks = c('negative', 'positive', 'zero'),
-      	labels = c('Decreased', 'Maintained', 'Null')) +
-      stat_summary(fun.y = function(x) median(x), colour = 'black', geom = "point", size = 3) + # Median darker
-      coord_flip(ylim=c(0,100)) +
-      theme_classic() +
-      theme(plot.margin=unit(c(1.5,3,1.5,3),"mm"),
-          panel.border = element_rect(colour = "black", fill=NA, size=1),
-          legend.title = element_blank(),
-          legend.position = c(0.85,0.9),
-          panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          panel.background = element_blank(),
-          axis.title.x=element_blank(),
-          axis.text.x=element_blank(),
-          axis.title.y=element_text(size = 11, colour='black', face="bold"), 
-          axis.text.y=element_text(size = 8, colour='black')) + 
-      labs(y = 'Feature ranks')
+clinda_network <- get_cdiff_network('Clindamycin', 'Cleared')
+strep_network <- get_cdiff_network('Streptomycin', 'Cleared')
+cef_network <- get_cdiff_network('Cefoperazone', 'Cleared')
+strep_colonized_network <- get_cdiff_network('Streptomycin', 'Colonized')
+cef_colonized_network <- get_cdiff_network('Cefoperazone', 'Colonized')
 
-    return(plot)
+set.seed(2)
+plot(clinda_network$cdiff_network, edge.label = rep('',100),
+	layout = layout_as_star(clinda_network$cdiff_network, center='C. difficile'))
+clinda_network_graph <- recordPlot()
+plot(cef_network$cdiff_network,  edge.label = rep('',100),
+	layout = layout_as_star(cef_network$cdiff_network, center='C. difficile'))
+cef_network_graph <- recordPlot()
+plot(strep_network$cdiff_network,  edge.label = rep('',100),
+	layout = layout_as_star(strep_network$cdiff_network, center='C. difficile'))
+strep_network_graph <- recordPlot()
+
+networks <- list(clinda_network, strep_network, cef_network, strep_colonized_network, cef_colonized_network)
+# centrality
+# all look fairly similar
+# slightly lower amount of high degree for comminities remaining colonized
+# Cef has significantly different betweenness, 
+#  cleared communities have much higher betweenness centrality
+#   so cleared communities have slightly more connections 
+get_centrality <- function(x){
+	net <- x$full_network
+	tibble(antibiotic = x$antibiotic,
+		clearance = x$clearance,
+		#otu = x$all_otus,
+		degree = degree(net, mode="in"), # number of its adjacent edges
+		betweenness = betweenness(net, directed=T, weights=NA)) %>% # the number of shortest paths going through node
+		gather(metric, value, -antibiotic, -clearance)
 }
-# -------------------------------------------------------------------->
 
-
-######################################################################
-#--------------Run the functions and plot feature ranks ----------#
-######################################################################
-
-label_df <- bind_rows(tax_df, select(meta_df, -mouse, -Group), abx_df)
-
-logit_imp <- get_feature_ranked_files(paste0("data/process/", model_dir, 
-	"/combined_L2_Logistic_Regression_feature_ranking.tsv"), 'L2_Logistic_Regression') %>% 
-	left_join(label_df, by = c('key'))
-logit_graph <- plot_feature_ranks(logit_imp) +
-  scale_x_discrete(name = expression(paste(L[2], "-regularized logistic regression"))) +
-  theme(axis.text.x=element_text(size = 12, colour='black'))
-# -------------------------------------------------------------------->
-
-
-######################################################################
-#------------- Plot L2 Log Reg Permutation Importance -------------- #
-######################################################################
-
-# Read in the cvAUCs, testAUCs for 100 splits as base test_aucs
-logit <- read_files(paste0("data/process/", model_dir,
-	"/combined_best_hp_results_L2_Logistic_Regression.csv"))
-# ----------------------------------------------------------------------------->
-
-
-# --------  Get the top 20 OTUs that have the largest impact on AUROC ---------->
-
-# Define the function to get the  most important top 20 OTUs
-# Order the dataframe from smallest new_auc to largest.
-# Because the smallest new_auc means that that OTU decreased AUC a lot when permuted
-top_features_file <- paste0("data/process/", model_dir, 
-	"/L2_Logistic_Regression_non_cor_importance.tsv")
-if(!file.exists(top_features_file)){
-	importance_data <- read_files(paste0("data/process/", model_dir,
-		"/combined_all_imp_features_non_cor_results_L2_Logistic_Regression.csv"))
-	get_interp_info(importance_data, 'L2_Logistic_Regression') %>%
-	    as.data.frame() %>%
-	    write_tsv(., paste0("data/process/", model_dir, "/L2_Logistic_Regression_non_cor_importance.tsv"))
-	}
-
-top_features <-  read_tsv(top_features_file) %>%
-    arrange(imp) %>% 
-    head(36)
-
-# Grab the base test auc values for 100 datasplits
-data_base <- logit %>%
-	select(-cv_aucs) %>%
-	mutate(new_auc = test_aucs) %>%
-	mutate(names="base_auc") %>%
-	select(-test_aucs)
-
-# Have a median base auc value for h-line and for correlated testing
-data_base_medians <- logit %>%
-	summarise(imp = median(test_aucs), sd_imp = sd(test_aucs)) %>%
-	mutate(names="base_auc")
-
-# Get the new test aucs for 100 datasplits for each OTU permuted
-# So the full dataset with importance info on non-correlated OTUs
-data_full <- read_csv(paste0("data/process/", model_dir, 
-	"/combined_all_imp_features_non_cor_results_L2_Logistic_Regression.csv")) %>%
-	# Keep OTUs and their AUCs for the ones that are in the top 5 changed
-	# (decreased the most)
-	filter(names %in% top_features$names) %>%
-	inner_join(label_df, by = c('names' = 'key')) %>% 
-	mutate(names = label) %>% 
-  group_by(names)
-
-# Plot boxplot for the base test_auc values
-lowerq <-  quantile(data_base$new_auc)[2]
-upperq <-  quantile(data_base$new_auc)[4]
-mediandf <-  median(data_base$new_auc) %>%
-  data.frame()
-
-# Plot the figure
-perm_imp_plot <- ggplot() +
-	geom_boxplot(data=data_full, aes(fct_reorder(names, -new_auc), new_auc), alpha=0.7) +
-	geom_rect(aes(ymin=lowerq, ymax=upperq, xmin=0, xmax=Inf), fill="gray65") +
-	geom_boxplot(data=data_full, aes(x=names, y=new_auc), alpha=0.7) +
-	scale_fill_manual(values=cols) +
-	geom_hline(yintercept = data_base_medians$imp , linetype="dashed") +
-	#geom_hline(yintercept = upperq, alpha=0.5) +
-	#geom_hline(yintercept = lowerq, alpha=0.5) +
-	coord_flip() +
-	theme_classic() +
-	labs(y = "AUROC with the OTU permuted randomly",
-		x = expression(paste(L[2], "-regularized logistic regression"))) +
-	theme(plot.margin=unit(c(1.5,3,1.5,3),"mm"),
-		legend.position="none",
-		axis.title = element_text(size=10),
-		axis.text = element_text(size=10),
-		panel.border = element_rect(colour = "black", fill=NA, size=2),
-		panel.grid.major = element_blank(),
-		panel.grid.minor = element_blank(),
-		panel.background = element_blank(),
-		axis.text.y=element_text(size = 8, colour='black'),
-		axis.ticks = element_line(colour = "black", size = 1.1)) +
-	theme(axis.text.x=element_text(size = 10, colour='black'))
-
-# -------------------------------------------------------------------->
-
-
-######################################################################
-#------------------ Do the features make sense? -------------------- #
-######################################################################
-# plot abundance by outcome
-shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
-full_meta_df <- read_tsv(meta_file)
-shared_df <- read_tsv(shared_file) 
-total_abundance <- sum(shared_df[1,-c(1:3)])
-# create dataframe with top otus, true outcome, abx
-top_otu_abundance <- shared_df %>% 
-	inner_join(distinct(select(l2_sample_perf_df, Group, clearance)), by = 'Group') %>% 
-	inner_join(select(full_meta_df, Group = group, abx), by = 'Group') %>% 
-	select(Group, clearance, abx, one_of(top_features$names)) %>% 
-	pivot_longer(cols = c(-Group, -clearance, -abx), names_to = 'otu', values_to = 'abundance') %>% 
-	mutate(abundance = (100 * abundance/total_abundance) + .05) %>% 
-	inner_join(label_df, by = c('otu' = 'key')) # add column with otu label
-
-# plot otus by decreasing importance and distribution of abundance by abx/outcome
-top_otu_abundance_plot <- top_otu_abundance %>% 
-	inner_join(data_full, by = 'label') %>% # add perm importance aucs to order otus
-	ggplot(aes(x = fct_reorder(names, -new_auc), y = abundance, color = clearance)) + 
+centrality_plot <- map_dfr(networks, get_centrality) %>% 
+	ggplot(aes(x = antibiotic, y = value, fill = clearance, color = antibiotic)) + 
 		geom_boxplot() + 
-		scale_y_log10() +
-		coord_flip() + 
-		facet_wrap(.~abx) + 
-		theme_bw() +
-		labs(y = 'Percent Relative Abundance', x = NULL, color = NULL) + 
-		theme(legend.position = 'bottom',
-			panel.grid.minor.y = element_blank())
-
-# -------------------------------------------------------------------->
-
-######################################################################
-#--------------How does the model do with specific samples ----------#
-######################################################################
-# plot the distribution of probability of clearance for each sample
-perf_by_sample_plot <- l2_sample_perf_df %>%
-	left_join(meta_df, by = 'Group') %>% 
-	mutate(mouse = paste0(' Sample ', mouse, ')'),
-		label = str_replace(label, '\\)', mouse)) %>% 
-	group_by(label) %>% 
-	mutate(median_p = median(Cleared)) %>% 
-	ggplot(aes(x = reorder(label, -median_p), y = Cleared, color = clearance)) +
-		geom_boxplot() + 
-		coord_flip() + 
-		theme_bw() + 
-		theme(legend.position = c(0.2, 0.075),
-			panel.grid.minor.x = element_blank()) + 
-		labs(x=NULL, y = 'Probabilty Colonization is Cleared', color = NULL)
-# select samples that are inbetween outcomes, ones most likely to be misclassifies
-misclass_samples <- l2_sample_perf_df %>%
-	left_join(meta_df, by = 'Group') %>% 
-	mutate(mouse = paste0(' Sample ', mouse, ')'),
-		label = str_replace(label, '\\)', mouse)) %>% 
-	group_by(label) %>% 
-	mutate(median_p = median(Cleared)) %>% 
-	filter(0.45 < median_p, median_p < 0.55) %>% 
-	select(Group, sample_label = label, median_p) %>% 
-	unique
-# plot relative abundance of top otus for potentially misclassified features
-rel_abund_misclass_samples <- top_otu_abundance %>% 
-	inner_join(summarise(data_full, new_auc = median(new_auc)), by = c('label' = 'names')) %>% 
-	right_join(misclass_samples, by = c('Group')) %>% 
-	mutate(sample_label = gsub(' \\(', '\\\n\\(', sample_label)) %>% 
-	ggplot(aes(x = fct_reorder(label, -new_auc), y = abundance, color = clearance)) + 
-		geom_point() + 
-		scale_y_log10() +
-		coord_flip() + 
-		facet_wrap(.~reorder(sample_label, median_p), nrow = 1) + 
-		theme_bw() +
-		labs(y = 'Percent Relative Abundance', x = NULL, color = NULL) + 
-		theme(legend.position = 'none',
-			panel.grid.minor.y = element_blank())
-
-# -------------------------------------------------------------------->
-
-
-######################################################################
-#-------------------Plot facultative anaerobes---------------------- #
-######################################################################
-
-mice <- l2_sample_perf_df %>% 
-	left_join(full_meta_df, by = c('Group' = 'group')) %>% 
-	pull(mouse_id) %>% 
-	unique
-
-fac_anaerobe_plot <- full_meta_df %>% 
-	filter(mouse_id %in% mice) %>% 
-	select(mouse_id, day, clearance, abx, CFU, Group = group) %>% 
-	inner_join(select(shared_df, Group, Otu000010, Otu000011), by = 'Group') %>% 
-	pivot_longer(cols = starts_with('Otu0'), names_to = 'otu', values_to = 'abundance') %>% 
-	inner_join(label_df, by = c('otu' = 'key')) %>% 
-	mutate(abundance = (100 * abundance/total_abundance) + .05) %>% 
-	filter(day > 0) %>% 
-	ggplot(aes(x = day, y = abundance, color = label)) + 
-		stat_summary(fun.y = function(x) median(x), geom = "line", size = 3) + # Median darker
-		geom_line(aes(group = interaction(mouse_id, label)), alpha = 0.3) + 
-		scale_x_continuous(breaks = 1:10) + 
+		scale_color_manual(values = abx_color$color, limits = abx_color$abx) + 
+		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) + 
+		facet_wrap(.~metric, scales = 'free') + 
 		scale_y_log10() + 
-		facet_grid(abx~clearance) + 
-		theme_bw() + 
-		theme(legend.position = c(0.8, 0.5),
-			panel.grid.minor = element_blank()) +
-		labs(x = 'Day', y = 'Relative Abundance', color = NULL)
+		guides(color = 'none') + theme_bw() + 
+		labs(x = NULL, y = NULL, fill = NULL) +
+		theme(legend.position = c(0.08, 0.9),
+			legend.background = element_rect(color = "black"))
 
-cfu_plot <- full_meta_df %>% 
-	filter(mouse_id %in% mice) %>% 
-	select(mouse_id, day, clearance, abx, CFU, Group = group) %>% 
-	filter(day > 0) %>% 
-	ggplot(aes(x = day, y = CFU)) + 
-		stat_summary(fun.y = function(x) median(x), geom = "line", size = 3) + # Median darker
-		geom_line(aes(group = mouse_id), alpha = 0.3) + 
-		scale_x_continuous(breaks = 1:10) + 
-		scale_y_log10() + 
-		facet_grid(abx~clearance) + 
-		theme_bw() + 
-		theme(legend.position = c(0.8, 0.5),
-			panel.grid.minor = element_blank()) + 
-		labs(x = 'Day', y = expression(italic('C. difficile')~' CFU'))
-
-
-# -------------------------------------------------------------------->
-
-
-
-######################################################################
-#-----------------------Save figure -------------------------------- #
-######################################################################
-#combine with cowplot
-
-
-ggsave(paste0("results/figures/Figure_5_L2_Logistic_Regression_", model_dir, ".jpg"), 
-	plot = plot_grid(
-			model_perf_plot,
-			plot_grid(NULL, perm_imp_plot, NULL, rel_heights = c(1,45,2), ncol = 1),
-			top_otu_abundance_plot,
-			labels = c('A', 'B', 'C'), rel_widths = c(1,2,2), nrow = 1),
-	width = 18, height = 10, units="in")
-
-ggsave(paste0("results/figures/Figure_S5_L2_Logistic_Regression_sample_dist_", model_dir, ".jpg"), 
-	plot = plot_grid(plot_grid(NULL, perf_by_sample_plot, rel_heights = c(1, 19), ncol = 1), 
-			rel_abund_misclass_samples, 
-		labels = c('A', 'B'), rel_widths = c(1,2)), 
-	width = 16, height = 8, units="in")
-
-ggsave(paste0("results/figures/Figure_S5_fac_anaerobes_", model_dir, ".jpg"), 
-	plot = plot_grid(fac_anaerobe_plot, cfu_plot, 
-		labels = c('A', 'B')),  
-	width = 16, height = 8, units="in")
+dev.off()
+ggsave('results/figures/figure_5.jpg',
+	plot_grid(
+		plot_grid(
+			plot_grid(
+				plot_grid(cef_network_graph, labels = c('Cefoperazone'), label_colour = '#3A9CBC'),
+				plot_grid(clinda_network_graph, labels = c('Clindamycin'), label_colour = '#A40019'),
+				plot_grid(strep_network_graph, labels = c('Streptomycin'), label_colour = '#D37A1F'), nrow = 1),
+			plot_grid(NULL, label_size = 9, label_fontface = "plain",
+				labels = c('Nodes sized by abundance, Edges width by edge weight and colored red for negative and blue for positive')),
+			ncol = 1, rel_heights = c(9,1)),
+		plot_grid(NULL, centrality_plot, NULL, ncol = 1, rel_heights = c(1, 6, 1)), nrow = 1, rel_widths = c(3,2), labels = c('A', 'B')), 
+	width = 25, height = 10)
