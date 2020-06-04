@@ -74,6 +74,7 @@ beta_meta_df <- meta_df %>%
 	filter(clearance %in% c('Cleared', 'Colonized'),
 		time_point != 'Intermediate',
 		cdiff == TRUE) %>% 
+	mutate(time_point = ifelse(time_point == 'Day 0', 'TOI', time_point)) %>% 
 	select(group, abx, dose, clearance, time_point, mouse_id) 
 
 meta_beta_df <- beta_df %>% 
@@ -93,21 +94,21 @@ initial_inter_intial <- meta_beta_df %>%
 	mutate(comparison = 'iXi')
 TOI_intra_initial <- meta_beta_df %>% 
 	filter(r_mouse_id == c_mouse_id,
-		c_time_point == 'Day 0' & r_time_point == 'Initial') %>% 
+		c_time_point == 'TOI' & r_time_point == 'Initial') %>% 
 	mutate(comparison = 'i_t')
 TOI_intra_TOI <- meta_beta_df %>% 
 	filter(r_mouse_id != c_mouse_id,
 		c_abx == r_abx,
-		c_time_point == 'Day 0' & r_time_point == 'Day 0') %>% 
+		c_time_point == 'TOI' & r_time_point == 'TOI') %>% 
 	mutate(comparison = 't_t')
 TOI_inter_TOI <- meta_beta_df %>% 
 	filter(r_mouse_id != c_mouse_id,
 		c_abx != r_abx,
-		c_time_point == 'Day 0' & r_time_point == 'Day 0') %>% 
+		c_time_point == 'TOI' & r_time_point == 'TOI') %>% 
 	mutate(comparison = 'tXt')
 end_toi <- meta_beta_df %>% 
 	filter(r_mouse_id == c_mouse_id,
-		c_time_point == 'End' & r_time_point == 'Day 0') %>% 
+		c_time_point == 'End' & r_time_point == 'TOI') %>% 
 	mutate(comparison = 'e_t')
 end_intial <- meta_beta_df %>% 
 	filter(r_mouse_id == c_mouse_id,
@@ -142,9 +143,7 @@ beta_plot <- beta_div_df %>%
 	filter(comparison %in% c('Initial\nvs\nInitial', 
 			'Initial\nvs\nTOI', 
 			'End\nvs\nInitial', 
-			'TOI\nvs\nintra\nTOI',  
 			'End\nvs\nintra\nEnd', 
-			'TOI\nvs\ninter\nTOI',
 			'End\nvs\ninter\nEnd')) %>% 
 	mutate(c_abx = factor(c_abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin'))) %>% 
 	ggplot(aes(x = comparison, y = distances, fill = as.factor(c_time_point))) + 
@@ -377,8 +376,7 @@ diff_abund_colon_plot <- plot_temporal_diff_by_clearance('Colonized')
 
 ggsave('results/figures/figure_3.jpg', 
 	plot_grid(
-		plot_grid(NULL, plot_grid(beta_plot, labels = c('A')), NULL, rel_widths = c(1, 3, 1), nrow = 1), 
-		plot_grid(NULL, plot_grid(diff_abund_clear_colon_plot, labels = c('B')), NULL, rel_widths = c(1, 5, 1), nrow = 1), 
+		plot_grid(beta_plot, diff_abund_clear_colon_plot, labels = c('A', 'B'), rel_widths = c(2, 3), nrow = 1), 
 		plot_grid(diff_abund_cleared_plot, diff_abund_colon_plot, labels = c('C', NULL), nrow = 1),
-		ncol = 1, rel_heights = c(2, 3, 3)), 
-	width = 15, height = 25, units = 'in')
+		ncol = 1), 
+	width = 25, height = 20, units = 'in')
