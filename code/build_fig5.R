@@ -17,6 +17,10 @@ library(SpiecEasi)
 library(igraph)
 library(tidyverse)
 library(cowplot)
+library(GGally)
+library(network)
+library(sna)
+library(intergraph)
 
 seed <- 18
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
@@ -141,15 +145,18 @@ strep_colonized_network <- get_cdiff_network('Streptomycin', 'Colonized')
 cef_colonized_network <- get_cdiff_network('Cefoperazone', 'Colonized')
 
 set.seed(2)
-plot(clinda_network$cdiff_network, edge.label = rep('',100),
-	layout = layout_as_star(clinda_network$cdiff_network, center='C. difficile'))
-clinda_network_graph <- recordPlot()
-plot(cef_network$cdiff_network,  edge.label = rep('',100),
-	layout = layout_as_star(cef_network$cdiff_network, center='C. difficile'))
-cef_network_graph <- recordPlot()
-plot(strep_network$cdiff_network,  edge.label = rep('',100),
-	layout = layout_as_star(strep_network$cdiff_network, center='C. difficile'))
-strep_network_graph <- recordPlot()
+clinda_network_graph <- ggnet2(clinda_network$cdiff_network, mode = 'kamadakawai',
+		color = 'color', alpha = 0.2, label = T, size = 'size', 
+		edge.size = 'width', edge.color = 'color', layout.exp = 0.2) +
+	guides(size = FALSE)
+cef_network_graph <- ggnet2(cef_network$cdiff_network, mode = 'kamadakawai',
+		color = 'color', alpha = 0.2, label = T, size = 'size', 
+		edge.size = 'width', edge.color = 'color', layout.exp = 0.2) +
+	guides(size = FALSE)
+strep_network_graph <- ggnet2(strep_network$cdiff_network, mode = 'kamadakawai',
+		color = 'color', alpha = 0.2, label = T, size = 'size', 
+		edge.size = 'width', edge.color = 'color', layout.exp = 0.2) +
+	guides(size = FALSE)
 
 networks <- list(clinda_network, strep_network, cef_network, strep_colonized_network, cef_colonized_network)
 # centrality
@@ -163,8 +170,8 @@ get_centrality <- function(x){
 	tibble(antibiotic = x$antibiotic,
 		clearance = x$clearance,
 		#otu = x$all_otus,
-		degree = degree(net, mode="in"), # number of its adjacent edges
-		betweenness = betweenness(net, directed=T, weights=NA)) %>% # the number of shortest paths going through node
+		degree = igraph::degree(net, mode="in"), # number of its adjacent edges
+		betweenness = igraph::betweenness(net, directed=T, weights=NA)) %>% # the number of shortest paths going through node
 		gather(metric, value, -antibiotic, -clearance)
 }
 
@@ -180,16 +187,17 @@ centrality_plot <- map_dfr(networks, get_centrality) %>%
 		theme(legend.position = c(0.08, 0.9),
 			legend.background = element_rect(color = "black"))
 
-dev.off()
 ggsave('results/figures/figure_5.jpg',
 	plot_grid(
 		plot_grid(
 			plot_grid(
-				plot_grid(cef_network_graph, labels = c('Cefoperazone'), label_colour = '#3A9CBC'),
+				plot_grid(plot_grid(NULL, cef_network_graph, ncol = 1, rel_heights = c(1, 10)), 
+					labels = c('Cefoperazone'), label_colour = '#3A9CBC'),
 				plot_grid(clinda_network_graph, labels = c('Clindamycin'), label_colour = '#A40019'),
 				plot_grid(strep_network_graph, labels = c('Streptomycin'), label_colour = '#D37A1F'), nrow = 1),
 			plot_grid(NULL, label_size = 9, label_fontface = "plain",
 				labels = c('Nodes sized by abundance, Edges width by edge weight and colored red for negative and blue for positive')),
 			ncol = 1, rel_heights = c(9,1)),
-		plot_grid(NULL, centrality_plot, NULL, ncol = 1, rel_heights = c(1, 6, 1)), nrow = 1, rel_widths = c(3,2), labels = c('A', 'B')), 
+		plot_grid(NULL, centrality_plot, NULL, nrow = 1, rel_widths = c(1, 6, 1)), 
+		ncol = 1, rel_heights = c(3,2), labels = c('A', 'B')), 
 	width = 25, height = 10)
