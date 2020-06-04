@@ -183,98 +183,122 @@ $(BASIC_STEM).genus.1.subsample.shared $(BASIC_STEM).phyla.5.subsample.shared : 
 #
 ################################################################################
 
-# Generate simulated community with known interactions
-data/process/validation/* : code/generate_validation_data.R
-	for gamma in `seq 0 2`;
-	do
-		for seed in `seq 1 5`;
-		do
-		Rscript code/generate_validation_data.R $seed $gamma
-		done
-	done 
 
 ################################################################################
-# Setup data for CCM
-# Z-score normalize and first-difference data
-data/process/abx_cdiff_metadata_clean.txt : code/clean_metadata.R\
-											data/raw/abx_cdiff_metadata.tsv 
+# Process raw data for analysis
+################################################################################
+
+# Clean metadata
+data/process/abx_cdiff_metadata_clean.txt : data/raw/abx_cdiff_metadata.tsv\
+											code/clean_metadata.R
 	Rscript code/clean_metadata.R
-data/process/ccm_otu_data.txt : code/setup_ccm_data.R\
-								data/process/abx_cdiff_metadata_clean.txt
-	Rscript code/setup_ccm_data.R
-data/process/validation/ccm_validation_data.txt : data/process/validation/validation_temporal_data_*.txt \
-												  data/process/validation/validation_interaction_matrix_*.txt\
-												  code/setup_validation_data.R
-	Rscript code/setup_validation_data.R
+
+# Convert taxonomy file into a dataframe with OTU labels
+data/process/abx_cdiff_taxonomy_clean.tsv : data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy\
+											code/convert_OTU_labels.R
+	Rscript code/convert_OTU_labels.R
+
 
 ################################################################################
-# determine best embedding for each OTU
-data/process/ccm/*/simplex_embedding_first_differenced.txt : code/get_best_embedding.R\ 
-								data/process/bucci/ccm_bucci_data.txt\
-								data/process/ccm_otu_data.txt
-	for i in `seq 1 15`;
+# Run L2 Logistic Regression
+################################################################################
+
+SEARCH_DIR=data/temp/otu
+FINAL_DIR=data/process/otu
+# Create dataframe of subset samples classification column (cleared), and features (OTUs)
+# and create correlation matrix of features
+data/process/otu_input_data.csv data/process/otu_sample_names.txt data/process/sig_flat_corr_matrix_otu.csv : code/R/setup_model_data.R\
+																	code/R/compute_correlation_matrix.R\
+																	data/process/abx_cdiff_metadata_clean.txt\
+																	data/process/abx_cdiff_taxonomy_clean.tsv\
+																	data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared\
+
+	Rscript code/R/setup_model_data.R otu
+
+# Run pipeline array
+$SEARCH_DIR/walltime_L2_Logistic_Regression_1.csv : code/R/main.R\
+						code/R/run_model.R\
+						code/R/model_pipeline.R\
+						code/R/tuning_grid.R\
+						code/R/permutation_importance.R\
+						code/run_logit.sbat\
+						code/R/auprc.R\
+						code/R/functions.R
+	for seed in {1..100}
 	do
-		Rscript code/get_best_embedding.R $i 'data/process/ccm_otu_data.txt'
-	done  
-data/process/ccm/validation/simplex_embedding_first_differenced.txt : code/get_best_embedding.R\ 
-								data/process/ccm_validation_data.txt
-	for i in `seq 1 15`;
-	do
-		Rscript code/get_best_embedding.R $i 'data/process/ccm_validation_data.txt'
-	done  
+		Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level otu --data  data/process/otu_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
+	done
+	# or run SBATCH code/run_logit.sbat on the Great Lakes cluster
+
+# concatenate results
+$FINAL_DIR/combined_all_imp_features_cor_results_L2_Logistic_Regression.csv : code/bash/cat_csv_files.sh\
+																				code/R/get_feature_rankings.R\
+
+	bash code/bash/cat_csv_files.sh
+
+# Determine feature importance
+$FINAL_DIR/combined_L2_Logistic_Regression_feature_ranking.tsv : $FINAL_DIR/combined_all_imp_features_cor_results_L2_Logistic_Regression.csv\
+																code/R/get_feature_rankings.R\
+																code/bash/merge_feature_ranks.sh
+	Rscript code/R/get_feature_rankings.R otu
+	bash code/bash/merge_feature_ranks.sh
+#
 
 ################################################################################
-# check each OTU for nonlinearity
-data/process/ccm/*/smap_nonlinearity_first_differenced.txt : code/run_smap.R\ 
-								data/process/ccm/*/simplex_embedding_first_differenced.txt
-	for i in `seq 1 15`;
-	do
-		Rscript code/run_smap.R $i
-	done  
-data/process/ccm/*/smap_nonlinearity_first_differenced.txt : code/run_smap.R\ 
-							   data/process/ccm/*/simplex_embedding_first_differenced.txt
-	for i in `seq 1 15`;
-	do
-		Rscript code/run_smap.R $i 'data/process/ccm_validation_data.txt'
-	done  
-
+# Create figures
 ################################################################################
-# run CCM on all OTUs that are significantly nonlinear
-data/process/ccm/*/ccm_by_otu_*_first_differenced.txt : code/ccm_analysis.R\ 
-														data/process/ccm/*/simplex_embedding_first_differenced.txt\
-														data/process/ccm/*/smap_nonlinearity_first_differenced.txt
-	for i in `seq 1 15`;
-	do
-		Rscript code/ccm_analysis.R $i 'data/process/ccm_otu_data.txt'
-	done  
-data/process/ccm/*/ccm_by_otu_*_first_differenced.txt : code/run_smap.R\ 
-														data/process/ccm/*/simplex_embedding_first_differenced.txt\
-														data/process/ccm/*/smap_nonlinearity_first_differenced.txt
-	for i in `seq 1 15`;
-	do
-		Rscript code/ccm_analysis.R $i 'data/process/ccm_validation_data.txt'
-	done  
 
-################################################################################
-# run Smap stepwise to detect OTUs most predictive
+# Figure 1
+results/figures/figure_1.jpg : code/build_fig1.R\
+								data/process/abx_cdiff_metadata_clean.txt\
+								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared\
+								data/process/abx_cdiff_taxonomy_clean.tsv\
+								code/sum_otu_by_taxa.R\
+								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary\
+								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist\
+								code/read.dist.R
+	Rscript code/build_fig1.R
 
-data/process/ccm/interactions/interactions_*.txt : code/stepwise_smap.R\ 
-												   data/process/ccm/ccm_validation_data.txt
-	for i in `seq 1 15`;
-	do
-		Rscript code/stepwise_smap.R $i 'data/process/ccm_validation_data.txt'
-	done  
+# Figure 2
+results/figures/figure_2.jpg : code/build_fig2.R\
+								data/process/abx_cdiff_metadata_clean.txt\
+								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared\
+								data/process/abx_cdiff_taxonomy_clean.tsv\
+								code/sum_otu_by_taxa.R
+	Rscript code/build_fig2.R
 
-################################################################################
-# run smap to determine interactions
+# Figure 3
+results/figures/figure_3.jpg : code/build_fig3.R\
+								data/process/abx_cdiff_metadata_clean.txt\
+								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared\
+								data/process/abx_cdiff_taxonomy_clean.tsv\
+								code/sum_otu_by_taxa.R\
+								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary\
+								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist\
+								code/read.dist.R
+	Rscript code/build_fig3.R
 
-data/process/ccm/*/interactions_w_*.txt : code/get_ccm_interactions.R\
-										  data/process/ccm_validation_data.txt\
-										  data/process/ccm/*/simplex_embedding_first_differenced.txt\
-										  data/process/ccm/*/smap_nonlinearity_first_differenced.txt\
-										  data/process/ccm/*/ccm_by_otu_*_first_differenced.txt
-	Rscript code/get_ccm_interactions.R $i 'data/process/ccm_validation_data.txt'
+# Figure 4
+results/figures/figure_4.jpg results/figures/figure_S1.jpg : code/build_fig4.R\
+								code/R/functions.R\
+								data/process/abx_cdiff_metadata_clean.txt\
+								data/process/abx_cdiff_taxonomy_clean.tsv\
+								data/process/otu/combined_best_hp_results_L2_Logistic_Regression.csv\
+								data/process/otu/combined_all_sample_results_L2_Logistic_Regression.csv\
+								data/process/otu/combined_L2_Logistic_Regression_feature_ranking.tsv\
+								data/process/otu/combined_best_hp_results_L2_Logistic_Regression.csv\
+								data/process/otu/L2_Logistic_Regression_non_cor_importance.tsv\
+								data/process/otu/combined_all_imp_features_non_cor_results_L2_Logistic_Regression.csv\
+								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared
+	Rscript code/build_fig4.R otu
 
+# Figure 5
+results/figures/figure_5.jpg : code/build_fig5.R\
+								data/process/abx_cdiff_metadata_clean.txt\
+								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.shared\
+								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared\
+								data/process/abx_cdiff_taxonomy_clean.tsv
+	Rscript code/build_fig5.R
 
 ################################################################################
 # commands for processing the dependencies to create the targets
