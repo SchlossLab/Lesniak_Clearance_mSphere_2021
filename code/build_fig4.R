@@ -348,13 +348,16 @@ cfu_plot <- full_meta_df %>%
 #combine with cowplot
 
 
-ggsave(paste0("results/figures/Figure_4_L2_Logistic_Regression_", model_dir, ".jpg"), 
+ggsave(paste0("results/figures/Figure_4.jpg"), 
 	plot = plot_grid(
-			model_perf_plot,
 			plot_grid(NULL, perm_imp_plot, NULL, rel_heights = c(1,45,2), ncol = 1),
 			top_otu_abundance_plot,
-			labels = c('A', 'B', 'C'), rel_widths = c(1,2,2), nrow = 1),
-	width = 18, height = 10, units="in")
+			labels = c('A', 'B'), nrow = 1),
+	width = 12, height = 10, units="in")
+
+ggsave(paste0("results/figures/Figure_S1.jpg"), 
+	plot = model_perf_plot,
+	width = 6, height = 6, units="in")
 
 ggsave(paste0("results/figures/Figure_S4_L2_Logistic_Regression_sample_dist_", model_dir, ".jpg"), 
 	plot = plot_grid(plot_grid(NULL, perf_by_sample_plot, rel_heights = c(1, 19), ncol = 1), 
