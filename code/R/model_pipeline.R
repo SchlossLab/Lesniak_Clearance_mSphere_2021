@@ -253,7 +253,7 @@ pipeline <- function(data, model, split_number, outcome=NA, hyperparameters=NULL
     }
     # Calculate the test-auc for the actual pre-processed held-out data
     rpartProbs <- predict(trained_model, test_data, type="prob")
-    test_roc <- roc(ifelse(test_data[,outcome] == first_outcome, 1, 0), rpartProbs[[1]])
+    test_roc <- roc(ifelse(test_data[,outcome] == first_outcome, 1, 0), rpartProbs[[1]])# if issue with null model (randomized outcome) add " , direction = '<' "
     test_auc <- test_roc$auc
     # Calculate the test auprc (area under precision-recall curve)
     bin_outcome <- get_binary_outcome(test_data[,outcome], first_outcome)
