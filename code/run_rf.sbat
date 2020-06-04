@@ -19,7 +19,7 @@
 #SBATCH --time=20:00:00
 
 # Account
-#SBATCH --account=pschloss1
+#SBATCH --account=pschloss99
 #SBATCH --partition=standard
 
 # Logs
@@ -44,7 +44,7 @@ seed=$(($SLURM_ARRAY_TASK_ID - 1))
 #####################
 
 
-Rscript code/R/main.R --seed $seed --model Random_Forest --level random_outcome --data  data/process/otu_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
+Rscript code/R/main.R --seed $seed --model Random_Forest --level otu --data  data/process/otu_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
 #Rscript code/R/main.R --seed $seed --model Random_Forest --level genus --data  data/process/genus_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
 #Rscript code/R/main.R --seed $seed --model Random_Forest --level family --data  data/process/family_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
 #Rscript code/R/main.R --seed $seed --model Random_Forest --level order --data  data/process/order_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
