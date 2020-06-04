@@ -52,6 +52,7 @@ colonization_plot <- meta_df %>%
 	mutate(CFU = case_when(CFU == 0 ~ 60, # shift 0 counts to just below limit of detection line
 		T ~ CFU)) %>% 
 	filter(cdiff == 'C. difficile Challenged',
+		day >= 0,
 		!is.na(CFU)) %>% 
 	ggplot(aes(x = day, y = CFU)) + 
         geom_line(aes(group = mouse_id), alpha = 0.3, color = '#A40019') + 
@@ -137,5 +138,5 @@ beta_plot <- beta_df %>%
 
 # save plot, top row is colonization plot, middle row are diversity plots, bottom row is temporal abundance plot
 ggsave('results/figures/figure_1.jpg', plot_grid(colonization_plot, 
-	plot_grid(alpha_sobs_plot, alpha_invsimp_plot, beta_plot, nrow = 1, labels = c('B', 'C', 'D')), 
-	abundance_plot, ncol = 1, labels = c('A', '', 'E'), rel_heights = c(1, 1, 2)), width = 10, height = 10)
+	plot_grid(alpha_sobs_plot, alpha_invsimp_plot, beta_plot, nrow = 1), 
+	abundance_plot, ncol = 1, labels = c('A', 'B', 'C'), rel_heights = c(1, 1, 2)), width = 10, height = 10)
