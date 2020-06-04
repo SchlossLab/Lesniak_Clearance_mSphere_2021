@@ -36,7 +36,6 @@ tax_df <- read_tsv(tax_file)
 source(sum_taxa_function) # function to create taxanomic labels for OTUs
 	# sum_otu_by_taxa(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0, silent = T){
 
-
 # plot colonization dynamics and Day 0 abundances for Strep and Cef, faceted by dosage of antibiotic
 plot_colonization_abundance <- function(antibiotic, n_taxa, label_input){
 	# get vector of antibiotic dosages for labeling
@@ -68,6 +67,7 @@ plot_colonization_abundance <- function(antibiotic, n_taxa, label_input){
 	lod_label_df <- data.frame(day = 8, CFU = 90, fill = 'white', color = 'black',
 		dose = factor(levels(abx_meta$dose)[1], levels = levels(abx_meta$dose)))
 	cfu_plot <- abx_meta %>% 
+		filter(day >= 0) %>% 
 		ggplot(aes(x = day, y = CFU)) + 
 			stat_summary(fun.y=median, geom="line", size = 1, color = abx_col) +
 	        geom_line(aes(group = mouse_id), alpha = 0.3, color = abx_col) + 
@@ -81,7 +81,8 @@ plot_colonization_abundance <- function(antibiotic, n_taxa, label_input){
 			theme_bw() + 
 			facet_wrap(.~dose, nrow = 1) + 
 			labs(x = 'Day', y = expression(italic('C. difficile')~' CFU')) + 
-			theme(panel.grid.minor = element_blank())
+			theme(panel.grid.minor = element_blank(),
+				panel.spacing = unit(c(3,1),'lines'))
 	# plot day 0 relative abundance by antibiotic dosage
 	abundance_plot <- sum_otu_by_taxa(tax_df, abx_shared, taxa_level = 'Genus', top_n = n_taxa) %>% 
 		left_join(select(abx_meta, group, dose), by = c('Group' = 'group')) %>% 
@@ -98,21 +99,27 @@ plot_colonization_abundance <- function(antibiotic, n_taxa, label_input){
 				breaks = c(0, 1, 2), labels = c('', '10', '100')) + 
 			theme_bw() + 
 			facet_wrap(dose~., scales = 'free_x', nrow = 1) +
-			labs(x = NULL, y = NULL, title = paste('Day 0 Community - Top', n_taxa, 'Genus'),
+			labs(x = NULL, y = NULL, #title = paste('Day 0 Community - Top', n_taxa, 'Genus'),
 				fill = 'Mean Relative Abundance (%)\nColor Intesity based on Log10') + 
 			theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
 	        	axis.ticks.x=element_blank(), axis.text.y = element_text(angle = 45),
 	        	legend.position = 'bottom')
 	# return a plot with top row colonization plot shifted right to align with abundance plot
-	return(plot_grid(
-			plot_grid(NULL, cfu_plot, nrow = 1, rel_widths = c(1,15)),
-		abundance_plot, ncol = 1, labels = label_input))
+	if(label_input){
+			return(plot_grid(
+				plot_grid(NULL, NULL, NULL, nrow = 1, rel_widths = c(1,2,3), labels = c('A', 'B', 'C')),
+				plot_grid(cfu_plot, abundance_plot, nrow = 1),
+				ncol = 1, rel_heights = c(1, 20)))
+		}else{
+			return(plot_grid(cfu_plot, abundance_plot, nrow = 1))
+	}
 }
 
+
 # create plots with the top 12 genus for relative abundance plot
-cef_abundance <- plot_colonization_abundance('Cefoperazone', 12, c('A','C'))
-strep_abundance <- plot_colonization_abundance('Streptomycin', 12, c('B', 'D'))
+cef_abundance <- plot_colonization_abundance('Cefoperazone', 12, T)
+strep_abundance <- plot_colonization_abundance('Streptomycin', 12, F)
 
 ggsave('results/figures/figure_2.jpg', 
-	plot_grid(cef_abundance, strep_abundance, nrow =1), 
+	plot_grid(cef_abundance, strep_abundance, ncol =1), 
 	width = 14, height = 12)
