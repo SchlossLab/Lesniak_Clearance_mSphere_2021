@@ -178,7 +178,7 @@ The funding agencies had no role in study design, data collection and analysis, 
 
 ![Figure 4](../results/figures/figure_4.jpg)
 
-**Figure 4. Distinct features of the bacterial community at the time of infection can classify end point colonization** (A) L~2~ logistic regression model feature importances determined by the negative effect randomizing an individual feature has on the model performance. All OTUs affecting performance shown. (C) Relative abundance difference in features used by L~2~ logistic regression model faceted by antibiotic treatment. Red boxplot - antibiotic-treated communities that were no longer colonized; Blue boxplot - antibiotic-treated communities that remained colonized. Boxplot shows median - horizontal bar, quartile range - box, range of non-outlier data - whiskers, data greater than 1.5 times the interquartile range - points.
+**Figure 4. Distinct features of the bacterial community at the time of infection can classify end point colonization** (A) L~2~ logistic regression model feature importances determined by the negative effect randomizing an individual feature has on the model performance. All OTUs affecting performance shown. (B) Relative abundance difference in features used by L~2~ logistic regression model faceted by antibiotic treatment. Red boxplot - antibiotic-treated communities that were no longer colonized; Blue boxplot - antibiotic-treated communities that remained colonized. Boxplot shows median - horizontal bar, quartile range - box, range of non-outlier data - whiskers, data greater than 1.5 times the interquartile range - points.
 
 
 
