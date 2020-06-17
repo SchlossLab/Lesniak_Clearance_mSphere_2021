@@ -14,10 +14,11 @@
 library(tidyverse)
 library(cowplot)
 library(pROC)
+library(ggtext)
 source("code/R/functions.R")
 
-args <- commandArgs(trailingOnly = TRUE)
-model_dir <- as.character(args[1])
+#args <- commandArgs(trailingOnly = TRUE)
+model_dir <- 'otu'
 
 # read in data and create key/label to add description to features
 meta_file <- 'data/process/abx_cdiff_metadata_clean.txt'
@@ -33,7 +34,7 @@ tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
 tax_df <- read_tsv(tax_file) %>% 
 	mutate(tax_otu_label = gsub('_unclassified', '', tax_otu_label))  %>% 
 	select(key = OTU, label = tax_otu_label)
-# read in model performance
+# read in model performance - from model 50/50 split not by cage
 l2_performance <- paste0('data/process/', model_dir, 
 	'/combined_best_hp_results_L2_Logistic_Regression.csv')
 l2_performance_df <- read_csv(l2_performance)
@@ -120,7 +121,9 @@ plot_feature_ranks <- function(data){
 #--------------Run the functions and plot feature ranks ----------#
 ######################################################################
 
-label_df <- bind_rows(tax_df, select(meta_df, -mouse, -Group), abx_df)
+label_df <- bind_rows(tax_df, select(meta_df, -mouse, -Group), abx_df) %>% 
+	mutate(label = paste0('*', label),
+		label = gsub(' \\(', '* \\(', label))
 
 logit_imp <- get_feature_ranked_files(paste0("data/process/", model_dir, 
 	"/combined_L2_Logistic_Regression_feature_ranking.tsv"), 'L2_Logistic_Regression') %>% 
@@ -210,7 +213,7 @@ perm_imp_plot <- ggplot() +
 		panel.grid.major = element_blank(),
 		panel.grid.minor = element_blank(),
 		panel.background = element_blank(),
-		axis.text.y=element_text(size = 8, colour='black'),
+		axis.text.y=element_markdown(),
 		axis.ticks = element_line(colour = "black", size = 1.1)) +
 	theme(axis.text.x=element_text(size = 10, colour='black'))
 
@@ -239,13 +242,17 @@ top_otu_abundance_plot <- top_otu_abundance %>%
 	inner_join(data_full, by = 'label') %>% # add perm importance aucs to order otus
 	ggplot(aes(x = fct_reorder(names, -new_auc), y = abundance, color = clearance)) + 
 		geom_boxplot() + 
-		scale_y_log10() +
+		scale_y_log10(limits = c(0.04,100),
+		   		breaks = c(0.01, 0.1, 1, 10, 100),
+		   		labels = c('10^-2', '10^-1', '10^0', '10^1', '10^2')) + 
 		coord_flip() + 
 		facet_wrap(.~abx) + 
 		theme_bw() +
 		labs(y = 'Percent Relative Abundance', x = NULL, color = NULL) + 
 		theme(legend.position = 'bottom',
-			panel.grid.minor.y = element_blank())
+			panel.grid.minor.y = element_blank(),
+			axis.text.y = element_markdown(),
+			axis.text.x = element_markdown())
 
 # -------------------------------------------------------------------->
 
@@ -289,7 +296,8 @@ rel_abund_misclass_samples <- top_otu_abundance %>%
 		theme_bw() +
 		labs(y = 'Percent Relative Abundance', x = NULL, color = NULL) + 
 		theme(legend.position = 'none',
-			panel.grid.minor.y = element_blank())
+			panel.grid.minor.y = element_blank(),
+			axis.text.y = element_markdown())
 
 # -------------------------------------------------------------------->
 
@@ -312,7 +320,7 @@ fac_anaerobe_plot <- full_meta_df %>%
 	mutate(abundance = (100 * abundance/total_abundance) + .05) %>% 
 	filter(day > 0) %>% 
 	ggplot(aes(x = day, y = abundance, color = label)) + 
-		stat_summary(fun.y = function(x) median(x), geom = "line", size = 3) + # Median darker
+		stat_summary(fun = function(x) median(x), geom = "line", size = 3) + # Median darker
 		geom_line(aes(group = interaction(mouse_id, label)), alpha = 0.3) + 
 		scale_x_continuous(breaks = 1:10) + 
 		scale_y_log10() + 
@@ -327,7 +335,7 @@ cfu_plot <- full_meta_df %>%
 	select(mouse_id, day, clearance, abx, CFU, Group = group) %>% 
 	filter(day > 0) %>% 
 	ggplot(aes(x = day, y = CFU)) + 
-		stat_summary(fun.y = function(x) median(x), geom = "line", size = 3) + # Median darker
+		stat_summary(fun = function(x) median(x), geom = "line", size = 3) + # Median darker
 		geom_line(aes(group = mouse_id), alpha = 0.3) + 
 		scale_x_continuous(breaks = 1:10) + 
 		scale_y_log10() + 
@@ -355,7 +363,7 @@ ggsave(paste0("results/figures/Figure_4.jpg"),
 			labels = c('A', 'B'), nrow = 1),
 	width = 12, height = 10, units="in")
 
-ggsave(paste0("results/figures/Figure_S1.jpg"), 
+ggsave(paste0("results/figures/Figure_S3.jpg"), 
 	plot = model_perf_plot,
 	width = 6, height = 6, units="in")
 
