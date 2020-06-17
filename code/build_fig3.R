@@ -19,6 +19,7 @@
 
 library(tidyverse)
 library(cowplot)
+library(ggtext)  # remotes::install_github("wilkelab/ggtext")
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
@@ -142,19 +143,40 @@ beta_div_df <- bind_rows(list(initial_distances, initial_inter_intial, TOI_intra
 beta_plot <- beta_div_df %>% 
 	filter(comparison %in% c('Initial\nvs\nInitial', 
 			'Initial\nvs\nTOI', 
-			'End\nvs\nInitial', 
-			'End\nvs\nintra\nEnd', 
-			'End\nvs\ninter\nEnd')) %>% 
+			'End\nvs\nInitial')) %>% 
 	mutate(c_abx = factor(c_abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin'))) %>% 
-	ggplot(aes(x = comparison, y = distances, fill = as.factor(c_time_point))) + 
+	ggplot(aes(x = comparison, y = distances, color = as.factor(c_time_point))) + 
 		coord_cartesian(ylim = c(0,1)) +
-		geom_boxplot() + 
-		facet_grid(c_clearance~c_abx) + 
+		geom_boxplot(aes(fill = c_clearance)) + 
+		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) +
+		facet_wrap(.~c_abx) + 
 		theme_bw() + 
-		labs(x = NULL, y = 'Theta yc', fill = 'Time Point') + 
-		theme(legend.position = c(0.08, 0.25),
+		labs(x = NULL, y = expression(theta[YC]), fill = 'Outcome') + 
+		guides(color = 'none') + 
+		theme(legend.position = 'bottom',
+			legend.key.size = unit(0.2, 'in'),
+			legend.background = element_rect(color = "black"),
+			panel.spacing = unit(c(3,3),'lines'))
+
+beta_supp_plot <- beta_div_df %>% 
+	filter(comparison %in% c('End\nvs\nintra\nEnd', 
+			'End\nvs\ninter\nEnd')) %>% 
+	mutate(c_abx = factor(c_abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin')),
+		comparison = case_when(comparison == 'End\nvs\nintra\nEnd' ~ 'Within\nAntibiotic', 
+			comparison == 'End\nvs\ninter\nEnd' ~ 'Across\nAntibiotic'),
+		comparison = factor(comparison, levels = c('Within\nAntibiotic', 'Across\nAntibiotic'))) %>% 
+	ggplot(aes(x = comparison, y = distances, color = c_clearance)) + 
+		coord_cartesian(ylim = c(0,1)) +
+		geom_boxplot(aes(fill = c_clearance)) + 
+		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) +
+		facet_grid(.~c_abx) + 
+		theme_bw() + 
+		labs(x = NULL, y = expression(theta[YC]), fill = 'Time Point') + 
+		guides(color = 'none') + 
+		theme(legend.position = 'bottom',
 			legend.key.size = unit(0.2, 'in'),
 			legend.background = element_rect(color = "black"))
+
 
 ###############################################################################
 #   What OTUs are associated with clearance?
@@ -206,7 +228,10 @@ pval_diff_colon_clear_df <- pval_diff_colon_clear_df %>%
 # create label df to eliminate over plotting of labels
 colon_clear_otu_label <- pval_diff_colon_clear_df %>% 
 		select(abx, order, tax_otu_label) %>% 
+		mutate(tax_otu_label = gsub(' \\(', '* \\(', tax_otu_label),
+			tax_otu_label = paste0('*', tax_otu_label)) %>% 
 		unique
+
 # create df to plot LOD on one set of graphs instead of all
 lod_label_df <- pval_diff_colon_clear_df %>% 
 	filter(abx == 'Streptomycin') %>% 
@@ -217,7 +242,7 @@ lod_label_df <- pval_diff_colon_clear_df %>%
 		by = c('abx')) %>% 
 	mutate(y = min_rel_abund, fill = 'white', color = 'black')
 # plot difference between colonized and cleared communities by abx/time point
-diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>% 
+diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
 	ggplot(aes(x = -order, color = clearance)) + 
 		# specify otu labels by row number
 		scale_x_continuous(breaks = -colon_clear_otu_label$order, 
@@ -240,18 +265,20 @@ diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
 	   		breaks = c(0.01, 0.1, 1, 10, 100),
 	   		labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
 		coord_flip() + theme_bw() + 
-		labs(x = NULL, y = 'Relative Abundance (%)', color = 'End Status',
-			title = 'Difference between communities able and unable clear colonization',
-			caption = 'Only significant comparisons plotted (p < 0.05 after Benjamini & Hochberg correction)') + 
+		labs(x = NULL, y = 'Relative Abundance (%)', color = 'End Status') + 
 		theme(panel.grid.minor.x = element_blank(),
-			legend.position = c(0.1, 0.95), 
+			legend.position = 'bottom', 
 			legend.background = element_rect(color = "black"),
 			legend.title = element_text(size = 8),
-			legend.text = element_text(size = 6)) + 
+			legend.text = element_text(size = 6),
+			panel.spacing.y = unit(3, 'lines'),
+			text = element_text(size = 10), 
+			axis.text.y = element_markdown()) + 
 		facet_grid(abx~time_point, scales = 'free', space = 'free') +
-		theme(text = element_text(size = 10)) + 
 		guides(colour = guide_legend(override.aes = list(alpha = 1))) 
-
+diff_abund_clear_colon_plot <- plot_grid(
+	plot_grid(NULL, NULL, labels = c('D', 'E'), ncol = 1, rel_heights = c(7,4)),
+	diff_abund_clear_colon_plot, nrow = 1, rel_widths = c(1,19))
 
 #### Compare the changes with in a mouse between time points , split by end status #####
 
@@ -317,22 +344,29 @@ pval_diff_cleared_df <- pval_diff_cleared_df %>%
 	ungroup
 
 # plot differences between time points by clearance/time/abx
-plot_temporal_diff_by_clearance <- function(end_status){
+plot_temporal_diff_by_clearance <- function(end_status, antibiotics){
 	plot_df <- pval_diff_cleared_df %>% 
 		full_join(cleared_median_df, by = c('abx', 'clearance', 'comparison', 'tax_otu_label')) %>% 
-		filter(clearance == end_status) %>% 
+		filter(clearance == end_status,
+			abx %in% antibiotics) %>% 
 		mutate(tax_otu_label = gsub('_unclassified', '', tax_otu_label))
 	# create label df to eliminate over plotting of labels and bold OTUs in both comparisons
 	otu_label <- plot_df %>% 
 		select(abx, comparison, order, tax_otu_label, both) %>% 
-		mutate(tax_otu_label = ifelse(both == T, paste0('bold("', tax_otu_label, '")'), 
-			paste0('"', tax_otu_label, '"'))) %>% 
+		mutate(tax_otu_label = gsub(' \\(', '* \\(', tax_otu_label),
+			tax_otu_label = paste0('*', tax_otu_label),
+			tax_otu_label = ifelse(both == T, paste0('**', tax_otu_label, '**'), 
+				tax_otu_label)) %>% 
 		unique
+
+	point_shape <- ifelse(end_status == 'Cleared', 16, 1)
+	point_stroke <- ifelse(end_status == 'Cleared', 2, 1)
+
 	output_plot <- plot_df %>% 
 		ggplot(aes(x = -order, color = time_point)) + 
 			# specify labels for row numbers
 			scale_x_continuous(breaks = -otu_label$order, 
-				labels = parse(text = otu_label$tax_otu_label), expand = c(0,0)) + 
+				labels = otu_label$tax_otu_label, expand = c(0,0)) + 
 			# limit of detection line
 			geom_hline(data = lod_df, aes(yintercept = y), size = 0.5, 
 				linetype = 'solid', color = 'black') + 
@@ -348,10 +382,13 @@ plot_temporal_diff_by_clearance <- function(end_status){
 			geom_segment(aes(y = TOI, yend = End, xend = -order), 
 					arrow = arrow(type = 'closed', angle = 10), color = 'black', size = 0.25) + 
 			geom_point(aes(y = (abundance) + 0.04), 
-				position = position_dodge(width = .7), alpha = 0.2) + 
-			geom_point(aes(y = Initial), color = 'green4', size = 3) + 
-			geom_point(aes(y = TOI), color = 'blue3', size = 3) + 
-			geom_point(aes(y = End), color = 'red3', size = 3) +
+				position = position_dodge(width = .7), alpha = 0.3) + 
+			geom_point(aes(y = Initial), color = 'green4', size = 3, 
+				shape = point_shape, stroke = point_stroke) + 
+			geom_point(aes(y = TOI), color = 'blue3', size = 3, 
+				shape = point_shape, stroke = point_stroke) + 
+			geom_point(aes(y = End), color = 'red3', size = 3, 
+				shape = point_shape, stroke = point_stroke) + 
 			# plot layout
 			scale_y_log10(limits = c(0.04,100),
 		   		breaks = scales::trans_breaks("log10", function(x) 10^x),
@@ -359,24 +396,37 @@ plot_temporal_diff_by_clearance <- function(end_status){
 			coord_flip() + theme_bw() +  
 			facet_grid(abx~comparison, scales = 'free_y', space = 'free',
 				labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of Infection", TOI_End = "Time of Infection vs End of experiment"))) + 
-			labs(x = NULL, y = 'Relative Abundance (%)', color = 'Time Point',
-				title = paste('Temporal Differences of communities that result in ', end_status),
-				caption = 'Only significant comparisons plotted (p < 0.05 after Benjamini & Hochberg correction)') + 
+			labs(x = NULL, y = 'Relative Abundance (%)', color = 'Time Point') + 
 			theme(panel.grid.minor = element_blank(),
 				legend.position = c(0.925, 0.925), 
 				legend.background = element_rect(color = "black"),
 				legend.title = element_text(size = 8),
 				legend.text = element_text(size = 6),
-				text = element_text(size = 10)) + 
+				text = element_text(size = 10),
+				panel.spacing.y = unit(3, 'lines'),
+				axis.text.y = element_markdown()) + 
 			guides(colour = guide_legend(override.aes = list(alpha = 1)))
 }
-diff_abund_cleared_plot <- plot_temporal_diff_by_clearance('Cleared')
-diff_abund_colon_plot <- plot_temporal_diff_by_clearance('Colonized')
+diff_abund_cleared_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared', 
+	antibiotics = c('Clindamycin', 'Streptomycin'))
+cef_cleared_supp_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared', 
+	antibiotics = c('Cefoperazone'))
+diff_abund_colon_plot <- plot_temporal_diff_by_clearance(end_status = 'Colonized',
+	antibiotics = c('Cefoperazone', 'Streptomycin'))
 
 
 ggsave('results/figures/figure_3.jpg', 
 	plot_grid(
-		plot_grid(beta_plot, diff_abund_clear_colon_plot, labels = c('A', 'B'), rel_widths = c(2, 3), nrow = 1), 
+		plot_grid(
+			plot_grid(plot_grid(NULL, NULL, NULL, labels = c('A', 'B', 'C'), nrow = 1), 
+				beta_plot, ncol = 1, rel_heights = c(1,19)),
+			diff_abund_clear_colon_plot, labels = c('A', 'B'), rel_widths = c(2, 3), nrow = 1), 
 		plot_grid(diff_abund_cleared_plot, diff_abund_colon_plot, labels = c('C', NULL), nrow = 1),
 		ncol = 1), 
 	width = 25, height = 20, units = 'in')
+
+ggsave('results/figures/figure_S1.jpg', beta_supp_plot, 
+	width = 10, height = 10, units = 'in')
+
+ggsave('results/figures/figure_S2.jpg', cef_cleared_supp_plot, 
+	width = 6, height = 3, units = 'in')
