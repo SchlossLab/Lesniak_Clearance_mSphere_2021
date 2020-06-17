@@ -151,12 +151,17 @@ beta_plot <- beta_div_df %>%
 		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) +
 		facet_wrap(.~c_abx) + 
 		theme_bw() + 
-		labs(x = NULL, y = expression(theta[YC]), fill = 'Outcome') + 
-		guides(color = 'none') + 
+		labs(x = NULL, y = expression(theta[YC]), fill = 'Outcome', color = 'Time Point') + 
+		scale_color_manual(values = c('green4', 'blue3', 'red3'),
+			breaks = c('Initial', 'TOI', 'End')) + 
 		theme(legend.position = 'bottom',
 			legend.key.size = unit(0.2, 'in'),
 			legend.background = element_rect(color = "black"),
 			panel.spacing = unit(c(3,3),'lines'))
+# add labels to plots for figure
+beta_plot <- plot_grid(
+	plot_grid(NULL, NULL, NULL, labels = c('A', 'B', 'C'), nrow = 1), 
+	beta_plot, ncol = 1, rel_heights = c(1,19))
 
 beta_supp_plot <- beta_div_df %>% 
 	filter(comparison %in% c('End\nvs\nintra\nEnd', 
@@ -165,13 +170,15 @@ beta_supp_plot <- beta_div_df %>%
 		comparison = case_when(comparison == 'End\nvs\nintra\nEnd' ~ 'Within\nAntibiotic', 
 			comparison == 'End\nvs\ninter\nEnd' ~ 'Across\nAntibiotic'),
 		comparison = factor(comparison, levels = c('Within\nAntibiotic', 'Across\nAntibiotic'))) %>% 
-	ggplot(aes(x = comparison, y = distances, color = c_clearance)) + 
+	ggplot(aes(x = comparison, y = distances, color = c_abx)) + 
 		coord_cartesian(ylim = c(0,1)) +
 		geom_boxplot(aes(fill = c_clearance)) + 
 		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) +
 		facet_grid(.~c_abx) + 
 		theme_bw() + 
-		labs(x = NULL, y = expression(theta[YC]), fill = 'Time Point') + 
+		labs(x = NULL, y = expression(theta[YC]), fill = 'Outcome') + 
+		scale_color_manual(breaks = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
+			values = c('#D37A1F', '#3A9CBC', '#A40019')) + 
 		guides(color = 'none') + 
 		theme(legend.position = 'bottom',
 			legend.key.size = unit(0.2, 'in'),
@@ -243,7 +250,7 @@ lod_label_df <- pval_diff_colon_clear_df %>%
 	mutate(y = min_rel_abund, fill = 'white', color = 'black')
 # plot difference between colonized and cleared communities by abx/time point
 diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
-	ggplot(aes(x = -order, color = clearance)) + 
+	ggplot(aes(x = -order)) + 
 		# specify otu labels by row number
 		scale_x_continuous(breaks = -colon_clear_otu_label$order, 
 			labels = colon_clear_otu_label$tax_otu_label, expand = c(0,0)) + 
@@ -256,28 +263,25 @@ diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
 		geom_text(data = lod_label_df, aes(y = y), label = 'LOD', color = 'black') + 
 		#  barbell geom
 		geom_segment(aes(y = Cleared, yend = Colonized, xend = -order), color = 'black') +
-		geom_point(aes(y = (abundance) + 0.04), 
+		geom_point(aes(y = (abundance) + 0.04, shape = clearance), 
 			position = position_dodge(width = .7), alpha = 0.2) + 
-		geom_point(aes(y = Cleared), color = 'red3', size = 3) + 
-		geom_point(aes(y = Colonized), color = 'cyan4', size = 3) + 
+		geom_point(aes(y = Cleared), shape = 1, stroke = 1, size = 3) + 
+		geom_point(aes(y = Colonized), shape = 16, size = 3) + 
+		scale_shape_manual(values = c(1,16), breaks = c('Cleared', 'Colonized')) + 
 		# plot layout
-		scale_y_log10(
+		scale_y_log10(limits = c(0.04,100),
 	   		breaks = c(0.01, 0.1, 1, 10, 100),
-	   		labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
+	   		labels = c('10^-2', '10^-1', '10^0', '10^1', '10^2')) + 
 		coord_flip() + theme_bw() + 
-		labs(x = NULL, y = 'Relative Abundance (%)', color = 'End Status') + 
+		labs(x = NULL, y = 'Relative Abundance (%)', shape = 'Outcome') + 
 		theme(panel.grid.minor.x = element_blank(),
-			legend.position = 'bottom', 
-			legend.background = element_rect(color = "black"),
-			legend.title = element_text(size = 8),
-			legend.text = element_text(size = 6),
+			legend.position = 'none', 
 			panel.spacing.y = unit(3, 'lines'),
 			text = element_text(size = 10), 
-			axis.text.y = element_markdown()) + 
-		facet_grid(abx~time_point, scales = 'free', space = 'free') +
-		guides(colour = guide_legend(override.aes = list(alpha = 1))) 
+			axis.text.y = element_markdown(), axis.text.x = element_markdown()) + 
+		facet_grid(abx~time_point, scales = 'free', space = 'free') 
 diff_abund_clear_colon_plot <- plot_grid(
-	plot_grid(NULL, NULL, labels = c('D', 'E'), ncol = 1, rel_heights = c(7,4)),
+	plot_grid(NULL, NULL, labels = c('D', 'E'), ncol = 1, rel_heights = c(9,3.5)),
 	diff_abund_clear_colon_plot, nrow = 1, rel_widths = c(1,19))
 
 #### Compare the changes with in a mouse between time points , split by end status #####
@@ -323,12 +327,23 @@ cleared_median_df <- pval_diff_cleared_df %>%
 	pivot_wider(names_from = time_point, values_from = median) %>% 
 	ungroup
 # create df to plot LOD on one set of graphs instead of all
-lod_label_df <- pval_diff_cleared_df %>% 
+main_lod_label_df <- pval_diff_cleared_df %>% 
 	filter(abx == 'Streptomycin') %>% 
 	group_by(clearance) %>% 
 	filter(order == max(order)) %>% ungroup %>% 
 	select(abx, tax_otu_label, clearance, order) %>% 
 	unique %>% 
+	inner_join(distinct(select(pval_diff_cleared_df, abx, comparison)),
+		by = c('abx')) %>% 
+	mutate(y = min_rel_abund, fill = 'white', color = 'black', time_point = NA)
+
+cef_lod_label_df <- pval_diff_cleared_df %>% 
+	filter(abx == 'Cefoperazone') %>% 
+	group_by(clearance) %>% 
+	filter(order == max(order)) %>% ungroup %>% 
+	select(abx, tax_otu_label, clearance, order) %>% 
+	unique %>% 
+	mutate(order = order + 0.25) %>% 
 	inner_join(distinct(select(pval_diff_cleared_df, abx, comparison)),
 		by = c('abx')) %>% 
 	mutate(y = min_rel_abund, fill = 'white', color = 'black', time_point = NA)
@@ -344,7 +359,7 @@ pval_diff_cleared_df <- pval_diff_cleared_df %>%
 	ungroup
 
 # plot differences between time points by clearance/time/abx
-plot_temporal_diff_by_clearance <- function(end_status, antibiotics){
+plot_temporal_diff_by_clearance <- function(end_status, antibiotics, lod_label_df){
 	plot_df <- pval_diff_cleared_df %>% 
 		full_join(cleared_median_df, by = c('abx', 'clearance', 'comparison', 'tax_otu_label')) %>% 
 		filter(clearance == end_status,
@@ -359,8 +374,8 @@ plot_temporal_diff_by_clearance <- function(end_status, antibiotics){
 				tax_otu_label)) %>% 
 		unique
 
-	point_shape <- ifelse(end_status == 'Cleared', 16, 1)
-	point_stroke <- ifelse(end_status == 'Cleared', 2, 1)
+	point_shape <- ifelse(end_status == 'Cleared', 1, 16)
+	point_stroke <- ifelse(end_status == 'Cleared', 1, 2)
 
 	output_plot <- plot_df %>% 
 		ggplot(aes(x = -order, color = time_point)) + 
@@ -389,39 +404,50 @@ plot_temporal_diff_by_clearance <- function(end_status, antibiotics){
 				shape = point_shape, stroke = point_stroke) + 
 			geom_point(aes(y = End), color = 'red3', size = 3, 
 				shape = point_shape, stroke = point_stroke) + 
+			scale_color_manual(values = c('green4', 'blue3', 'red3'),
+				breaks = c('Initial', 'TOI', 'End')) + 
 			# plot layout
 			scale_y_log10(limits = c(0.04,100),
-		   		breaks = scales::trans_breaks("log10", function(x) 10^x),
-		   		labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
+		   		breaks = c(0.01, 0.1, 1, 10, 100),
+		   		labels = c('10^-2', '10^-1', '10^0', '10^1', '10^2')) + 
 			coord_flip() + theme_bw() +  
-			facet_grid(abx~comparison, scales = 'free_y', space = 'free',
-				labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of Infection", TOI_End = "Time of Infection vs End of experiment"))) + 
-			labs(x = NULL, y = 'Relative Abundance (%)', color = 'Time Point') + 
+			labs(x = NULL, y = 'Relative Abundance (%)') + 
 			theme(panel.grid.minor = element_blank(),
-				legend.position = c(0.925, 0.925), 
-				legend.background = element_rect(color = "black"),
-				legend.title = element_text(size = 8),
-				legend.text = element_text(size = 6),
+				legend.position = 'none', 
 				text = element_text(size = 10),
-				panel.spacing.y = unit(3, 'lines'),
-				axis.text.y = element_markdown()) + 
-			guides(colour = guide_legend(override.aes = list(alpha = 1)))
+				axis.text.y = element_markdown(), axis.text.x = element_markdown())
 }
+# plot difference between time points of mice that cleared C diff
 diff_abund_cleared_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared', 
-	antibiotics = c('Clindamycin', 'Streptomycin'))
+	antibiotics = c('Clindamycin', 'Streptomycin'), lod_label_df = main_lod_label_df) + 
+	facet_grid(abx~comparison, scales = 'free_y', space = 'free',
+		labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of Infection", TOI_End = "Time of Infection vs End of experiment"))) + 
+	theme(panel.spacing.y = unit(3, 'lines'))
+# attach labels to this part of figure
+diff_abund_cleared_plot <- plot_grid(
+	plot_grid(NULL, NULL, labels = c('F', 'G'), ncol = 1, rel_heights = c(8,4)),
+	diff_abund_cleared_plot, nrow = 1, rel_widths = c(1,19))
+# plot single difference between time points of mice that cleared C diff for cef
 cef_cleared_supp_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared', 
-	antibiotics = c('Cefoperazone'))
+	antibiotics = c('Cefoperazone'), lod_label_df = cef_lod_label_df) + 
+	facet_grid(.~comparison, scales = 'free_y', space = 'free',
+		labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of Infection", TOI_End = "Time of Infection vs End of experiment"))) 
+# plot difference between time points of mice that remained colonized by C diff
 diff_abund_colon_plot <- plot_temporal_diff_by_clearance(end_status = 'Colonized',
-	antibiotics = c('Cefoperazone', 'Streptomycin'))
+	antibiotics = c('Cefoperazone', 'Streptomycin'), lod_label_df = main_lod_label_df) + 
+	facet_grid(abx~comparison, scales = 'free_y', space = 'free',
+		labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of Infection", TOI_End = "Time of Infection vs End of experiment"))) + 
+	theme(panel.spacing.y = unit(3, 'lines'))
+# attach labels to this part of figure
+diff_abund_colon_plot <- plot_grid(
+	plot_grid(NULL, NULL, labels = c('H', 'I'), ncol = 1, rel_heights = c(9,4)),
+	diff_abund_colon_plot, nrow = 1, rel_widths = c(1,19))
 
 
 ggsave('results/figures/figure_3.jpg', 
 	plot_grid(
-		plot_grid(
-			plot_grid(plot_grid(NULL, NULL, NULL, labels = c('A', 'B', 'C'), nrow = 1), 
-				beta_plot, ncol = 1, rel_heights = c(1,19)),
-			diff_abund_clear_colon_plot, labels = c('A', 'B'), rel_widths = c(2, 3), nrow = 1), 
-		plot_grid(diff_abund_cleared_plot, diff_abund_colon_plot, labels = c('C', NULL), nrow = 1),
+		plot_grid(beta_plot, diff_abund_clear_colon_plot, nrow = 1),
+		plot_grid(diff_abund_cleared_plot, diff_abund_colon_plot, nrow = 1),
 		ncol = 1), 
 	width = 25, height = 20, units = 'in')
 
@@ -429,4 +455,4 @@ ggsave('results/figures/figure_S1.jpg', beta_supp_plot,
 	width = 10, height = 10, units = 'in')
 
 ggsave('results/figures/figure_S2.jpg', cef_cleared_supp_plot, 
-	width = 6, height = 3, units = 'in')
+	width = 6, height = 2, units = 'in')
