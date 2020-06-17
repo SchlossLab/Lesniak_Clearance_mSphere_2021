@@ -81,17 +81,16 @@ abundance_plot <- shared_genus %>%
 	group_by(day, taxa) %>% 
 	summarise(relative_abundance = log10(mean(relative_abundance) + 0.01)) %>% 
 	ggplot(aes(x = day, y =taxa, fill = relative_abundance)) + 
-		geom_tile() +
+		geom_tile(width = 0.8) +
 		scale_fill_gradient(low="white", high='#A40019', limits = c(0,2), na.value = NA, 
 			breaks = c(0, 1, 2), labels = c('', '10', '100')) + 
+        scale_x_continuous(breaks = -1:10) + # make ticks for each day
 		theme_bw() + 
-		labs(x = NULL, y = NULL, #title = 'Clindamycin Community',
-			fill = 'Mean Relative Abundance (%)\nColor Intesity based on Log10') + 
+		labs(x = 'Day', y = NULL, #title = 'Clindamycin Community',
+			fill = expression('Color Intesity Log'[10]*' Mean Relative Abundance (%)')) + 
 		theme(panel.grid.minor = element_blank(), panel.grid.major.x = element_blank(),
-			axis.title.x=element_blank(), axis.ticks.x=element_blank(), 
-        	axis.text.x=element_blank(), axis.text.y = element_text(angle = 45),
-        	legend.position = 'bottom') +
-		facet_wrap(.~day, nrow = 1, scales = 'free_x')
+			axis.text.y = element_text(angle = 45, face = "italic"), 
+			legend.position = 'bottom')
 
 # plot Sobs by day
 alpha_sobs_plot <- alpha_df %>% 
