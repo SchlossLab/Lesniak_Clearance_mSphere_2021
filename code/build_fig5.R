@@ -18,9 +18,14 @@ library(igraph)
 library(tidyverse)
 library(cowplot)
 library(GGally)
+# inorder to have mixed text formatting in network labels
+# changed geom_text() to geom_richtext() - lines 904 and 1068 
+# used trace(ggnet2, edit='nano') to insert changes into ggnet2 function
+# also edited R function saved in code/R/functions/ggnet2.R
 library(network)
 library(sna)
 library(intergraph)
+library(ggtext)
 
 seed <- 18
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
@@ -43,7 +48,8 @@ tax_df <- read_tsv(tax_file)
 network_labels <- tax_df %>% 
 	mutate(otu_number = gsub('OTU ', '', otu_label),
 		tax_otu_label = gsub('_unclassified', '', tax_otu_label),
-		tax_otu_label = gsub(' \\(', '\\\n\\(', tax_otu_label)) %>% 
+		tax_otu_label = paste0('*', tax_otu_label),
+		tax_otu_label = gsub(' \\(', '*<br/>(', tax_otu_label)) %>% 
 	pull(tax_otu_label)
 
 meta_df   <- read_tsv(meta_file) %>% 
@@ -107,7 +113,7 @@ get_cdiff_network <- function(antibiotic, clearance_status){
 	first_order_otus <- c(names(which(se_interaction_matrix[,'Cdiff'] > 0)), 'Cdiff')
 	#second_order_otus <- names(apply(se_data[,otus], 1 , sum) > 0)
 	cdiff_interactions <- se_interaction_matrix[first_order_otus, first_order_otus]
-	labels <- c(network_labels[as.numeric(head(colnames(cdiff_interactions), -1))], 'C. difficile')
+	labels <- c(network_labels[as.numeric(head(colnames(cdiff_interactions), -1))], '*C. difficile*')
 	colnames(cdiff_interactions) <- rownames(cdiff_interactions) <- labels
 	#se_interaction_matrix <- se_interaction_matrix[second_order_otus, second_order_otus]
 	# add edge weights
@@ -146,17 +152,27 @@ cef_colonized_network <- get_cdiff_network('Cefoperazone', 'Colonized')
 
 set.seed(2)
 clinda_network_graph <- ggnet2(clinda_network$cdiff_network, mode = 'kamadakawai',
-		color = 'color', alpha = 0.2, label = T, size = 'size', 
+		color = 'color', label = T, size = 'size', vjust = 1.3, label.size = 3.5,
 		edge.size = 'width', edge.color = 'color', layout.exp = 0.2) +
-	guides(size = FALSE)
+	guides(size = FALSE) +
+	ylim(-0.1, 1) + xlim(-0.1, 1.1) + 
+	theme(axis.title = element_blank(), axis.text =element_blank(),
+	    axis.ticks = element_blank())
 cef_network_graph <- ggnet2(cef_network$cdiff_network, mode = 'kamadakawai',
-		color = 'color', alpha = 0.2, label = T, size = 'size', 
+		color = 'color', label = T, size = 'size', vjust = 1.3, label.size = 3.5,
 		edge.size = 'width', edge.color = 'color', layout.exp = 0.2) +
-	guides(size = FALSE)
+	guides(size = FALSE) +
+	ylim(-0.4, 1.2) + xlim(-0.25, 1.25) + 
+	theme(axis.title = element_blank(), axis.text = element_blank(),
+	    axis.ticks = element_blank())
 strep_network_graph <- ggnet2(strep_network$cdiff_network, mode = 'kamadakawai',
-		color = 'color', alpha = 0.2, label = T, size = 'size', 
+		color = 'color', label = T, size = 'size', vjust = 1.3, label.size = 3.5,
 		edge.size = 'width', edge.color = 'color', layout.exp = 0.2) +
-	guides(size = FALSE)
+	guides(size = FALSE) + 
+	ylim(-0.1, 1) + xlim(-0.1, 1.1) + 
+	theme(axis.title = element_blank(), axis.text = element_blank(),
+	    axis.ticks = element_blank())
+
 
 networks <- list(clinda_network, strep_network, cef_network, strep_colonized_network, cef_colonized_network)
 # centrality
@@ -176,6 +192,7 @@ get_centrality <- function(x){
 }
 
 centrality_plot <- map_dfr(networks, get_centrality) %>% 
+	mutate(antibiotic = factor(antibiotic, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin'))) %>% 
 	ggplot(aes(x = antibiotic, y = value, fill = clearance, color = antibiotic)) + 
 		geom_boxplot() + 
 		scale_color_manual(values = abx_color$color, limits = abx_color$abx) + 
@@ -184,20 +201,16 @@ centrality_plot <- map_dfr(networks, get_centrality) %>%
 		scale_y_log10() + 
 		guides(color = 'none') + theme_bw() + 
 		labs(x = NULL, y = NULL, fill = NULL) +
-		theme(legend.position = c(0.08, 0.9),
+		theme(legend.position = c(0.05, 0.1),
 			legend.background = element_rect(color = "black"))
 
 ggsave('results/figures/figure_5.jpg',
-	plot_grid(
 		plot_grid(
 			plot_grid(
+				plot_grid(clinda_network_graph, labels = c('Clindamycin'), label_colour = '#A40019'),
 				plot_grid(plot_grid(NULL, cef_network_graph, ncol = 1, rel_heights = c(1, 10)), 
 					labels = c('Cefoperazone'), label_colour = '#3A9CBC'),
-				plot_grid(clinda_network_graph, labels = c('Clindamycin'), label_colour = '#A40019'),
 				plot_grid(strep_network_graph, labels = c('Streptomycin'), label_colour = '#D37A1F'), nrow = 1),
-			plot_grid(NULL, label_size = 9, label_fontface = "plain",
-				labels = c('Nodes sized by abundance, Edges width by edge weight and colored red for negative and blue for positive')),
-			ncol = 1, rel_heights = c(9,1)),
-		plot_grid(NULL, centrality_plot, NULL, nrow = 1, rel_widths = c(1, 6, 1)), 
+		centrality_plot, 
 		ncol = 1, rel_heights = c(3,2), labels = c('A', 'B')), 
-	width = 25, height = 10)
+	width = 18, height = 13)
