@@ -100,9 +100,9 @@ plot_colonization_abundance <- function(antibiotic, n_taxa, label_input){
 			theme_bw() + 
 			facet_wrap(dose~., scales = 'free_x', nrow = 1) +
 			labs(x = NULL, y = NULL, #title = paste('Day 0 Community - Top', n_taxa, 'Genus'),
-				fill = 'Mean Relative Abundance (%)\nColor Intesity based on Log10') + 
+				fill = expression('Color Intesity based on Log'[10]*' Mean Relative Abundance (%)')) + 
 			theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
-	        	axis.ticks.x=element_blank(), axis.text.y = element_text(angle = 45),
+	        	axis.ticks.x=element_blank(), axis.text.y = element_text(angle = 45, face = 'italic'),
 	        	legend.position = 'bottom')
 	# return a plot with top row colonization plot shifted right to align with abundance plot
 	if(label_input){
