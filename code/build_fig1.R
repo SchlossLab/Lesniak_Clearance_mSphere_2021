@@ -19,6 +19,7 @@
 
 library(tidyverse)
 library(cowplot)
+library(ggtext)
 
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
@@ -53,7 +54,7 @@ colonization_plot <- meta_df %>%
 		T ~ CFU)) %>% 
 	filter(cdiff == 'C. difficile Challenged',
 		day >= 0,
-		!is.na(CFU)) %>% 
+		!is.na(CFU)) %>%
 	ggplot(aes(x = day, y = CFU)) + 
         geom_line(aes(group = mouse_id), alpha = 0.3, color = '#A40019') + 
 		stat_summary(fun.y=median, geom="line", size = 1, color = '#A40019') + # create median line
@@ -77,19 +78,26 @@ abundance_plot <- shared_genus %>%
 	group_by(Group) %>% 
 	mutate(total = sum(abundance),
 		relative_abundance = abundance/total * 100,
-		taxa = gsub('_unclassified', '', taxa)) %>% 
+		taxa = gsub('_unclassified', '', taxa),
+		taxa = ifelse(taxa == 'Other', taxa, paste0('*', taxa, '*')),
+		taxa = factor(taxa, levels = rev(c("*Escherichia/Shigella*", 
+				"*Lactobacillus*", "*Akkermansia*", "*Bacteroides*", 
+				"*Porphyromonadaceae*", "Other", "*Lachnospiraceae*", 
+ 				"*Barnesiella*", "*Turicibacter*", "*Ruminococcaceae*", 
+ 				"*Alistipes*")))) %>% 
 	group_by(day, taxa) %>% 
-	summarise(relative_abundance = log10(mean(relative_abundance) + 0.01)) %>% 
+	summarise(relative_abundance = log10(mean(relative_abundance) + 0.001)) %>% 
 	ggplot(aes(x = day, y =taxa, fill = relative_abundance)) + 
-		geom_tile(width = 0.8) +
-		scale_fill_gradient(low="white", high='#A40019', limits = c(0,2), na.value = NA, 
-			breaks = c(0, 1, 2), labels = c('', '10', '100')) + 
+		geom_tile(height = 0.8) +
+		scale_fill_gradient2(low="white", mid='#A40019', high = 'black',
+			limits = c(-2.25,2), na.value = NA, midpoint = 0.5,
+			breaks = c(-2.5, -1, 0, 1, 2), labels = c('', '0.1', '1', '10', '100')) + 
         scale_x_continuous(breaks = -1:10) + # make ticks for each day
 		theme_bw() + 
 		labs(x = 'Day', y = NULL, #title = 'Clindamycin Community',
 			fill = expression('Color Intesity Log'[10]*' Mean Relative Abundance (%)')) + 
 		theme(panel.grid.minor = element_blank(), panel.grid.major.x = element_blank(),
-			axis.text.y = element_text(angle = 45, face = "italic"), 
+			axis.text.y = element_markdown(), 
 			legend.position = 'bottom')
 
 # plot Sobs by day
@@ -116,7 +124,9 @@ alpha_invsimp_plot <- alpha_df %>%
 		scale_color_manual(values = c('#A40019', 'darkgray')) + 
 		theme_bw() + labs(x = 'Day', y = 'Inverse Simpson', color = NULL) + 
 		theme(panel.grid.minor = element_blank(),
-			legend.position = 'top')
+			legend.position = c(0.7, 0.8),
+			legend.key.size = unit(0.2, 'in'),
+			legend.background = element_rect(color = "black"))
 
 # plot theta yc by day
 beta_plot <- beta_df %>% 
@@ -133,7 +143,8 @@ beta_plot <- beta_df %>%
 		theme_bw() + 
 		theme(panel.grid.minor = element_blank(),
 			legend.position = 'none') + 
-		labs(x = 'Day', y = 'Theta yc')
+		labs(x = 'Day', y = expression(theta[YC]), color = NULL)
+
 
 # save plot, top row is colonization plot, middle row are diversity plots, bottom row is temporal abundance plot
 ggsave('results/figures/figure_1.jpg', plot_grid(colonization_plot, 
