@@ -250,7 +250,7 @@ lod_label_df <- pval_diff_colon_clear_df %>%
 	mutate(y = min_rel_abund, fill = 'white', color = 'black')
 # plot difference between colonized and cleared communities by abx/time point
 diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
-	ggplot(aes(x = -order)) + 
+	ggplot(aes(x = -order, color = time_point)) + 
 		# specify otu labels by row number
 		scale_x_continuous(breaks = -colon_clear_otu_label$order, 
 			labels = colon_clear_otu_label$tax_otu_label, expand = c(0,0)) + 
@@ -262,12 +262,14 @@ diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
 		geom_label(data = lod_label_df, aes(y = y), label = 'LOD', color = 'white') + 
 		geom_text(data = lod_label_df, aes(y = y), label = 'LOD', color = 'black') + 
 		#  barbell geom
-		geom_segment(aes(y = Cleared, yend = Colonized, xend = -order), color = 'black') +
+		geom_segment(aes(y = Cleared, yend = Colonized, xend = -order)) +
 		geom_point(aes(y = (abundance) + 0.04, shape = clearance), 
 			position = position_dodge(width = .7), alpha = 0.2) + 
 		geom_point(aes(y = Cleared), shape = 1, stroke = 1, size = 3) + 
 		geom_point(aes(y = Colonized), shape = 16, size = 3) + 
 		scale_shape_manual(values = c(1,16), breaks = c('Cleared', 'Colonized')) + 
+		scale_color_manual(values = c('green4', 'blue3', 'red3'),
+			breaks = c('Initial', 'Time of infection', 'End of experiment')) + 
 		# plot layout
 		scale_y_log10(limits = c(0.04,100),
 	   		breaks = c(0.01, 0.1, 1, 10, 100),
@@ -421,7 +423,7 @@ plot_temporal_diff_by_clearance <- function(end_status, antibiotics, lod_label_d
 diff_abund_cleared_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared', 
 	antibiotics = c('Clindamycin', 'Streptomycin'), lod_label_df = main_lod_label_df) + 
 	facet_grid(abx~comparison, scales = 'free_y', space = 'free',
-		labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of Infection", TOI_End = "Time of Infection vs End of experiment"))) + 
+		labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of infection", TOI_End = "Time of infection vs End of experiment"))) + 
 	theme(panel.spacing.y = unit(3, 'lines'))
 # attach labels to this part of figure
 diff_abund_cleared_plot <- plot_grid(
@@ -431,12 +433,12 @@ diff_abund_cleared_plot <- plot_grid(
 cef_cleared_supp_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared', 
 	antibiotics = c('Cefoperazone'), lod_label_df = cef_lod_label_df) + 
 	facet_grid(.~comparison, scales = 'free_y', space = 'free',
-		labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of Infection", TOI_End = "Time of Infection vs End of experiment"))) 
+		labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of infection", TOI_End = "Time of infection vs End of experiment"))) 
 # plot difference between time points of mice that remained colonized by C diff
 diff_abund_colon_plot <- plot_temporal_diff_by_clearance(end_status = 'Colonized',
 	antibiotics = c('Cefoperazone', 'Streptomycin'), lod_label_df = main_lod_label_df) + 
 	facet_grid(abx~comparison, scales = 'free_y', space = 'free',
-		labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of Infection", TOI_End = "Time of Infection vs End of experiment"))) + 
+		labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of infection", TOI_End = "Time of infection vs End of experiment"))) + 
 	theme(panel.spacing.y = unit(3, 'lines'))
 # attach labels to this part of figure
 diff_abund_colon_plot <- plot_grid(
