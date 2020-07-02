@@ -17,7 +17,7 @@ library(SpiecEasi)
 library(igraph)
 library(tidyverse)
 library(cowplot)
-library(GGally)
+#library(GGally)
 # inorder to have mixed text formatting in network labels
 # changed geom_text() to geom_richtext() - lines 904 and 1068 
 # used trace(ggnet2, edit='nano') to insert changes into ggnet2 function
@@ -26,6 +26,8 @@ library(network)
 library(sna)
 library(intergraph)
 library(ggtext)
+library(scales)
+source('code/R/functions/ggnet2.R')
 
 seed <- 18
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
@@ -47,9 +49,14 @@ radian.rescale <- function(x, start=0, direction=1) {
 tax_df <- read_tsv(tax_file)
 network_labels <- tax_df %>% 
 	mutate(otu_number = gsub('OTU ', '', otu_label),
-		tax_otu_label = gsub('_unclassified', '', tax_otu_label),
-		tax_otu_label = paste0('*', tax_otu_label),
-		tax_otu_label = gsub(' \\(', '*<br/>(', tax_otu_label)) %>% 
+		tax_otu_label = gsub('_unclassified', '', tax_otu_label), # remove unclassified note
+		tax_otu_label = paste0('*', tax_otu_label), # italicize
+		tax_otu_label = gsub(' \\(', '*<br/>(', tax_otu_label), # add line breaks between tax and otu
+		tax_otu_label = gsub('_', ' ', tax_otu_label), #convert underscores to spaces
+		tax_otu_label = gsub(' ([XI1V]+)\\*<', '\\* \\1<', tax_otu_label), # unitalicize roman numerals
+		tax_otu_label = case_when(grepl('OTU 10)|OTU 45)', tax_otu_label) ~ # bold otus in multiple networks
+			paste0('**', tax_otu_label, '**'),
+			T ~ tax_otu_label)) %>% 
 	pull(tax_otu_label)
 
 meta_df   <- read_tsv(meta_file) %>% 
