@@ -305,7 +305,7 @@ ggnet2 <- function(
 
   # -- packages ----------------------------------------------------------------
 
-  require_pkgs(c("network", "sna", "scales"))
+#  require_pkgs(c("network", "sna", "scales"))
 
   # -- conversion to network class ---------------------------------------------
 
