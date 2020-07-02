@@ -169,7 +169,7 @@ perm_p_value <- function(data, model_name_1, model_name_2){
 # Find median and IQRs for each AUROC datasplit for each model
 median_iqr <- function(data, model_name){
   median <- format(round(median((data %>% filter(model==model_name))$test_aucs), 3), nsmall=3)
-  min_iqr <- format(round(rf_median - IQR((data %>% filter(model==model_name))$test_aucs), 3), nsmall=3)
-  max_iqr <- format(round(rf_median + IQR((data %>% filter(model==model_name))$test_aucs), 3), nsmall=3)
+  min_iqr <- format(round(median - IQR((data %>% filter(model==model_name))$test_aucs), 3), nsmall=3)
+  max_iqr <- format(round(median + IQR((data %>% filter(model==model_name))$test_aucs), 3), nsmall=3)
   return(list(median, min_iqr, max_iqr))
 }
