@@ -363,7 +363,7 @@ ggsave(paste0("results/figures/Figure_4.jpg"),
 			labels = c('A', 'B'), nrow = 1),
 	width = 12, height = 10, units="in")
 
-ggsave(paste0("results/figures/Figure_S3.jpg"), 
+ggsave(paste0("results/figures/Figure_S4.jpg"), 
 	plot = model_perf_plot,
 	width = 6, height = 6, units="in")
 
