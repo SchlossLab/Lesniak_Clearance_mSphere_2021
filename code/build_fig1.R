@@ -62,11 +62,11 @@ colonization_plot <- meta_df %>%
 		annotate(x = -1, y = 200, geom = 'label', label = "LOD", # create a dotted line labeled LOD for limit of detection
 			fill = "white", color = 'black', label.size = NA) + 
 		geom_hline(yintercept = 101, linetype = 'dashed', size = 0.25) + 
-		scale_y_log10(
-   			breaks = scales::trans_breaks("log10", function(x) 10^x),
-   			labels = scales::trans_format("log10", scales::math_format(10^.x))) + # scale y axis log10 and label 10^x
+		scale_y_log10(breaks = c(10^2, 10^4, 10^6, 10^8),
+				labels = c('10^2', '10^4', '10^6', '10^8')) + # scale y axis log10 and label 10^x
 		theme_bw() + labs(x = 'Day', y = expression(italic('C. difficile')~' CFU')) + 
-		theme(panel.grid.minor = element_blank())
+		theme(panel.grid.minor = element_blank(),
+			axis.text.y = element_markdown())
 
 shared_genus <- sum_otu_by_taxa(tax_df, shared_df, taxa_level = 'Genus', top_n = 10) # sum at the genus level for the top 10
 
@@ -107,6 +107,7 @@ alpha_sobs_plot <- alpha_df %>%
 	ggplot(aes(x = day, y = sobs, color = cdiff, group = interaction(cdiff, day))) + 
 		geom_boxplot(position = 'dodge') + 
 		#geom_point(alpha = 0.4, position = position_jitterdodge()) + 
+		coord_cartesian(ylim = c(0,100)) +
         scale_x_continuous(breaks = -1:10) +
 		scale_color_manual(values = c('#A40019', 'darkgray')) + 
 		theme_bw() + labs(x = 'Day', y = expression(~S[obs])) + 
@@ -120,6 +121,7 @@ alpha_invsimp_plot <- alpha_df %>%
 	ggplot(aes(x = day, y = invsimpson, color = cdiff, group = interaction(cdiff, day))) + 
 		geom_boxplot(position = 'dodge') + 
 		#geom_point(alpha = 0.4, position = position_jitterdodge()) + 
+		coord_cartesian(ylim = c(0,20)) +
         scale_x_continuous(breaks = -1:10) +
 		scale_color_manual(values = c('#A40019', 'darkgray')) + 
 		theme_bw() + labs(x = 'Day', y = 'Inverse Simpson', color = NULL) + 

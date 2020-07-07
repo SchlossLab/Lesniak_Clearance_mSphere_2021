@@ -75,14 +75,14 @@ plot_colonization_abundance <- function(antibiotic, n_taxa, label_input){
 			geom_hline(yintercept = 90, linetype = 'dashed', size = 0.25) + 
 			geom_label(data = lod_label_df, label = "LOD", color = 'white') + 
 			geom_text(data = lod_label_df, label = "LOD") + 
-			scale_y_log10(
-	   			breaks = scales::trans_breaks("log10", function(x) 10^x),
-	   			labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
+			scale_y_log10(breaks = c(10^2, 10^4, 10^6, 10^8),
+				labels = c('10^2', '10^4', '10^6', '10^8')) + 
 			theme_bw() + 
 			facet_wrap(.~dose, nrow = 1) + 
 			labs(x = 'Day', y = expression(italic('C. difficile')~' CFU')) + 
 			theme(panel.grid.minor = element_blank(),
-				panel.spacing = unit(c(3,1),'lines'))
+				panel.spacing = unit(c(3,1),'lines'),
+				axis.text.y = element_markdown())
 	# plot day 0 relative abundance by antibiotic dosage
 	if(antibiotic == 'Cefoperazone'){
 			taxa_order <- c('*Lactobacillus*', 'Other', 
