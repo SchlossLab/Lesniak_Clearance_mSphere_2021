@@ -77,23 +77,31 @@ references : $(REFS)HMP_MOCK.v4.fasta $(REFS)trainset10_082014.v4.tax $(REFS)tra
 #
 ################################################################################
 
+# Get metadata from Schubert mBio 2015 doi: 10.1128/mBio.00974-15
+data/raw/abxD01_IDS.xlsx : 
+	wget -N -P data/raw https://github.com/SchlossLab/Schubert_AbxD01_mBio_2015/raw/master/data/raw/abxD01_IDS.xlsx
 
-# build the files file. probably should replace this chunk eventually
-# with pulling data off of the SRA
-#$(MOTHUR)abx_time.files : code/make_files_file.R $(RAW)abx_cdiff_metadata.tsv
-#	R -e "source('code/make_files_file.R')"
+# Clean metadata for this project
+data/process/abx_cdiff_metadata_clean.txt : data/raw/abxD01_IDS.xlsx \
+											code/clean_metadata.R
+	Rscript code/clean_metadata.R
 
-
-# need to get the fastq files. probably should replace this chunk eventually
-# with pulling data off of the SRA
-#$(RAW)get_data : code/get_fastqs.sh $(MOTHUR)abx_time.files
-#	bash code/get_fastqs.sh $(MOTHUR)abx_time.files;\
+# get the fastq files
+#### UPDATE USING SRA to download fastqs into data/mothur ####
+#$(RAW)get_data : code/get_fastqs.sh $(MOTHUR)abx_clearance.files
+#	bash code/get_fastqs.sh $(MOTHUR)abx_clearance.files;\
 #	touch $(RAW)get_data
+
+# build the files file. 
+$(MOTHUR)abx_clearance.files : code/make_files_file.R $(RAW)abx_cdiff_metadata.tsv
+	Rscript code/make_files_file.R
+
+
 
 # need to get the CFU on the day after antibiotic treatment along with the
 # part of the experiment that each sample belongs to
 #
-#$(MOTHUR)abxD1.counts : code/make_counts_file.R $(MOTHUR)abx_time.files\
+#$(MOTHUR)abxD1.counts : code/make_counts_file.R $(MOTHUR)abx_clearance.files\
 #							$(MOTHUR)abx_cdiff_metadata.tsv
 #	R -e "source('code/make_counts_file.R')"
 

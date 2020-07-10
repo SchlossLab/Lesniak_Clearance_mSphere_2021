@@ -14,26 +14,26 @@
 #load dependencies 
 library(dplyr)
 library(tidyr)
+library(readxl)
 
 #load metadata file
-meta_file   <- 'data/raw/abx_cdiff_metadata.tsv'
-meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F)
-
-
-# convert all dosages to same format
-meta_file$dose[meta_file$dose == '10mg/kg'] <- 10
-meta_file$dose <- as.numeric(meta_file$dose)
-
-# change vanc so all are same format
-meta_file$abx[meta_file$abx == 'vanc '] <- 'vanc'
-
+meta_file <- read_xlsx('data/raw/abxD01_IDS.xlsx', sheet = 'all',
+		col_types = c('text', 'numeric', 'numeric', 'numeric', 'numeric', 'text', 'text', 'text', 'text', 'text', 'text'),
+		na = c('na', 'no')) %>% 
+	rename(group = sample, cage = `group#`, mouse = `mouse#`, delayed = time, cdiff = Cdiff, preAbx = preABX) %>% 
+	# convert columns to numeric/logical where appropriate
+	mutate(dose = as.numeric(gsub('mg/kg', '', dose)),
+		delayed = delayed == 'delayed',
+		cdiff = cdiff == '630dE',
+		preAbx = preAbx == 'preAbx',
+		recovDays = as.numeric(gsub('recovD', '', recovDays)))
 
 # some samples have NA and some have 0, 
 # many of which are before challenge
 # there are 12 samples with NA after day 0 (day 4,5,9, and 10)
-na_list <- c(meta_file %>% 
+na_list <- meta_file %>% 
   filter(is.na(CFU), cdiff == T, day > 0) %>% 
-  pull(group))
+  pull(group)
 # "042-3D4"  "048-1D5"  "048-3D5"  "048-4D5"  "050-1D9"  "050-2D9" 
 # "050-3D9"  "050-4D9"  "087-4D9"  "098-3D4"  "103-3D10" "111-3D4" 
 
@@ -186,6 +186,11 @@ cfu_cleaned <- cfu_cleaned %>%
 	mutate(dose_level = case_when(dose == min(dose) ~ 'Low',
 			dose == max(dose) ~ 'High',
 			T ~ 'Mid'))
+
+# with cleaned data, filter sample used for this set of experiments
+cfu_cleaned <- cfu_cleaned %>% 
+	filter(abx %in% c('Clindamycin', 'Cefoperazone', 'Streptomycin')) %>% 
+	select(-delayed, -recovDays)
 
 write.table(cfu_cleaned, 'data/process/abx_cdiff_metadata_clean.txt', 
 	sep = '\t', quote = FALSE, row.names = FALSE)
