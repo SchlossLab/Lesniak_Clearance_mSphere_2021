@@ -43,8 +43,8 @@ wget -N -P data/scratch/ https://mothur.s3.us-east-2.amazonaws.com/data/MiSeqDev
 
 # Aligning mock sequences to the SILVA v4 region
 mothur "#align.seqs(fasta=data/scratch/HMP_MOCK.fasta, reference=data/references/silva.v4.align, processors=8);
-	degap.seqs(fasta=data/scratch/HMP_MOCK.pcr.align)"
-mv data/scratch/HMP_MOCK.pcr.ng.fasta data/references/HMP_MOCK.v4.align
+	degap.seqs(fasta=data/scratch/HMP_MOCK.align)"
+mv data/scratch/HMP_MOCK.ng.fasta data/references/HMP_MOCK.v4.align
 
 # Remove scratch dir
 rm -rf data/scratch/
