@@ -185,7 +185,8 @@ cfu_cleaned <- cfu_cleaned %>%
 	group_by(abx) %>% 
 	mutate(dose_level = case_when(dose == min(dose) ~ 'Low',
 			dose == max(dose) ~ 'High',
-			T ~ 'Mid'))
+			T ~ 'Mid'),
+		group = ifelse(day < 0, paste(cage, '_', mouse, '_Dminus', day), paste(cage, '_', mouse, '_D', day)))
 
 # with cleaned data, filter sample used for this set of experiments
 cfu_cleaned <- cfu_cleaned %>% 
