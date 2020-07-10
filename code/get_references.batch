@@ -7,7 +7,7 @@ echo PROGRESS: Preparing SILVA database v4 sequence alignment files.
 # This version is from v138 and described at https://mothur.org/blog/2020/SILVA-v138-reference-files/
 wget -N -P data/scratch/ https://mothur.s3.us-east-2.amazonaws.com/wiki/silva.seed_v138.tgz
 # Decompressing the database
-tar xvzf data/scratch/silva.seed_v138.tgz -C data/scratch
+tar xvzf data/scratch/silva.seed_v138.tgz -C data/scratch/
 
 # Using mothur to pull out the v4 region from bacterial sequences
 # And rename the output file and moving it from the tmp dir to the output dir
@@ -25,9 +25,10 @@ wget -N -P data/scratch/ https://mothur.s3.us-east-2.amazonaws.com/wiki/trainset
 
 # Decompressing the database
 tar xvzf data/scratch/trainset16_022016.pds.tgz -C data/scratch/
+mv data/scratch/trainset16_022016.pds/* data/scratch/
 
 #get the V4 region of the RDP training set
-mothur "#align.seqs(fasta=data/scratch/trainset16_022016.pds.fasta, reference=data/reference/silva.v4.align, processors=8);\
+mothur "#align.seqs(fasta=data/scratch/trainset16_022016.pds.fasta, reference=data/references/silva.v4.align, processors=8);\
 		screen.seqs(fasta=current, taxonomy=data/scratch/trainset16_022016.pds.tax, start=1, end=13425);\
 		degap.seqs(fasta=current)"
 mv data/scratch/trainset16_022016.pds.good.ng.fasta data/references/trainset16_022016.v4.fasta
@@ -41,7 +42,7 @@ echo PROGRESS: Preparing mock sequence files for mothur.
 wget -N -P data/scratch/ https://mothur.s3.us-east-2.amazonaws.com/data/MiSeqDevelopmentData/HMP_MOCK.fasta
 
 # Aligning mock sequences to the SILVA v4 region
-mothur "#align.seqs(fasta=data/scratch/HMP_MOCK.fasta, reference=data/reference/silva.v4.align, processors=8);
+mothur "#align.seqs(fasta=data/scratch/HMP_MOCK.fasta, reference=data/references/silva.v4.align, processors=8);
 	degap.seqs(fasta=data/scratch/HMP_MOCK.pcr.align)"
 mv data/scratch/HMP_MOCK.pcr.ng.fasta data/references/HMP_MOCK.v4.align
 
