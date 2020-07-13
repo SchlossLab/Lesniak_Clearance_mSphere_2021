@@ -47,7 +47,7 @@ mothur code/get_error.batch
 mothur code/get_shared_otus.batch
 #rename and split shared files
 mv data/mothur/abx_clearance.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.opti_mcc.shared data/mothur/complete.sample.final.shared
-mothur "#remove.groups(shared=data/mothur/complete.sample.final.shared, groups=mockvS282-mockvS283-mockvS288-mockvS343-mockvS344-mockvS384-mockvS96)"
+mothur "#remove.groups(shared=data/mothur/complete.sample.final.shared, groups=mock2-mock3-mock4-mock5-mock6-mock8-mock9)"
 mv data/mothur/complete.sample.final.0.03.pick.shared data/mothur/sample.final.shared
 mothur "#set.dir(input=data/mothur/donor, output=data/mothur/donor);
 	summary.single(shared=sample.final.shared, calc=nseqs-coverage-sobs-invsimpson, subsample=2000);
