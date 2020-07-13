@@ -53,16 +53,6 @@ $(MOTHUR)abx_clearance.files : code/make_files_file.R $(RAW)abx_cdiff_metadata.t
 	Rscript code/make_files_file.R
 
 
-
-# need to get the CFU on the day after antibiotic treatment along with the
-# part of the experiment that each sample belongs to
-#
-#$(MOTHUR)abxD1.counts : code/make_counts_file.R $(MOTHUR)abx_clearance.files\
-#							$(MOTHUR)abx_cdiff_metadata.tsv
-#	R -e "source('code/make_counts_file.R')"
-
-
-
 ################################################################################
 #
 #	Part 3: Run data through mothur
@@ -92,15 +82,14 @@ $(MOTHUR)complete.sample.final.shared $(MOTHUR)sample.final.shared $(PROC)mock.s
 	mv data/mothur/abx_clearance.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.opti_mcc.shared data/mothur/complete.sample.final.shared
 	mothur "#remove.groups(shared=data/mothur/complete.sample.final.shared, groups=mock2-mock3-mock4-mock5-mock6-mock8-mock9)"
 	mv data/mothur/complete.sample.final.0.03.pick.shared data/mothur/sample.final.shared
-	mothur "#set.dir(input=data/mothur/donor, output=data/mothur/donor);
+	mothur "#set.dir(input=data/mothur, output=data/mothur);
 		summary.single(shared=sample.final.shared, calc=nseqs-coverage-sobs-invsimpson, subsample=$(SUB));
 		dist.shared(shared=sample.final.shared, calc=thetayc-jclass, subsample=$(SUB));
-		nmds(phylip=sample.final.thetayc.0.03.lt.ave.dist);
-		sub.sample(sample.final.shared, size=$(SUB));
+		sub.sample(shared=sample.final.shared, size=$(SUB));
 		get.groups(shared=complete.sample.final.shared, groups=mock2-mock3-mock4-mock5-mock6-mock8-mock9)"
 	mv data/mothur/complete.sample.final.0.03.pick.shared data/process/mock.sample.final.shared
-	mv data/mothur/humanGF_cdiff.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.opti_mcc.0.03.cons.taxonomy data/mothur/final.taxonomy
-	mv data/mothur/humanGF_cdiff.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.error.count data/mothur/sample.error.count
+	mv data/mothur/abx_clearance.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.opti_mcc.0.03.cons.taxonomy data/mothur/final.taxonomy
+	mv data/mothur/abx_clearance.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.error.count data/mothur/sample.error.count
 
 
 ################################################################################
@@ -115,7 +104,7 @@ $(MOTHUR)complete.sample.final.shared $(MOTHUR)sample.final.shared $(PROC)mock.s
 ################################################################################
 
 # Convert taxonomy file into a dataframe with OTU labels
-data/process/abx_cdiff_taxonomy_clean.tsv : data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy\
+data/process/abx_cdiff_taxonomy_clean.tsv : data/mothur/final.taxonomy\
 											code/convert_OTU_labels.R
 	Rscript code/convert_OTU_labels.R
 
@@ -132,7 +121,7 @@ data/process/otu_input_data.csv data/process/otu_sample_names.txt data/process/s
 																	code/R/compute_correlation_matrix.R\
 																	data/process/abx_cdiff_metadata_clean.txt\
 																	data/process/abx_cdiff_taxonomy_clean.tsv\
-																	data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared\
+																	data/mothur/sample.final.0.03.subsample.shared\
 
 	Rscript code/R/setup_model_data.R otu
 
