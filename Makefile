@@ -161,35 +161,46 @@ $FINAL_DIR/combined_L2_Logistic_Regression_feature_ranking.tsv : $FINAL_DIR/comb
 # Figure 1
 results/figures/figure_1.jpg : code/build_fig1.R\
 								data/process/abx_cdiff_metadata_clean.txt\
-								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared\
+								data/mothur/sample.final.0.03.subsample.shared\
 								data/process/abx_cdiff_taxonomy_clean.tsv\
 								code/sum_otu_by_taxa.R\
-								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary\
-								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist\
+								data/mothur/sample.final.groups.ave-std.summary\
+								data/mothur/sample.final.thetayc.0.03.lt.ave.dist\
 								code/read.dist.R
 	Rscript code/build_fig1.R
 
 # Figure 2
 results/figures/figure_2.jpg : code/build_fig2.R\
 								data/process/abx_cdiff_metadata_clean.txt\
-								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared\
+								data/mothur/sample.final.0.03.subsample.shared\
 								data/process/abx_cdiff_taxonomy_clean.tsv\
 								code/sum_otu_by_taxa.R
 	Rscript code/build_fig2.R
 
 # Figure 3
-results/figures/figure_3.jpg : code/build_fig3.R\
+results/figures/figure_3.jpg results/figures/figure_S1.jpg results/figures/figure_S2.jpg : code/build_fig3.R\
 								data/process/abx_cdiff_metadata_clean.txt\
-								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared\
+								data/mothur/sample.final.0.03.subsample.shared\
 								data/process/abx_cdiff_taxonomy_clean.tsv\
 								code/sum_otu_by_taxa.R\
-								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary\
-								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist\
+								data/mothur/sample.final.groups.ave-std.summary\
+								data/mothur/sample.final.thetayc.0.03.lt.ave.dist\
 								code/read.dist.R
 	Rscript code/build_fig3.R
 
+# Figure S3
+results/figures/figure_S3.jpg : code/build_figS3.R\
+								data/process/abx_cdiff_metadata_clean.txt\
+								data/mothur/sample.final.0.03.subsample.shared\
+								data/process/abx_cdiff_taxonomy_clean.tsv\
+								code/sum_otu_by_taxa.R\
+								data/mothur/sample.final.groups.ave-std.summary\
+								data/mothur/sample.final.thetayc.0.03.lt.ave.dist\
+								code/read.dist.R
+	Rscript code/build_figS3.R
+
 # Figure 4
-results/figures/figure_4.jpg results/figures/figure_S1.jpg : code/build_fig4.R\
+results/figures/figure_4.jpg results/figures/figure_S4.jpg : code/build_fig4.R\
 								code/R/functions.R\
 								data/process/abx_cdiff_metadata_clean.txt\
 								data/process/abx_cdiff_taxonomy_clean.tsv\
@@ -199,14 +210,14 @@ results/figures/figure_4.jpg results/figures/figure_S1.jpg : code/build_fig4.R\
 								data/process/otu/combined_best_hp_results_L2_Logistic_Regression.csv\
 								data/process/otu/L2_Logistic_Regression_non_cor_importance.tsv\
 								data/process/otu/combined_all_imp_features_non_cor_results_L2_Logistic_Regression.csv\
-								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared
+								data/mothur/sample.final.0.03.subsample.shared
 	Rscript code/build_fig4.R otu
 
 # Figure 5
 results/figures/figure_5.jpg : code/build_fig5.R\
 								data/process/abx_cdiff_metadata_clean.txt\
-								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.shared\
-								data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared\
+								data/mothur/sample,final.shared\
+								data/mothur/sample.final.0.03.subsample.shared\
 								data/process/abx_cdiff_taxonomy_clean.tsv
 	Rscript code/build_fig5.R
 
