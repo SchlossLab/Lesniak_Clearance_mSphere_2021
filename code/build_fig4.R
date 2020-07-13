@@ -1,6 +1,6 @@
 ##############
 #
-# run script to generate plots for Figure 5
+# run script to generate plots for Figure 4
 #	How do communities predict/classify clearance/colonization?
 # 
 # Nick Lesniak 04-28-2020
@@ -224,7 +224,7 @@ perm_imp_plot <- ggplot() +
 #------------------ Do the features make sense? -------------------- #
 ######################################################################
 # plot abundance by outcome
-shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
+shared_file <- 'data/mothur/sample.final.0.03.subsample.shared'
 full_meta_df <- read_tsv(meta_file)
 shared_df <- read_tsv(shared_file) 
 total_abundance <- sum(shared_df[1,-c(1:3)])

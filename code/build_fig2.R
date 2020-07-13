@@ -7,7 +7,7 @@
 #
 #  need files:
 #	data/process/abx_cdiff_metadata_clean.txt
-#	data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared
+#	data/mothur/sample.final.0.03.subsample.shared
 #	data/process/abx_cdiff_taxonomy_clean.tsv
 #	code/sum_otu_by_taxa.R
 #
@@ -19,7 +19,7 @@ library(cowplot)
 library(ggtext)
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
-shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
+shared_file <- 'data/mothur/sample.final.0.03.subsample.shared'
 tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
 sum_taxa_function <- 'code/sum_otu_by_taxa.R'
 

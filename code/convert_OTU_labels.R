@@ -16,7 +16,7 @@ library(dplyr)
 library(tidyr)
 library(readr)
 
-taxonomy_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
+taxonomy_file <- 'data/mothur/final.taxonomy'
 taxonomy_df <- read.table(taxonomy_file, sep = '\t', header = T)
 
 levels <- c('Kingdom','Phylum','Class','Order','Family','Genus')

@@ -7,11 +7,11 @@
 #
 #  need files:
 #	data/process/abx_cdiff_metadata_clean.txt
-#	data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared
+#	data/mothur/sample.final.0.03.subsample.shared
 #	data/process/abx_cdiff_taxonomy_clean.tsv
 #	code/sum_otu_by_taxa.R
-#	data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary
-#	data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist
+#	data/mothur/sample.final.groups.ave-std.summary
+#	data/mothur/sample.final.thetayc.0.03.lt.ave.dist
 #	code/read.dist.R
 #
 ##############
@@ -22,11 +22,11 @@ library(cowplot)
 library(ggtext)  # remotes::install_github("wilkelab/ggtext")
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
-shared_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
+shared_file <- 'data/mothur/sample.final.0.03.subsample.shared'
 tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
 sum_taxa_function <- 'code/sum_otu_by_taxa.R'
-alpha_div_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary'
-beta_div_file <- 'data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist'
+alpha_div_file <- 'data/mothur/sample.final.groups.ave-std.summary'
+beta_div_file <- 'data/mothur/sample.final.thetayc.0.03.lt.ave.dist'
 dist_function <- 'code/read.dist.R'
 
 # read in data
