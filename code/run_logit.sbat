@@ -19,7 +19,7 @@
 #SBATCH --time=20:00:00
 
 # Account
-#SBATCH --account=pschloss99
+#SBATCH --account=pschloss1
 #SBATCH --partition=standard
 
 # Logs
@@ -44,4 +44,4 @@ seed=$(($SLURM_ARRAY_TASK_ID - 1))
 #####################
 
 
-Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level l2_otu --data  data/process/otu_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
+Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level l2_otu --data  data/process/l2_otu_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation

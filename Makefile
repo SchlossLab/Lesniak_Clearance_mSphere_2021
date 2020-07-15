@@ -123,7 +123,7 @@ data/process/otu_input_data.csv data/process/otu_sample_names.txt data/process/s
 																	data/process/abx_cdiff_taxonomy_clean.tsv\
 																	data/mothur/sample.final.0.03.subsample.shared\
 
-	Rscript code/R/setup_model_data.R otu
+	Rscript code/R/setup_model_data.R l2_otu
 
 # Run pipeline array
 $SEARCH_DIR/walltime_L2_Logistic_Regression_1.csv : code/R/main.R\
@@ -136,7 +136,7 @@ $SEARCH_DIR/walltime_L2_Logistic_Regression_1.csv : code/R/main.R\
 						code/R/functions.R
 	for seed in {1..100}
 	do
-		Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level otu --data  data/process/otu_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
+		Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level l2_otu --data  data/process/otu_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
 	done
 	# or run SBATCH code/run_logit.sbat on the Great Lakes cluster
 

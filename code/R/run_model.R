@@ -8,11 +8,6 @@ source("code/R/model_pipeline.R")
 ######################################################################
 # Description:
 
-# This script will read in data from Baxter et al. 2016
-#     - 0.03 subsampled OTU dataset
-#     - CRC metadata: SRN information
-
-
 # It will run the following machine learning pipelines:
 #     - L2 Logistic Regression
 #     - L1 and L2 Linear SVM
