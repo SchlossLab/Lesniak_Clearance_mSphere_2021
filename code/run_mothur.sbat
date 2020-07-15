@@ -50,9 +50,9 @@ mv data/mothur/abx_clearance.trim.contigs.good.unique.good.filter.unique.preclus
 mothur "#remove.groups(shared=data/mothur/complete.sample.final.shared, groups=mock2-mock3-mock4-mock5-mock6-mock8-mock9)"
 mv data/mothur/complete.sample.final.0.03.pick.shared data/mothur/sample.final.shared
 mothur "#set.dir(input=data/mothur, output=data/mothur);
-	summary.single(shared=sample.final.shared, calc=nseqs-coverage-sobs-invsimpson, subsample=2000);
-	dist.shared(shared=sample.final.shared, calc=thetayc-jclass, subsample=2000);
-	sub.sample(shared=sample.final.shared, size=2000);
+	summary.single(shared=sample.final.shared, calc=nseqs-coverage-sobs-invsimpson, subsample=1200);
+	dist.shared(shared=sample.final.shared, calc=thetayc-jclass, subsample=1200);
+	sub.sample(shared=sample.final.shared, size=1200);
 	get.groups(shared=complete.sample.final.shared, groups=mock2-mock3-mock4-mock5-mock6-mock8-mock9)"
 mv data/mothur/complete.sample.final.0.03.pick.shared data/process/mock.sample.final.shared
 mv data/mothur/abx_clearance.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.opti_mcc.0.03.cons.taxonomy data/mothur/final.taxonomy

@@ -59,7 +59,7 @@ $(MOTHUR)abx_clearance.files : code/make_files_file.R $(RAW)abx_cdiff_metadata.t
 #
 ################################################################################
 
-SUB = 2000
+SUB = 1200
 # here we go from the raw fastq files and the files file to generate a fasta,
 # taxonomy, and count_table file that has had the chimeras removed as well as
 # any non bacterial sequences
@@ -136,7 +136,7 @@ $SEARCH_DIR/walltime_L2_Logistic_Regression_1.csv : code/R/main.R\
 						code/R/functions.R
 	for seed in {1..100}
 	do
-		Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level l2_otu --data  data/process/otu_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
+		Rscript code/R/main.R --seed $seed --model L2_Logistic_Regression --level l2_otu --data  data/process/l2_otu_input_data.csv --hyperparams data/default_hyperparameters.csv --outcome clearance --permutation
 	done
 	# or run SBATCH code/run_logit.sbat on the Great Lakes cluster
 
