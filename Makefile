@@ -84,7 +84,7 @@ $(MOTHUR)complete.sample.final.shared $(MOTHUR)sample.final.shared $(PROC)mock.s
 	mv data/mothur/complete.sample.final.0.03.pick.shared data/mothur/sample.final.shared
 	mothur "#set.dir(input=data/mothur, output=data/mothur);
 		summary.single(shared=sample.final.shared, calc=nseqs-coverage-sobs-invsimpson, subsample=$(SUB));
-		dist.shared(shared=sample.final.shared, calc=thetayc-jclass, subsample=$(SUB));
+		dist.shared(shared=sample.final.shared, calc=thetayc, subsample=$(SUB));
 		sub.sample(shared=sample.final.shared, size=$(SUB));
 		get.groups(shared=complete.sample.final.shared, groups=mock2-mock3-mock4-mock5-mock6-mock8-mock9)"
 	mv data/mothur/complete.sample.final.0.03.pick.shared data/process/mock.sample.final.shared
@@ -113,8 +113,8 @@ data/process/abx_cdiff_taxonomy_clean.tsv : data/mothur/final.taxonomy\
 # Run L2 Logistic Regression
 ################################################################################
 
-SEARCH_DIR=data/temp/otu
-FINAL_DIR=data/process/otu
+SEARCH_DIR=data/temp/l2_otu
+FINAL_DIR=data/process/l2_otu
 # Create dataframe of subset samples classification column (cleared), and features (OTUs)
 # and create correlation matrix of features
 data/process/otu_input_data.csv data/process/otu_sample_names.txt data/process/sig_flat_corr_matrix_otu.csv : code/R/setup_model_data.R\
