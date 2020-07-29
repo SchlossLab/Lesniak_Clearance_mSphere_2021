@@ -1,0 +1,920 @@
+---
+title: "Exploratory - _C. difficile_ by time"
+author: "Nicholas Lesniak"
+date: "2/9/2017"
+output: html_document
+---
+
+```{r setup environment, include=F}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+
+library(tidyverse)
+library(cowplot)
+
+meta_file   <- '../data/process/abx_cdiff_metadata_clean.txt'
+shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
+tax_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.cons.taxonomy'
+tax_function <- '../code/sum_otu_by_taxa.R'
+
+meta_file   <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F)
+shared_file <- read.table(shared_file, sep = '\t', header = T, row.names = 'Group')
+source(tax_function)
+
+tax_df <- read.table(tax_file, sep = '\t', header = T)
+
+cdiff_otus <- as.character(tax_df$OTU[grep('Clostridium_XI', tax_df$Taxonomy)])
+entercoccus_otus <- as.character(tax_df$OTU[grep('Enterococcus', tax_df$Taxonomy)])
+
+numotus <- shared_file$numOtus[1]
+
+shared_cdiff <- apply(select(shared_file, one_of(cdiff_otus)), 1, sum)
+shared_cdiff <- data.frame(group = names(shared_cdiff), c_difficile = unname(shared_cdiff), stringsAsFactors = F) %>% 
+  mutate(C.difficile = c_difficile/numotus)
+
+#left_join(shared_cdiff, select(meta_file, group, CFU)) %>% 
+#  ggplot(aes(x = log(CFU+ 1), y = log(c_difficile + 1))) + geom_point() + 
+#    labs(x = 'CFU (log10)', y = 'Counts (log10)', title = 'C. difficile Counts vs CFU')
+
+shared_file <- select(shared_file, -label, -numOtus, -one_of(cdiff_otus))
+
+```
+
+
+## Comparing CFU vs Counts for detecting C. difficile
+
+
+```{r cdiff counts v cfu}
+
+left_join(shared_cdiff, select(meta_file, group, CFU)) %>% 
+  ggplot(aes(x = log10(CFU+ 1), y = log10(c_difficile + 1))) + geom_point() +
+     geom_smooth(method = 'lm') + 
+    labs(x = 'CFU (log10)', y = 'Counts (log10)', title = 'C. difficile Counts vs CFU')
+
+
+```
+
+
+```{r shared setup, include=F}
+
+#OTU_total <- if(summary(apply(shared_file, 1, sum))['Min.'] ==
+#   summary(apply(shared_file, 1, sum))['Max.']){
+#  as.numeric(summary(apply(shared_file, 1, sum))['Mean'])
+#}
+
+
+#counts[which(counts <= 1000)]
+#counts[1294]
+#shared_file[1294,which(test[1294,] > 0)]
+#test[1294,which(test[1294,] > 0)]
+
+# remove OTUs not present in at least percentage of samples
+otu_presence_cutoff <- 0.05
+otu_presence <- ifelse(shared_file > 0, T, F) 
+OTUs_present <- colnames(shared_file[ , apply(otu_presence, 2, sum) > 
+                                        round(otu_presence_cutoff*nrow(shared_file))])
+#relative abundance of OTUs present in >5% of samples
+#rel_abund <- shared_file[ ,OTUs_present]/OTU_total*100
+counts <- apply(shared_file,1,sum)
+rel_abund <- data.frame(apply(shared_file[ ,OTUs_present], 2, function(i){(i/counts)*100}))
+
+```
+
+```{r community dynamics}
+
+hi_lo_no_delay_df <- meta_file %>% 
+  filter(delayed == F, (abx %in% c('none','amp','cipro','clinda','metro')) |
+    (abx == 'cef' & dose == 0.5) | (abx == 'strep' & dose == 5) |
+    (abx == 'vanc' & dose == 0.625)) %>% 
+  select(group, CFU, cage, mouse, day, abx, cdiff, preAbx)
+
+meta_shared <- right_join(hi_lo_no_delay_df, 
+    mutate(rel_abund, group = rownames(rel_abund)))
+
+phyla_rel_ab <- left_join(sum_otu_by_taxa(taxonomy_file = tax_file, otu_df = rel_abund,taxa_level = 'phylum'),
+  select(shared_cdiff, group, C.difficile), by = 'group')
+meta_phyla <- left_join(hi_lo_no_delay_df, phyla_rel_ab, by = 'group')
+taxa <- colnames(select(phyla_rel_ab, -group))
+
+all_plots <- lapply(unique(meta_phyla$abx),function(antibiotic){
+cfu_plot <- meta_phyla %>%
+    filter(day >= 0, abx == antibiotic) %>% 
+      mutate(CFU = log10(CFU + 0.001),
+        CFU = ifelse(CFU < 0, 0, CFU)) %>% 
+      ggplot(aes(x = day, y = CFU, color = cdiff)) + 
+        #scale_y_log10() + 
+        geom_jitter(width = 0.15, alpha = 0.2) + 
+        stat_summary(fun.y=median, geom="line", alpha = 0.2, aes(group = cage)) +
+        stat_summary(fun.y=median, geom="line", size = 1, aes(group = cdiff)) +
+        labs(x = 'Day', y = ' CFU (log10)', 
+             title = paste0('C. Difficile Colonization - ', antibiotic),
+             subtitle = 'Individual points are mice, thin lines are the median by cage\nBold lines/points are median treatment with vertical lines representing the IQR',
+             color = 'Challenged with C. difficile') +
+        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), aes(group = cdiff)) + 
+        theme_bw() +
+        theme(legend.position="bottom", legend.direction="horizontal")
+
+community_plot <- meta_phyla %>% 
+  filter(day >= 0, abx == antibiotic) %>% 
+  gather(taxonomy, abundance, one_of(taxa)) %>% 
+  ggplot(aes(x = day, y = abundance, color = cdiff)) + 
+        facet_grid(taxonomy ~., scales = 'free_y') + 
+        geom_jitter(width = 0.15, alpha = 0.2) + 
+        stat_summary(fun.y=median, geom="line", alpha = 0.2, aes(group = cage)) +
+        labs(x = 'Day', y = ' Relative Abundance', title = paste(antibiotic),
+          subtitle = 'Individual points are mice, thin lines are the median by cage\nBold lines/points are median treatment with vertical lines representing the IQR',
+          color = 'Challenged with C. difficile') +
+        stat_summary(fun.y=median, geom="line", size = 1, aes(group = cdiff)) +
+        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5), aes(group = cdiff)) + 
+        theme_bw() +
+        theme(legend.position="bottom", legend.direction="horizontal")
+return(list(cfu_plot, community_plot))
+})
+
+antibiotics <- c('Clindamycin','Cefaperazone','Streptomycin')
+abxs <- c('clinda','cef','strep')
+meta_phyla$CFU[is.na(meta_phyla$CFU)] <- 0
+
+#plots saved for presentation
+#for(i in abxs){        
+#  # single cdiff colonization plot
+#  ggsave(paste0(i, '_cdiff_single_mouse.png'), width = 5.5, height = 5.5, 
+#    meta_phyla %>%
+#      filter(day >= 0, abx == i, cage %in% c(4,104,48), mouse == 1) %>% 
+#      ggplot(aes(x = day, y = CFU +1)) + 
+#          scale_y_log10(limits = c(1, 1e9), 
+#            breaks = scales::trans_breaks("log10", function(x) 10^x),
+#            labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
+#          geom_line(lwd = 1.5, color = 'red') + 
+#          labs(x = 'Day', y = ' CFU (log10)', 
+#            title = paste0('C. Difficile Colonization - ', antibiotics[abxs == i])) +
+#          scale_x_continuous(expand = c(0, 0), breaks = seq(0, 10, by = 1)) + 
+#          theme_bw()
+#          )
+#  # single cdiff community plot
+#  plot <- meta_phyla %>%
+#    filter(day >= 0, abx == i, cage %in% c(4,104,48), mouse == 1) %>% 
+#    gather(taxonomy, abundance, one_of(taxa)) %>% 
+#    ggplot(aes(x = day, y = abundance, color = taxonomy)) + 
+#      geom_line(lwd = 1.5) + 
+#      labs(x = 'Day', y = ' Relative Abundance', 
+#        title = paste0('Community Dynamics - ', antibiotics[abxs == i])) +
+#      scale_x_continuous(expand = c(0, 0), breaks = seq(0, 10, by = 1)) + 
+#      scale_y_continuous(expand = c(0, 0), limits = c(0,100)) + 
+#      theme_bw()
+#
+#  if(i == 'clinda'){
+#    ggsave(paste0(i, '_community_single_mouse.png'), width = 5.5, height = 5.5,
+#      plot + 
+#      theme(legend.position = c(0.95, 0.5),
+#        legend.justification = c(1, 0.5), 
+#        legend.background = element_rect(colour = 'black', fill = "white"),
+#        legend.title=element_blank()))
+#  } else {
+#    ggsave(paste0(i, '_community_single_mouse.png'), width = 5.5, height = 5.5, 
+#      plot + theme(legend.position = 'none')
+#      )
+#  }
+#}
+
+
+```
+
+***
+***
+
+
+## None
+
+```{r cfu plot, fig.width=9, fig.height=3, eval=F}
+all_plots[[1]][[1]]
+```
+
+```{r community plot, fig.width=10, fig.height=9, eval=F}
+all_plots[[1]][[2]]
+```
+
+## Clindamycin
+
+```{r cfu plot clinda, fig.width=9, fig.height=3}
+all_plots[[2]][[1]]
+```
+
+```{r community plot clinda, fig.width=10, fig.height=9}
+all_plots[[2]][[2]]
+```
+
+## Vancomycin
+
+```{r cfu plot vanc, fig.width=9, fig.height=3}
+all_plots[[3]][[1]]
+```
+
+```{r community plot vanc, fig.width=10, fig.height=9}
+all_plots[[3]][[2]]
+```
+
+## Ciprofloxacin
+
+```{r cfu plot cipro, fig.width=9, fig.height=3}
+all_plots[[4]][[1]]
+```
+
+```{r community plot cipro, fig.width=10, fig.height=9}
+all_plots[[4]][[2]]
+```
+
+## Ampicillin
+
+```{r cfu plot amp, fig.width=9, fig.height=3}
+all_plots[[5]][[1]]
+```
+
+```{r community plot amp, fig.width=10, fig.height=9}
+all_plots[[5]][[2]]
+```
+
+## Cefaperazone
+
+```{r cfu plot cef, fig.width=9, fig.height=3}
+all_plots[[6]][[1]]
+```
+
+```{r community plot cef, fig.width=10, fig.height=9}
+all_plots[[6]][[2]]
+```
+
+## Metronidazole
+
+```{r cfu plot met, fig.width=9, fig.height=3}
+all_plots[[7]][[1]]
+```
+
+```{r community plot met, fig.width=10, fig.height=9}
+all_plots[[7]][[2]]
+```
+
+## Streptomycin
+
+```{r cfu plot strep, fig.width=9, fig.height=3}
+all_plots[[8]][[1]]
+```
+
+```{r community plot strep, fig.width=10, fig.height=9}
+all_plots[[8]][[2]]
+```
+
+
+```{r eval=FALSE}
+
+# plot by dose, but only looking at one dosage in current analysis
+#
+#hi_lo_no_delay_df %>% 
+#  filter(day >= 0) %>%
+#  ggplot(aes(x = day, y = CFU +1, color = dose)) + 
+#        scale_y_log10() + 
+#        scale_colour_gradient(low = '#FFCCCC', high = '#990000', limits=c(0, 10)) + 
+#        facet_grid(abx ~., scales = 'free_y') + 
+#        geom_jitter(width = 0.3, alpha = 0.2) + 
+#    #    scale_color_manual(values = c('black', 'red'), breaks=c("FALSE", "TRUE"),
+#    #                       labels=c("Persistent", "Severe")) +
+#        stat_summary(fun.y=median, geom="line", aes(group = cage)) +
+#        labs(x = 'Day', y = ' CFU (log10)', title = 'C. Difficile Colonization') +
+#        stat_summary(fun.data = 'median_hilow', fun.args = (conf.int=0.5)) + 
+#        theme_bw() +
+#        theme(legend.justification=c(1,0), legend.position=c(1,0.25), 
+#              legend.title=element_blank())
+
+
+```
+
+## diversity vs colonization
+
+###alpha diversity
+- Do communities colonized to higher levels have lower diversity (alpha)?
+- Is there an association between cfu and alpha (invsimpson and shannon - NS)?
+- Is there a correlation between cfu and # of otus (NS)?
+- Are there shared otus?
+
+###beta diversity
+- Are highly infected communities are most different than untreated?
+- Is there separation between untreated mice and all the highly infected communities (>1e6)?
+- Are communities that recover/elimnate cdifficile are more diverse?
+- Is there difference in diversity between highly infected communities?
+- Is there more change w/low diversity? or more change with high cfu?
+
+- Need to keep in mind assumption of independent samples when using daily samples?
+
+
+```{r diversity}
+
+# reduce samples to no abx or high abx with no delay
+
+pre_abx_v_final <- hi_lo_no_delay_df  %>% 
+  group_by(cage, mouse) %>% 
+  summarize(first_day = min(day), last_day = max(day)) %>% ungroup() %>% 
+  mutate(pre_abx = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", first_day),
+    post_abx = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D0"),
+    end = paste0(str_pad(cage, 3, pad= '0'), '-', mouse, "D", last_day),
+    final_cfu = end) %>% 
+  gather(time_point, group, pre_abx, post_abx, end) %>% 
+  select(group, time_point, final_cfu) %>% 
+  left_join(hi_lo_no_delay_df) %>% 
+  left_join(select(hi_lo_no_delay_df, group, final_CFU = CFU), by = c('final_cfu' = 'group')) %>% 
+  filter(!is.na(day)) %>% 
+  filter(!(time_point == 'pre_abx' & preAbx == F)) %>% # need to remove samples that dont have a sample prior to abx treatment
+  mutate(log_CFU = log10(CFU + 1),
+    log_final_CFU = log10(final_CFU + 1)) 
+
+alpha_df <- read.table(file = "../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.groups.ave-std.summary", header = T) %>% 
+  filter(method == 'ave')
+
+CFU_vs <- function(variable_name, minimum){
+  data_frame <- hi_lo_no_delay_df %>% 
+    filter(day > 0, cdiff == TRUE) %>% 
+    filter(CFU > minimum) %>% 
+    select(group, CFU) %>% 
+    mutate (CFU = CFU + 0.000000001) %>% 
+    left_join(select(alpha_df, group, variable_name))
+  plot <- data_frame %>% 
+    ggplot(aes(x = get(variable_name), y = CFU)) + 
+      geom_point() + 
+      scale_y_log10() + 
+      geom_smooth(method = 'lm') +
+      theme_bw() + 
+      labs(x = variable_name, y = 'C.difficile CFU')
+  fit_data <- summary(lm(get(variable_name) ~ CFU, data_frame))
+  return(list(plot, fit_data))
+}
+
+invsimpson_CFU <- CFU_vs('invsimpson', -1)
+sobs_CFU <- CFU_vs('sobs', -1)
+shannon_CFU <- CFU_vs('shannon', -1)
+
+invsimpson_CFU_wo0 <- CFU_vs('invsimpson', 0)
+sobs_CFU_wo0 <- CFU_vs('sobs', 0)
+shannon_CFU_wo0 <- CFU_vs('shannon', 0)
+
+
+```
+
+
+## Alpha Diversity
+
+```{r alpha of pre_abx vs end}
+
+abx_v_final_alpha <- pre_abx_v_final %>% 
+  mutate(time_point = factor(time_point, levels = c('pre_abx', 'post_abx', 'end'))) %>% 
+  left_join(alpha_df) %>% 
+  filter(!is.na(sobs)) %>% 
+  mutate(hi_lo = ifelse(log_final_CFU < mean(log_final_CFU), 'Low', 'High')) %>% 
+  mutate(hi_lo = factor(hi_lo, levels = c('Low', 'High'))) %>% 
+  gather(diversity, value, sobs, shannon, invsimpson)
+
+p <- abx_v_final_alpha %>% 
+  ggplot(aes(x = time_point, y = value, group = interaction(cdiff, time_point))) + 
+    facet_grid(diversity ~ ., scales = 'free_y') + 
+    geom_boxplot(width = 0.5, outlier.color = NA, 
+      position = position_dodge(width = 0.9)) +
+    labs(x = 'Time Point of Diversity Metric', y = NULL) + 
+    expand_limits(y = 0) + 
+    theme_bw()
+```
+
+## Communities colonized to a lower level at the end of 10 days have recovered more from the initial antibiotic pertubation
+- Check for change from previous (draw line from pre_abx to post abx to end)
+- Check to make sure all make it to day 10 and how many dont
+- Check for cage/abx effects
+
+When looking at the alpha diversity of the infected vs uninfected, the community doesnt seem to be different, these communities seem to follow a similar trend regardless of infection. But when looking at the colonization level within the infected, it appears to be a bimodal distributution.
+
+```{r alpha of community before and after by cfu}
+# plot and color by CFU of cdifficile on that day
+p + geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.2), 
+      alpha = 0.5, aes(group = cdiff, color = log_CFU)) + 
+    labs(title = 'Alpha diversity of community comparing antibiotic treatment and colonization',
+      subtitle = 'Unchallenged (left bar) and C difficile Challenged (right bar)\nColored by CFU at time point')
+```
+
+To investigate whether the bimodal distribution of the colonization level vs alpha diversity, we can look at how the communities are distributed prior to infection. If this difference in distribution is related to the level of colonization, we would expect the distribution of end point colonization levels to be random at the time points prior to the infections. When we color the point by end point colonization, it appears to be lower diversity in only the highly colonized mice
+
+
+```{r alpha of community before and after by end point cfu}
+# plot and color by CFU of cdifficile at the end point of that mouse
+p + geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.2), 
+      alpha = 0.5, aes(group = cdiff, color = log_final_CFU)) + 
+    labs(title = 'Alpha diversity of community comparing antibiotic treatment and colonization',
+      subtitle = 'Unchallenged (left bar) and C difficile Challenged (right bar)\nColored by CFU at end time point')
+```
+
+So comparing the mice infected with C. difficile, is there a decrease in diversity in the mice that become highly colonized at the final time point?
+## Do stats!
+```{r do stats}
+stat_test <- abx_v_final_alpha %>% 
+  filter(cdiff == T, diversity == 'sobs') 
+
+
+abx_v_final_alpha %>% 
+  filter(cdiff == T, diversity == 'sobs', time_point == 'pre_abx')  %>% 
+  with(., wilcox.test(g=hi_lo, x=value, p.adjust.method="BH"))
+
+```
+
+
+
+```{r alpha of C difficile infected communities before and after by final cfu}
+# plot and color by CFU of cdifficile on that day
+abx_v_final_alpha %>% 
+  filter(cdiff == T) %>% 
+  ggplot(aes(x = time_point, y = value, color = hi_lo, group = interaction(hi_lo, time_point))) + 
+    facet_grid(diversity ~ ., scales = 'free_y') + 
+    geom_boxplot(width = 0.5, outlier.color = NA, 
+      position = position_dodge(width = 0.9)) +
+    geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.2), 
+      alpha = 0.5) + 
+    expand_limits(y = 0) + 
+    theme_bw() + labs(title = 'Comparing Alpha diversity of communities infected with C. difficile\nby their endpoint colonization level', y = NULL, x = 'Time Point of Diversity Metric', color = 'Endpoint \nColonization',
+      subtitle = paste0('Low = Below level of Detection, High = Greater than 1e+0', 
+        signif(mean(pull(filter(abx_v_final_alpha, cdiff == T), log_final_CFU)),1)
+        ))
+
+
+```
+
+Are differences in endpoint diversity not due to colonization but actually abx?
+
+```{r alpha of communities by abx}
+# plot and color by CFU of cdifficile on that day
+abx_v_final_alpha %>% 
+  filter(time_point == 'end') %>% 
+  ggplot(aes(x = abx, y = value, group = interaction(abx, hi_lo, cdiff))) + 
+    facet_grid(diversity ~ ., scales = 'free_y') + 
+    geom_boxplot(width = 0.5, outlier.color = NA, position = position_dodge(width = 0.9), 
+      aes(color = cdiff)) +
+    geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.1), 
+      alpha = 0.5, aes(color = hi_lo)) + 
+    expand_limits(y = 0) + theme_bw() + theme(legend.position = 'bottom') + 
+    labs(title = 'Comparing Alpha diversity of communities infected with \n C. difficile by their endpoint colonization level', 
+      x = 'Antibiotic Treatment', y = NULL, color = '',
+      subtitle = paste0('Low = Below level of Detection, High = Greater than 1e+0', 
+        signif(mean(pull(filter(abx_v_final_alpha, cdiff == T), log_final_CFU)),1)
+        )) + 
+    scale_color_manual(breaks = c('FALSE', 'TRUE', 'High', 'Low'),
+      labels = c('No C difficile', 'C difficile Challenged', 'High Endpoint CFU', 'Low Endpoint CFU'),
+      values = c('gray', 'red', 'blue', 'black'))
+
+
+```
+
+
+Since the high and low colonization seem to be grouped by antibiotic, is the difference due to antibiotic or cdiff?
+
+
+```{r alpha of endpoint by abx and colonization, fig.width = 10, fig.height = 10}
+# plot and color by CFU of cdifficile on that day
+plot_by_abx_grp <- abx_v_final_alpha %>% 
+  filter(time_point == 'end') %>% 
+  mutate(abx_colonized_grp = ifelse(abx %in% c('cipro', 'clinda'), 'Low', 'High')) %>% 
+  mutate(abx_colonized_grp = factor(abx_colonized_grp, levels = c('Low', 'High'))) %>% 
+  ggplot(aes(x = cdiff, y = value, group = interaction(abx_colonized_grp, cdiff))) + 
+    facet_grid(diversity ~ ., scales = 'free_y') + 
+    geom_boxplot(width = 0.5, outlier.color = NA, position = position_dodge(width = 0.9), 
+      aes(color = cdiff)) +
+    geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.1), 
+      alpha = 0.5, aes(color = hi_lo)) + 
+    expand_limits(y = 0) + theme_bw() + theme(legend.position = 'bottom') + 
+    labs(title = 'Alpha diversity of communities\nby antibiotic grouped by colonization level', 
+      x = 'C difficile Challenged', y = 'Time Point of Diversity Metric', color = '',
+      subtitle = paste0('Low = Below level of Detection\nHigh = Greater than 1e+0', 
+        signif(mean(pull(filter(abx_v_final_alpha, cdiff == T), log_final_CFU)),1)
+        )) + 
+    scale_color_manual(breaks = c('FALSE', 'TRUE', 'High', 'Low'),
+      labels = c('No CDI', 'CDI', 'High CFU', 'Low CFU'),
+      values = c('gray', 'red', 'blue', 'black'))
+
+plot_by_colonization <- abx_v_final_alpha %>% 
+  filter(time_point == 'end') %>% 
+#  bind_rows(data.frame(cdiff = FALSE, hi_lo = 'High', diversity = 'sobs')) %>% 
+  ggplot(aes(x = cdiff, y = value, group = interaction(hi_lo, cdiff))) + 
+    facet_grid(diversity ~ ., scales = 'free_y') + 
+    geom_boxplot(width = 0.5, outlier.color = NA, position = position_dodge(width = 0.9),
+      aes(color = cdiff)) +
+    geom_point(position = position_jitterdodge(dodge.width = .9, jitter.width = 0.2), 
+      alpha = 0.5, aes(color = hi_lo)) + 
+    expand_limits(y = 0) + theme_bw() + theme(legend.position = 'bottom') + 
+    labs(title = 'Alpha diversity of communities\nby their endpoint colonization level',
+      x = 'C difficile Challenge', y = 'Time Point of Diversity Metric', color = '',
+      subtitle = paste0('Low = Cipro and Clinda\nHigh = Amp, Cef, Metro, Strep, Vanco'
+        ))+ 
+    scale_color_manual(breaks = c('FALSE', 'TRUE', 'High', 'Low'),
+      labels = c('No CDI', 'CDI', 'High CFU', 'Low CFU'),
+      values = c('gray', 'red', 'blue', 'black'))
+
+plot_grid(plot_by_abx_grp, plot_by_colonization)
+
+```
+
+How do specific communities transition from abx to infection?
+
+```{r alpha of C difficile infected communities dynamics}
+# plot and color by CFU of cdifficile on that day
+abx_v_final_alpha %>% 
+  filter(cdiff == T) %>% 
+  mutate(sample = paste(cage, mouse, sep = '_')) %>% 
+  ggplot(aes(x = time_point, y = value, color = hi_lo, group = interaction(hi_lo, time_point))) + 
+    facet_grid(diversity ~ hi_lo, scales = 'free_y') + 
+    geom_line(aes(group = sample), size = 0.2) + 
+    geom_point() + 
+    expand_limits(y = 0) + 
+    theme_bw() + labs(title = 'Alpha diversity of communities infected with C. difficile\nby their endpoint colonization level',
+      x = '', y = 'Time Point of Diversity Metric', color = 'Endpoint \nColonization',
+      subtitle = paste0('Low = Below level of Detection, High = Greater than 1e+0',
+        signif(mean(pull(filter(abx_v_final_alpha, cdiff == T), log_final_CFU)),1)
+        ))
+
+
+```
+
+
+```{r invsimpson, fig.width=4, fig.height=3}
+invsimpson_CFU[1]
+invsimpson_CFU[2]
+```
+
+```{r sobs, fig.width=4, fig.height=3}
+sobs_CFU[1]
+sobs_CFU[2]
+```
+
+```{r shannon, fig.width=4, fig.height=3}
+shannon_CFU[1]
+shannon_CFU[2]
+```
+
+
+```{r invsimpson_no_0, fig.width=4, fig.height=3}
+invsimpson_CFU_wo0[1]
+invsimpson_CFU_wo0[2]
+```
+
+```{r sobs_no_0, fig.width=4, fig.height=3}
+sobs_CFU_wo0[1]
+sobs_CFU_wo0[2]
+```
+
+```{r shannon_no_0, fig.width=4, fig.height=3}
+shannon_CFU_wo0[1]
+shannon_CFU_wo0[2]
+```
+
+
+
+```{r high vs low}
+
+#convert abundance to presence (T/F)
+otu_presence <- shared_file %>%
+  rownames_to_column('Group') %>% 
+  gather(otu, abundance, contains('Otu00')) %>%
+  mutate(presence = ifelse(abundance > 0, T, F)) %>%
+  select(Group, otu, presence) %>%
+  spread(otu, presence)
+#subset metadata to samples
+presence_df <- hi_lo_no_delay_df %>%
+  filter(day > 0, cdiff == TRUE) %>% 
+  select(group, CFU, day) %>% rename(Group = group) %>% 
+  filter(!between(CFU, 1, 1e5)) %>%
+  mutate(colonization = ifelse(CFU < 1, F, T)) %>%
+  inner_join(otu_presence)
+
+# merge otu presence with colonization
+presence_by_day_df <- presence_df %>%
+  select(colonization, day, contains('Otu00')) %>%
+  gather(otu, presence, contains('Otu00')) %>%
+  group_by(colonization, otu, day) %>%
+  summarise_all(funs(mean)) %>%
+  ungroup()
+presence_by_day_df$otu_labels <- gsub("Otu0*", "", presence_by_day_df$otu)
+
+#test for significant differences between colonized/uncolonized by otu
+sig_presence <- c()
+for(i in unique(presence_by_day_df$otu)){
+  colonized <- presence_by_day_df %>%
+    filter(otu == i & colonization == T) %>%
+    select(presence)
+  uncolonized <- presence_by_day_df %>%
+    filter(otu == i & colonization == F) %>%
+    select(presence)
+  sig_presence <- rbind(sig_presence,
+    list(i, as.numeric(wilcox.test(c(colonized$presence), c(uncolonized$presence))$p.value)))
+}
+significant_otu_list <- unlist(sig_presence[unlist(sig_presence[,2]) < 0.05/nrow(sig_presence), 1])
+
+sig_by_day_df <- presence_by_day_df %>%
+  filter(otu %in% significant_otu_list) 
+
+sig_by_day_df %>%
+  ggplot(aes(x = otu, y = presence, color = colonization)) + 
+    stat_summary(fun.data=median_hilow, position=position_dodge(0.2), fun.args=list(conf.int=0.5)) +
+    labs(title = 'Comparison of OTUs present in Colonized/Uncolonized Samples',
+      subtitle = '(Median and IQR shown)\nAll OTUs plotted are significant (p < 0.05) after BF multiple comparisons correction ',
+      y = 'Portion of Samples with OTU Present', x = 'OTU') + 
+    scale_color_manual(labels = c("Uncolonized (C. difficle CFU = 0)", "Colonized (C. difficle CFU >= 1e5)"), values = c("blue", "red")) +
+    scale_x_discrete(labels=unique(sig_by_day_df$otu_labels)) + 
+    theme_bw() + 
+    theme(legend.justification=c(1,1), legend.position=c(0.95,0.95), 
+      legend.title = element_blank(),   legend.box.background = element_rect(),
+      legend.box.margin = margin(0, 0, 0, 0),
+      axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r rel abund}
+# by relative abundance
+# presence in at least 10%
+otus_in_samples <- presence_by_day_df %>% 
+  group_by(otu) %>% 
+  summarize(max_presence = mean(presence)) %>% 
+  filter(max_presence >= 0.1) %>% 
+  select(otu)
+
+rel_abun_by_day <- hi_lo_no_delay_df %>%
+  filter(day > 0, cdiff == TRUE) %>% 
+  select(group, CFU, day) %>% rename(Group = group) %>% 
+  filter(!between(CFU, 1, 1e5)) %>%
+  mutate(colonization = ifelse(CFU < 1, F, T)) %>%
+  inner_join(select(rownames_to_column(shared_file, 'Group'), Group, contains('Otu00'))) %>% # switch from using 10% presence to median 1% abundance
+  gather(otu, abundance, contains('Otu00')) %>% 
+  mutate(rel_abund = abundance / numotus)
+
+# at least 1% median abundance in a group
+otus_by_median <- rel_abun_by_day %>% 
+  group_by(colonization, otu) %>% 
+  summarise(median=median(rel_abund)) %>% 
+  ungroup() %>% group_by(otu) %>% 
+  summarise(median=max(median)) %>% 
+  filter(median >= 0.01) %>% 
+  select(otu)
+
+rel_abun_df <- filter(rel_abun_by_day, otu %in% otus_by_median$otu)
+
+sig_abundance <- c()
+for(i in unique(rel_abun_df$otu)){
+  colonized <- rel_abun_df %>%
+    filter(otu == i & colonization == T) %>%
+    select(rel_abund)
+  uncolonized <- rel_abun_df %>%
+    filter(otu == i & colonization == F) %>%
+    select(rel_abund)
+  sig_abundance <- rbind(sig_abundance,
+    list(i, as.numeric(wilcox.test(c(colonized$rel_abund), c(uncolonized$rel_abund))$p.value)))
+}
+sig_relabund_otu_list <- unlist(sig_abundance[unlist(sig_abundance[,2]) < 0.05/nrow(sig_abundance), 1])
+
+sig_relabun_by_day_df <- rel_abun_df %>%
+  mutate(otu_labels = gsub("Otu0*", "", rel_abun_df$otu)) %>% 
+  filter(otu %in% sig_relabund_otu_list) 
+  
+
+
+sig_relabun_by_day_df %>% 
+  left_join(
+    get_taxa_labels(tax_file, 'genus', unique(.$otu)) %>% 
+      select(otu, tax_otu_label)) %>% 
+  ggplot(aes(x = tax_otu_label, y = rel_abund, color = colonization)) + 
+    stat_summary(fun.data=median_hilow, position=position_dodge(0.2), fun.args=list(conf.int=0.5)) +
+    labs(title = 'Comparison of Relative Abundance in Colonized/Uncolonized Samples',
+      subtitle = '(Median and IQR shown)\nAll OTUs plotted are significant (p < 0.05) after BF multiple comparisons correction ',
+      y = 'Relative Abundance', x = NULL) + 
+    scale_color_manual(labels = c("Uncolonized (C. difficle CFU = 0)", "Colonized (C. difficle CFU >= 1e5)"), values = c("blue", "red")) +
+    #scale_x_discrete(labels=unique(sig_relabun_by_day_df$otu_labels)) + 
+    theme_bw() + #coord_cartesian(ylim = c(0, 0.01)) + 
+    theme(legend.justification=c(1,1), legend.position=c(0.95,0.95), 
+      legend.title = element_blank(),   legend.box.background = element_rect(),
+      legend.box.margin = margin(0, 0, 0, 0),
+      axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+
+
+
+After talking with Pat (1/17/18)
+- Does end point look like pre_abx?
+    - are most similar the recovered ones?
+- Split analysis by abx/dose/days recovered
+- Resistance more similar than colonized?
+- Start with high dose and 1 day recovery
+    - then look at how modulating the dose/recovery affects 
+    - train model with low recovery and test with high recovery
+- Show different context of day 0
+- compare differences in metro recovery 
+    - how do susceptibility break points compare?
+
+```{r notes about metafile edits}
+#the metadata file has the following columns
+#  group
+#  CFU - ranges 0 to 8.1e8 with 601 NAs 
+#    (most of NAs are on days when cdiff was not present, so can change to 0 expect for NAs after day 1)
+#  cage
+#  mouse
+#  day - ranges -11 to 10
+#  abx - 
+#    amp    cef  cipro clinda  metro   none  strep   vanc 
+#    405    379     83    190    339      3    362    312 
+#  dose - 
+#    0.1     0.3     0.5   0.625       1 10mg/kg       5    NA's 
+#    304     253     653     112     339     273     136       3 
+#        dose    abx     cages   mice
+#        <NA>    none    1       1
+#        0.5     amp     
+#        10      cipro   
+#        10      clinda  
+#        0.1     cef     
+#        0.3     cef
+#        0.5     cef
+#        1       metro
+#        0.1     strep
+#        0.5     strep
+#        5       strep
+#        0.1     vanc
+#        0.3     vanc
+#        0.625   vanc
+#  cdiff - if sample was treated challenged with C. difficile
+#    logical T(1770), F(303)
+#  delayed - if sample was allowed extra days to recover from abx treatment
+#    logical T(455), F(1618)
+#  preAbx - if sample collected prior to abx treatment
+#    logical T(154), F(1919)
+#  recovDays - how many days after stopping abx (metro and amp for 5 day recovery)
+#    range 1 to 5
+#
+#only one mouse not given abx
+#  but is listed as preAbx F for -5
+#    possible to denote mock abx treatment(?)
+#question about mouse 600-2D-6 (cef - delivered via water)
+#  should be pre-antibiotic but is listed as F
+#  all other mice in cage are preAbx on day -6, except this one
+#    since this abx was delivered via drinking water, it is likely clerical error, 
+#    need to write a check script to make sure all mice in each cage all are recorded to have the same treatment
+```
+
+
+```{r end vs pre_abx}
+
+time_nmds_2m <- read.table('../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.nmds.2.axes', 
+  sep = '\t', header = T)
+
+pre_abx_v_final  %>% 
+  left_join(time_nmds_2m) %>% 
+  ggplot(aes(x = axis1, y = axis2, color = time_point)) +
+    geom_point(aes(size = log_CFU, shape = cdiff), alpha = 0.75) + 
+    theme_bw() +
+    labs(title = 'Comparison of difference between pre_abx and final communities \nand their level of C difficile colonization')
+
+pre_abx_v_final  %>% 
+  left_join(time_nmds_2m) %>% 
+  filter(time_point == 'end', cdiff == T) %>% 
+  ggplot(aes(x = axis1, y = axis2)) +
+    geom_point(aes(color = log_CFU), size = 2, alpha = 0.8) + 
+    theme_bw() +
+    labs(title = 'Comparison of difference between final communities \nand their level of C difficile colonization')
+
+
+#library(rgl)
+#time_nmds_3m <- read.table('data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.nmds.3.axes', 
+#  sep = '\t', header = T)
+#nmds_plot <- pre_abx_v_final %>% 
+#  left_join(select(hi_lo_no_delay_df, group, CFU)) %>% 
+#  left_join(time_nmds_3m) %>% 
+#  mutate(log_CFU = round(log10(CFU + 1) + 1))
+#
+#par3d(windowRect = c(0, 0, 700, 700))
+#with(nmds_plot, 
+#  points3d(axis1, axis2, axis3, 
+#    xlab = 'axis_1', ylab = 'axis_2', zlab = 'axis_3',
+#    width = 1000, size=NULL))
+#for(i in c(1,2)){
+#  time <- c('pre_abx', 'end')[i]
+#  shapes <- c('x','o')[i]
+#  pt_color <- c('blue','black')[i]
+#  for(sz in c(1:10)){
+#    nmds_plot %>% 
+#      filter(time_point == time, log_CFU == sz) %>% 
+#          with(., text3d(axis1, axis2, axis3, 
+#            width = 1000, cex = seq(1,4,0.25)[sz] , color = pt_color, shapes))
+#      }
+#}
+#
+#bgplot3d({
+#  plot.new()
+#  title(main = 'Antibiotic-treated conventional mice challenged with C. difficile', line = 3)
+#  mtext(side = 1, 'Points are sized by colonization level',
+#     line = 4, cex = 2)
+#  legend("topleft", cex = 2, col =c('blue','black'), 
+#    pch=c('x','o'), inset=c(0.02),
+#    legend = c('pre_abx', 'Final'))
+#  legend("topright", cex = 2,
+#    pch='o', pt.cex = c(1.25,1.75,2.25,2.75), inset=c(0.02),
+#    legend = c(expression(paste("10"^"2")), expression(paste("10"^"4")),
+#      expression(paste("10"^"6")), expression(paste("10"^"8")))
+#    )
+#})
+
+
+```
+
+
+```{r CFU vs distance}
+
+source('../code/read.dist.R')
+thetayc_df <- read.dist('../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.thetayc.0.03.lt.ave.dist')
+beta_div_df <- rownames_to_column(thetayc_df, 'group')
+
+CFU_intial_end <- pre_abx_v_final %>% 
+  group_by(cage, mouse) %>% 
+  mutate(CFU = max(CFU), log_CFU = max(log_CFU)) %>% ungroup() %>% 
+  select(-day, -preAbx) %>% 
+  spread(time_point, group) %>% 
+  filter(cdiff == T) %>% 
+  filter(!is.na(end), !is.na(pre_abx)) %>% 
+  select(log_CFU, end, pre_abx) %>% 
+  mutate(thetayc = unlist(as.numeric(apply(., 1, function(i){
+    beta_div_df[beta_div_df$group == i['pre_abx'], i['end']]
+  }))))
+
+CFU_intial_end %>% 
+  separate(end, c('group','day'), sep = 'D') %>%
+  separate(group, c('cage','mouse'), sep = '-') %>%
+  mutate(cage = as.numeric(cage)) %>% 
+  left_join(unique(select(meta_file, cage, abx))) %>% 
+  ggplot(aes(x = thetayc, y = log_CFU, color = abx)) +
+    geom_point() +
+    theme_bw() + 
+    labs(title = 'Relationship between pre_abx vs final microbiota and final CFU',
+      x = 'Theta yc', y = 'CFU (log10)')
+
+del_beta_preabx <- beta_div_df %>% 
+  left_join(select(meta_file, group, preAbx), by = 'group') %>% 
+  filter(preAbx == TRUE) %>% 
+  gather(sample_group, thetayc, -preAbx, -group) %>% 
+  separate(group, c('preAbx_mouse', 'preAbx_day'), sep = 'D') %>% 
+  separate(sample_group, c('sample_mouse', 'sample_day'), sep = 'D', remove = F) %>% 
+  filter(preAbx_mouse == sample_mouse) %>% 
+  mutate(thetayc = as.numeric(thetayc), preabx_day = as.numeric(preAbx_day), sample_day = as.numeric(sample_day)) %>% 
+  filter(preAbx_day != sample_day) %>% 
+  left_join(select(meta_file, -mouse, -day), by = c('sample_group' = 'group'))
+
+del_beta_preabx %>% 
+  filter(cdiff == TRUE) %>% 
+  ggplot(aes(x = thetayc, y = CFU)) + 
+    scale_y_log10() + 
+    geom_point(aes(color = abx)) + 
+    geom_smooth(method = 'lm') +
+    theme_bw() + 
+    labs(x = 'Theta YC', y = 'C. difficile CFU (log10)', title = 'Beta diversity relative to preAbx VS post C. difficile challenge')
+
+del_beta_preabx %>% 
+  filter(cdiff == TRUE, CFU == 0) %>% 
+  ggplot(aes(thetayc)) + 
+    geom_density(aes(color = abx)) + 
+    theme_bw() + 
+    labs(x = 'Theta YC', y = 'Sample density', title = 'Distribution of sample beta diversity with no CFU detected\n(comparing post C. difficile challenge to preAbx samples')
+
+
+```
+
+```{r otus correlated with cdiff}
+
+cor_df <- meta_shared %>% 
+  filter(cdiff == T, day > 0)  
+
+
+corr_otu <- cor_df %>%
+  gather(otu, abundance, contains('Otu')) %>% 
+  group_by(otu) %>% 
+  summarise(median_abundance = median(abundance),
+    rho = cor.test(CFU, abundance, method = 'spearman')$estimate,
+    pvalue = cor.test(CFU, abundance, method = 'spearman')$p.value) %>% 
+  mutate(pvalue_BH = p.adjust(as.numeric(pvalue), method = 'BH'),
+    pvalue_bon = p.adjust(as.numeric(pvalue), method = 'bonferroni')) %>% 
+  filter(pvalue_bon <= 0.05, median_abundance > 0) %>% 
+  arrange(rho)
+
+corr_otu
+
+
+cor_df  %>% 
+  select(CFU, abx, one_of(corr_otu$otu)) %>% 
+  gather(otu, rel_abund, contains('Otu00')) %>% 
+  left_join(
+    get_taxa_labels(tax_file, 'genus', unique(.$otu)) %>% 
+      select(otu, tax_otu_label)) %>% 
+  ggplot(aes(y = CFU, x = rel_abund)) + 
+      geom_point(aes(color = abx)) + 
+      scale_y_log10() + 
+      geom_smooth(method = 'lm') +
+      theme_bw() + 
+      facet_wrap(.~tax_otu_label, ncol = 3, scales = 'free_x') + 
+      labs(x = 'Relative Abundance', y = 'C.difficile CFU')
+
+```

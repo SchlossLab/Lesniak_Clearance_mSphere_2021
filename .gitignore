@@ -6,12 +6,17 @@
 
 data/
 
-!data/process/*
 !README.md
 
 *.qsub*
 mothur*logfile
 *temp*
 *.docx
+*.gif
+*.png
+*.tiff
+*.jpg
+*.jpeg
 
 .nfs*
+scratch/*/

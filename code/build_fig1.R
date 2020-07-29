@@ -1,0 +1,154 @@
+##############
+#
+# run script to generate plots for Figure 1
+#	What occurs while C. difficile colonization is naturally cleared?
+# 
+# Nick Lesniak 04-06-2020
+#
+#  need files:
+#	data/process/abx_cdiff_metadata_clean.txt
+#	data/mothur/sample.final.0.03.subsample.shared
+#	data/process/abx_cdiff_taxonomy_clean.tsv
+#	code/sum_otu_by_taxa.R
+#	data/mothur/sample.final.groups.ave-std.summary
+#	data/mothur/sample.final.thetayc.0.03.lt.ave.dist
+#	code/read.dist.R
+#
+##############
+
+
+library(tidyverse)
+library(cowplot)
+library(ggtext)
+
+
+meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
+shared_file <- 'data/mothur/sample.final.0.03.subsample.shared'
+tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
+sum_taxa_function <- 'code/sum_otu_by_taxa.R'
+alpha_div_file <- 'data/mothur/sample.final.groups.ave-std.summary'
+beta_div_file <- 'data/mothur/sample.final.thetayc.0.03.lt.ave.dist'
+dist_function <- 'code/read.dist.R'
+
+# read in data
+meta_df   <- read_tsv(meta_file) %>% 
+	mutate(cdiff = ifelse(cdiff == T, 'C. difficile Challenged', 'Mock Challenged')) %>% 
+	filter(abx == 'Clindamycin')
+shared_df <- read_tsv(shared_file) %>% 
+	select(-label, -numOtus) %>% 
+	filter(Group %in% meta_df$group)
+tax_df <- read_tsv(tax_file)
+alpha_df <- read_tsv(alpha_div_file) %>% 
+	filter(group %in% meta_df$group,
+		method == 'ave')
+source(sum_taxa_function) # function to create taxanomic labels for OTUs
+	# sum_otu_by_taxa(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0, silent = T){
+source(dist_function) # function to read in distance file and convert from triangle to dataframe
+beta_df <- read_dist(beta_div_file) %>% 
+	filter(rows %in% meta_df$group,
+		columns %in% meta_df$group)
+
+# plot C difficile colonization level
+colonization_plot <- meta_df %>% 
+	mutate(CFU = case_when(CFU == 0 ~ 60, # shift 0 counts to just below limit of detection line
+		T ~ CFU)) %>% 
+	filter(cdiff == 'C. difficile Challenged',
+		day >= 0,
+		!is.na(CFU)) %>%
+	ggplot(aes(x = day, y = CFU)) + 
+        geom_line(aes(group = mouse_id), alpha = 0.3, color = '#A40019') + 
+		stat_summary(fun.y=median, geom="line", size = 1, color = '#A40019') + # create median line
+        scale_x_continuous(breaks = -1:10) + # make ticks for each day
+		annotate(x = -1, y = 200, geom = 'label', label = "LOD", # create a dotted line labeled LOD for limit of detection
+			fill = "white", color = 'black', label.size = NA) + 
+		geom_hline(yintercept = 101, linetype = 'dashed', size = 0.25) + 
+		scale_y_log10(breaks = c(10^2, 10^4, 10^6, 10^8),
+				labels = c('10^2', '10^4', '10^6', '10^8')) + # scale y axis log10 and label 10^x
+		theme_bw() + labs(x = 'Day', y = expression(italic('C. difficile')~' CFU')) + 
+		theme(panel.grid.minor = element_blank(),
+			axis.text.y = element_markdown())
+
+shared_genus <- sum_otu_by_taxa(tax_df, shared_df, taxa_level = 'Genus', top_n = 10) # sum at the genus level for the top 10
+
+# plot relative abundance over time in a heatmap plot
+# mice along the x axis, taxonomic classification along the y axis and color intensity by log10 relative abundance
+abundance_plot <- shared_genus %>% 
+	full_join(meta_df, by = c('Group' = 'group')) %>% 
+	filter(cdiff == 'C. difficile Challenged') %>% 
+	group_by(Group) %>% 
+	mutate(total = sum(abundance),
+		relative_abundance = abundance/total * 100,
+		taxa = gsub('_unclassified', '', taxa),
+		taxa = ifelse(taxa == 'Other', taxa, paste0('*', taxa, '*')),
+		taxa = factor(taxa, levels = rev(c("*Escherichia/Shigella*", 
+				"*Lactobacillus*", "*Akkermansia*", "*Bacteroides*", 
+				"*Porphyromonadaceae*", "Other", "*Lachnospiraceae*", 
+ 				"*Barnesiella*", "*Turicibacter*", "*Ruminococcaceae*", 
+ 				"*Alistipes*")))) %>% 
+	group_by(day, taxa) %>% 
+	summarise(relative_abundance = log10(mean(relative_abundance) + 0.001)) %>% 
+	ggplot(aes(x = day, y =taxa, fill = relative_abundance)) + 
+		geom_tile(height = 0.8) +
+		scale_fill_gradient2(low="white", mid='#A40019', high = 'black',
+			limits = c(-2.25,2), na.value = NA, midpoint = 0.5,
+			breaks = c(-2.5, -1, 0, 1, 2), labels = c('', '0.1', '1', '10', '100')) + 
+        scale_x_continuous(breaks = -1:10) + # make ticks for each day
+		theme_bw() + 
+		labs(x = 'Day', y = NULL, #title = 'Clindamycin Community',
+			fill = expression('Color Intesity Log'[10]*' Mean Relative Abundance (%)')) + 
+		theme(panel.grid.minor = element_blank(), panel.grid.major.x = element_blank(),
+			axis.text.y = element_markdown(), 
+			legend.position = 'bottom')
+
+# plot Sobs by day
+alpha_sobs_plot <- alpha_df %>% 
+	select(group, sobs) %>% 
+	left_join(select(meta_df, group, day, cdiff), by = c('group')) %>% 
+	ggplot(aes(x = day, y = sobs, color = cdiff, group = interaction(cdiff, day))) + 
+		geom_boxplot(position = 'dodge') + 
+		#geom_point(alpha = 0.4, position = position_jitterdodge()) + 
+		coord_cartesian(ylim = c(0,100)) +
+        scale_x_continuous(breaks = -1:10) +
+		scale_color_manual(values = c('#A40019', 'darkgray')) + 
+		theme_bw() + labs(x = 'Day', y = expression(~S[obs])) + 
+		theme(panel.grid.minor = element_blank(),
+			legend.position = 'none')
+
+# plot inverse simpson by day
+alpha_invsimp_plot <- alpha_df %>% 
+	select(group, invsimpson) %>% 
+	left_join(select(meta_df, group, day, cdiff), by = c('group')) %>% 
+	ggplot(aes(x = day, y = invsimpson, color = cdiff, group = interaction(cdiff, day))) + 
+		geom_boxplot(position = 'dodge') + 
+		#geom_point(alpha = 0.4, position = position_jitterdodge()) + 
+		coord_cartesian(ylim = c(0,20)) +
+        scale_x_continuous(breaks = -1:10) +
+		scale_color_manual(values = c('#A40019', 'darkgray')) + 
+		theme_bw() + labs(x = 'Day', y = 'Inverse Simpson', color = NULL) + 
+		theme(panel.grid.minor = element_blank(),
+			legend.position = c(0.7, 0.8),
+			legend.key.size = unit(0.2, 'in'),
+			legend.background = element_rect(color = "black"))
+
+# plot theta yc by day
+beta_plot <- beta_df %>% 
+	inner_join(select(meta_df, group, mouse_id, day, cdiff), by = c('rows' = 'group')) %>% 
+	inner_join(select(meta_df, group, mouse_id, day), by = c('columns' = 'group')) %>% 
+	filter(mouse_id.x == mouse_id.y, 
+		day.x == -1) %>% 
+	ggplot(aes(x = day.y, y = distances, group = interaction(cdiff, day.y), color = cdiff)) + 
+        scale_x_continuous(breaks = -1:10) +
+        coord_cartesian(ylim = c(0,1)) +
+		geom_boxplot(position = 'dodge') + 
+		#geom_point(alpha = 0.4, position = position_jitterdodge(jitter.width = 0.25)) + 
+		scale_color_manual(values = c('#A40019', 'darkgray')) + 
+		theme_bw() + 
+		theme(panel.grid.minor = element_blank(),
+			legend.position = 'none') + 
+		labs(x = 'Day', y = expression(theta[YC]), color = NULL)
+
+
+# save plot, top row is colonization plot, middle row are diversity plots, bottom row is temporal abundance plot
+ggsave('results/figures/figure_1.jpg', plot_grid(colonization_plot, 
+	plot_grid(alpha_sobs_plot, alpha_invsimp_plot, beta_plot, nrow = 1), 
+	abundance_plot, ncol = 1, labels = c('A', 'B', 'C'), rel_heights = c(1, 1, 2)), width = 10, height = 10)

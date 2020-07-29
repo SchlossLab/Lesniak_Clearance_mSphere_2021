@@ -1,0 +1,26 @@
+#!/bin/sh
+#PBS -N se_run_101119
+
+#PBS -l nodes=1:ppn=1,mem=46gb
+#PBS -l walltime=400:00:00
+
+#PBS -j oe
+#PBS -m a
+#PBS -V
+#PBS -M nlesniak@umich.edu
+
+#PBS -l qos=flux
+#PBS -q fluxod
+#PBS -A pschloss_fluxod
+
+#PBS -t 1-10
+
+cd $PBS_O_WORKDIR
+
+echo "Starting set" $PBS_ARRAYID 
+
+Rscript code/get_spieceasi_network.R $PBS_ARRAYID 
+
+echo "Script complete"
+
+qstat -f $PBS_JOBID 

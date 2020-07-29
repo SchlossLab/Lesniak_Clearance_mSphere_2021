@@ -1,0 +1,503 @@
+---
+title: "Exploratory - C. difficile by Antibiotic"
+author: "Nicholas Lesniak"
+date: "1/16/2019"
+output: html_document
+---
+
+```{r setup environment, include=F}
+# render with Rscript -e 'library(rmarkdown); rmarkdown::render("colonization_resistance.Rmd")'
+# setup data in environment
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+
+library(tidyverse)
+library(cowplot)
+library(RColorBrewer)
+library(bsselectR)
+
+meta_file   <- '../data/process/abx_cdiff_metadata_clean.txt'
+shared_file <- '../data/mothur/abx_time.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.an.unique_list.0.03.subsample.shared'
+taxonomy_file <- '../data/process/abx_cdiff_taxonomy_clean.tsv'
+taxonomy_function <- '../code/sum_otu_by_taxa.R'
+
+meta_df <- read.table(meta_file, sep = '\t', header = T, stringsAsFactors = F) %>% 
+  mutate(treatment = paste(abx, dose, delayed, cdiff, sep = '_'),
+    mouse_id = paste(cage, mouse, sep = '_')) 
+shared_df <- read.table(shared_file, sep = '\t', header = T, row.names = 'Group')
+
+# create position to group stacked bar plot by cage
+mouse_label_df <- meta_df %>% 
+  select(cage, mouse, treatment, mouse_id) %>% 
+  unique %>% 
+  group_by(treatment) %>% 
+  arrange(cage, mouse) %>% 
+  mutate(mouse_position = as.numeric(as.factor(mouse_id))) %>% 
+  ungroup %>% 
+  select(-cage, -mouse)
+
+meta_df <- left_join(meta_df, mouse_label_df, by = c('treatment', 'mouse_id'))
+
+source(taxonomy_function)
+taxonomy_df <- read.table(taxonomy_file, sep = '\t', header = T, stringsAsFactors = F)
+
+shared_df <- select(shared_df, -label, -numOtus)
+
+sample_summed_counts <- apply(shared_df, 1, sum)
+rel_abund <- data.frame(100 * shared_df/sample_summed_counts) %>% 
+  mutate(group = rownames(shared_df))
+
+```
+
+
+# C. difficile Challenge by Antibiotic Treatments
+
+The following antibiotics were used:
+
+Antibiotic    | Treatment Variation    | Effect         |  Class          | Mode of action                           
+------------- | ---------------------- | -------------- | --------------- | -----------------------------------------
+Ampicilin     | Antibiotic Recovery    | bactericidal   | beta lactam     | inhibits cell wall (+/-)                 
+Cefaperazone  | Dose (0.1, 0.3, 0.5)   | bactericidal   | beta lactam     | inhibits cell wall (+/-)                 
+Clindamycin   | NA                     | bacteriostatic | lincosamide     | inhibits protein synthesis               
+Ciprofloxacin | NA                     | bactericidal   | fluoroquinolone | inhibits DNA gyrase (+/-)                
+Metronidazole | Antibiotic Recovery    | bactericidal   | nitroimidazole  | inhibits nucleic acid synthesis (aerobic)
+Streptomycin  | Dose (0.1, 0.5, 5)     | bactericidal   | aminoglycoside  | inhibits protein synthesis (+/-)         
+Vancomycin    | Dose (0.1, 0.3, 0.625) | bactericidal   | glycopeptide    | inhibits cell wall (+)                   
+
+
+# How do communities change? with differing colonization?
+
+Select the level and antibiotic you would like to view
+
+```{r community changes}
+
+# select samples for preAbx, pre-infection, end of experiment
+pre_post_end_df <- meta_df  %>% 
+  right_join(select(rel_abund, group), by = 'group') %>% 
+  group_by(cage, mouse) %>% 
+  mutate(endpoint = max(day),
+    sample_timepoint = case_when(preAbx == T ~ 'initial',
+      day == 0 ~ 'day_0',
+      day == endpoint ~ 'endpoint',
+      recovDays == 1 ~ 'pre-recovered',
+      T ~ NA_character_)) %>%
+  ungroup %>% 
+  filter(!is.na(sample_timepoint)) %>% 
+  select(-recovDays, -preAbx, -endpoint)
+
+pre_post_end_phyla_df <- pre_post_end_df %>% 
+    left_join(
+      sum_otu_by_taxa(taxonomy_df = taxonomy_df, otu_df = rel_abund, 
+          taxa_level = 'Phylum', top_n = 6),
+    by = 'group') %>% 
+    mutate(dataset = 'phylum_level')
+
+initial_colonization_df <- meta_df %>% 
+  # to get level of colonization post C. difficile challenge, look of CFU on day 1 
+  # but there are some cases day 1 might be deceptive so extending to day 2 
+  # to see those that had delayed colonization
+  filter(day %in% c(1:4)) %>% 
+  group_by(cage, mouse) %>% 
+  summarize(initial_colonization = max(CFU))
+
+pre_post_end_genus_df <- pre_post_end_df %>% 
+  split(.$abx) %>% 
+  map_dfr(function(df) left_join(df, 
+        sum_otu_by_taxa(taxonomy_df = taxonomy_df, otu_df = filter(rel_abund, group %in% df$group), 
+          taxa_level = 'Genus', top_n = 11),
+      by = 'group'))  %>% 
+  mutate(dataset = 'genus_level') 
+
+pre_post_end_otu_df <- pre_post_end_df %>% 
+  split(.$abx) %>% 
+  map_dfr(function(df) left_join(df, 
+        sum_otu_by_taxa(taxonomy_df = taxonomy_df, otu_df = filter(rel_abund, group %in% df$group), 
+          taxa_level = 'tax_otu_label', top_n = 11),
+      by = 'group'))  %>% 
+  mutate(dataset = 'OTU_level',
+    taxa = gsub(' \\(', '\n(', taxa),
+    taxa = gsub('_unclassified\n\\(', '\n(Unclassified, ', taxa))
+
+#pre_post_end_otu_df_by_each <- pre_post_end_df %>% 
+#  split(.$group) %>% 
+#  map_dfr(function(df) left_join(df, 
+#        sum_otu_by_taxa(taxonomy_df = taxonomy_df, otu_df = filter(rel_abund, group %in% df$group), 
+#          taxa_level = 'tax_otu_label', top_n = 5),
+#      by = 'group'))  %>% 
+#  mutate(dataset = 'OTU_level',
+#    taxa = gsub(' \\(', '\n(', taxa),
+#    taxa = gsub('_unclassified\n\\(', '\n(Unclassified, ', taxa))
+
+all_days_otu_df <- meta_df %>% 
+  split(.$abx) %>% 
+  map_dfr(function(df) left_join(df, 
+        sum_otu_by_taxa(taxonomy_df = taxonomy_df, otu_df = filter(rel_abund, group %in% df$group), 
+          taxa_level = 'tax_otu_label', top_n = 11),
+      by = 'group'))  %>% 
+  mutate(dataset = 'OTU_level',
+    taxa = gsub(' \\(', '\n(', taxa),
+    taxa = gsub('_unclassified\n\\(', '\n(Unclassified, ', taxa))
+
+#df <- pre_post_end_otu_df_by_each;antibiotic <- 'amp'
+for(df in list(pre_post_end_phyla_df, pre_post_end_genus_df, pre_post_end_otu_df)){
+  for(antibiotic in unique(pre_post_end_phyla_df$abx)){
+  #
+  #pre_post_end_plot <- df %>% 
+  #  filter(abx == antibiotic) %>% 
+  #  mutate(sample_timepoint = factor(sample_timepoint, c('initial', 'pre-recovered', 'day_0', 'endpoint')),
+  #    taxa = factor(taxa, c('Other', unique(df$taxa)[unique(df$taxa)!='Other']))) %>% 
+  #  ggplot(aes(x = mouse_position, y = abundance, fill = taxa)) + 
+  #    geom_bar(stat="identity", position='stack', width = 1, color = "black", size = 0.1) + 
+  #    facet_grid(treatment ~ sample_timepoint) + 
+  #    theme_bw() + labs(x = NULL) + 
+  #    theme(legend.position = 'top', legend.title=element_blank(),
+  #      axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+  #      legend.text=element_text(size=6)) + 
+  #    scale_fill_brewer(palette = 'Paired')
+
+    daily_plot <- all_days_otu_df %>% 
+      filter(abx == antibiotic) %>% 
+      mutate(taxa = factor(taxa, c('Other', unique(all_days_otu_df$taxa)[unique(all_days_otu_df$taxa)!='Other']))) %>% 
+      ggplot(aes(x = mouse_position, y = abundance, fill = taxa)) + 
+        geom_bar(stat="identity", position='stack', width = 1, color = "black", size = 0.1) + 
+        facet_grid(treatment ~ day) + 
+        theme_bw() + labs(x = NULL) + 
+        theme(legend.position = 'top', legend.title=element_blank(),
+          axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+          legend.text=element_text(size=6)) + 
+        scale_fill_brewer(palette = 'Paired')
+
+
+    cdiff_plot <- pre_post_end_df %>% 
+      filter(abx == antibiotic, sample_timepoint == 'endpoint') %>% 
+      left_join(initial_colonization_df, by = c('mouse', 'cage')) %>% 
+      rename(endpoint = CFU) %>% 
+      gather(sample_timepoint, CFU, endpoint, initial_colonization) %>% 
+      mutate(sample_timepoint = factor(sample_timepoint, c('initial_colonization', 'endpoint'))) %>% 
+      ggplot(aes(x = mouse_position, y = CFU)) + 
+        geom_bar(stat="identity", position='stack', width = 1) + 
+        facet_grid(treatment ~ sample_timepoint) + 
+        scale_y_log10() + 
+        theme_bw() + labs(x = NULL, y = 'CFU (log10)', title = '\nEndpoint C. difficile Colonization',
+          subtitle = '\nLabel = antibiotic_dose_delay_cdiff') + 
+        theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+    plot_header <- ggdraw() +
+     draw_label(paste0('Community overview at timepoint before antibiotic treatment, after ',
+      antibiotic, ' looking at the ', unique(df$dataset)), x = 0.05, hjust = 0)
+
+#   ggsave(paste0('../results/figures/community_plots/', antibiotic, '_', unique(df$dataset), '.jpg'),
+#     plot_grid(plot_header, plot_grid(pre_post_end_plot, cdiff_plot, rel_widths = c(2, 1)), 
+#       ncol = 1, rel_heights = c(0.1, 2)),
+#     width = 10, height = 10)
+    ggsave(paste0('../results/figures/daily_plots/', antibiotic, '_', unique(df$dataset), '.jpg'),
+      plot_grid(plot_header, plot_grid(daily_plot, cdiff_plot, rel_widths = c(5, 1)), 
+        ncol = 1, rel_heights = c(0.1, 2)),
+      width = 20, height = 10)
+  }
+}
+
+abx_plots <- paste0(list.files("../results/figures/community_plots", full.names = TRUE))
+names(abx_plots) <- str_replace_all(abx_plots, 
+    c("\\.jpg" = "", 
+      "../results/figures/community_plots/" = ""))
+
+bsselect(abx_plots, type = "img", selected = "strep_phylum_level", height = '75', show_tick = TRUE)
+
+
+```
+
+
+```{r}
+  
+```
+
+# Descriptive Changes
+
+***
+
+## Ampicilin - 5 day recovery
+
+- The antibiotic treatment seems to have a varied effect on the community changes
+- At the phylum level, antibiotic treatment resulted in varied community effects which seem to group by cage. This could be due to the environment of the experiment (other treatments occurring at the same time) or possibly amp has a more varied effect on the bacterial community.
+  - Initial antibiotic treatment lead to:
+    1. Complete dominance of Proteobacteria (~90%)
+    2. Partial dominance of Proteobacteria (~50%), 
+    3. Increase in Proteobacteria (~25%), Decrease in bacteroidetes (70-80% -> ~50%), increase in akkermansia (10%)
+  - Recovery lead to different conditions
+    1. Complete dominant Proteobacteria, after 10 days, returned to pre-antibiotic Bacteroidetes:Firmicutes ratio
+    2. Partially dominant Proteobacteria conditions, after 10 days, became dominated by Firmicutes (~90%)
+      The other group of partially dominant proteobactia were challenged with C. difficile
+    3. Communities with slightly increased proteobacteria all we in the experimental group that recovered 5 days prior to C. difficile challenge. These communities recovered in 3 different ways
+      - a. Decrease in proteobacteria with an increase in bacteroidetes and akkermansia
+      - b. Domination of Firmicutes
+      - c. Elimination of Akkermansia and a ratio of bacteroidetes:firmicutes:proteobacteria of 3:1:1
+  - All communities were colonization
+    - The recovery group were colonized at a slightly lower level ~2 logs lower and one cage was ~10^4 at the end
+    - Communities changed during C. difficile infection
+      - No recovery All were highly colonized ~10^8 by day 2 and ~10^7 at day 10
+        - Bacteroides dominant community became ~1:1 Bacteroidetes:Firmicutes
+        - Partially dominant proteobacteria communities became dominated by Akkermansia (~70%)
+      - Recovered communities had three different outcomes
+        - a. the bacteroides/akkermansia community had akkermansia increase further (~30%)
+        - b. the firmicutes dominant communities became firmicutes/tenericutes/actinobacteria (7:2:1)
+        - c. the bacteroidetes:firmicutes:proteobacteria became bacteroidetes:firmicutes (3:1)
+        - the community of bacteroidetes/firmicutes/akkermansia had the lowest level of colonization (10^4)
+
+#### Questions
+  - Is there a way to explain/predict the way a community responds to Ampicilin?
+  - What are the commonalities between all the infected communities?
+
+***
+
+## Cefaperazone - 3 dosages (0.1, 0.3, 0.5)
+
+- The antibiotic treatment seems to have fairly consistent results
+- At the phylum level
+  - low doses do not seem to greatly affect the community, initially Bacteroidetes dominant (B:F is ~8:1), leading to a increase in Akkermansia
+  - higher doses of Cef cause a reduction in Bacteroidetes and increases in either Firmicutes, Proteobacteria or Verrucomicrobia
+  - For the low dose (0.1)
+    - only 2 of 6 are infected (10^2) at day 1, and 0 at day 10
+    - Theres an increase in Verrucomicrobia at the time of infection. 
+  - For the mid dose (0.3), 
+    - 9 of 13 are infected (all at 10^8 except one at 10^4 which is grouped in the uninfected mice) at day 1
+    - 4 of 13 are infected at endpoint at 10^6
+    - the mice uninfected had the least changed communities, a slight increase in Verrucomicrobia at day 0 and back to initiallyal at the endpoint
+    - the mice that clear have a large increase in Firmicutes in half the mice at day 0, but by the endpoint all look like day 0 cef 0.1 (increased Verrucomicrobia, and some proteobacteria)
+    - the mice that remain infected have an near even distribution of bacteroidetes, firmicutes, Proteobacteria, and Verrucomicrobia
+      - this mice also have more varied endpoint communities, one remains like day 0, one becomes Verrucomicrobia dominant, and the others are half bacteroidetes half firmicutes
+  - For the high dose (0.5)
+    - all mice (6) are infected at 10^8 on day 1 and 10^6 at endpoint
+    - the community shifts to Firmicutes dominant with nearly equal portions of bacteroidetes and proteobacteria making up the remaining minority
+    - the endpoint colonization communities either stay firmicutes dominant or return to a bacteriodetes dominant with Verrucomicrobia (20%)
+- At the genus level, 
+  - Nearly all colonies resistant or able to clear are dominated by Porphymonadaceae
+    - Additonally, the mice in the 0.3 dose group that remain colonized start with much lower initial level of Porphymonadaceae, which is reduced further with antibiotic treatment
+      - One exception to this is that two mice with high initial Porphymonadaceae become Lactobacillus dominant (> 60%) after antibiotics but are able to clear and have a similar Porphymonadaceae dominant microbiota
+        - These two mice share a cage with two others
+        - cages 104 and 105 remain colonized, cage 42 has mixed colonization but clear, cage 91 resists colonization
+  - For only 2 mice (dose 0.3, cage 104) did the community not recover similar to unchallenged
+    - Although one cage for 0.5 dose looked very different as well, since we do not have day 0 community data, we cannot determine if the community was different before infection or the infection drove the difference
+    - interestingly when looking at the OTU level it seems that the top OTUs do not seem to be changing much for the cef (0.1 and 0.3) that resist colonization, and those that remain colonized do not.
+
+#### Questions
+  - What are the key differences in the groups that recieved 0.3 Cef and does this fit with the observations of 0.1 and 0.5?
+
+***
+
+## Ciprofloxacin - Only one dose and unchallenged
+
+- No significant changes are identified post antibiotic and C diff did not colonize
+
+***
+
+## Clindamycin - Only one dose and unchallenged
+
+- At the phylum level
+  - For the unchallenged mice
+    - One cage does not seem to be affected by the antibiotic (cage 5)
+    - In all other cages Clindamycin leads to a shift from a bacteroidetes dominant community (B:F 8:1) to a proteobacteria dominant community (proteobacteria ranges from 60-95% with the remaining filled by Firmicutes)
+    - In nearly all cages at 10 days the commuty returns to the starting community with slight shifts in the low abundant groups
+    - All mice were infected at day 1 and cleared by day 10
+- At the genus level, the same trends are present
+  - The community initially is dominated by Porphymonadaceae and Bacteroides (~50% and ~15% respectively) which then shifts to Esherichia/Shigella with Clindamycin but returns to closely resemble its initial community
+    - although the community is not exactly what it started as, Bacteroides has grown to equal proportions as Porphymonadaceae
+    - interestingly when looking at the OTU level it seems that Porphymonadaceae initally consists of ~7 even OTUs whereas only 1-3 seem to recover
+
+#### Questions
+  - Since one of the dominant recovering OTUs (Porphymonadaceae OTU 3) is is also one of the dominant members of the final community in cef (dose 0.3 cage 105)  what is the difference in the community surrounding this OTU, leading to a different outcome?
+  - Are the other Porphymonadaceae OTUs present in the final community, just not at high abundances?
+  - WHat is the temporal relationship between Porphymonadaceae/Esherichia/C. difficile?
+
+***
+
+## Metronidazole - 5 Day Recovery
+
+- At the phylum level
+  - Cefaperazone drives an large increase in Proteobacteria dominant (~80%), drastic reduction in Bacteroidetes (1-10%) in all but 2 (45%,60%)
+  - The community recovers similarly between 10 days of the unchallenged group and the cages that were allowed to recover for 5 days
+  - Mice challenged immediately after Cefaperazone were all colonized @ 10^8 whcih decreased at least 2 log
+  - Mice allowed to recover were incompletely colonized at low levels and two cages cleared whereas the others remained colonized at a similar level
+    - Cage 102 with 5 mice recovered to simliar community as initial with slightly higher levels of Firmicutes and Proteobacteria, 2 of the 5 mice are colinized to a low level (~10^3), and by the end point all have cleared
+    - Cage 107 and 108 with 2 mice each recovered to simliar community as initial with slightly higher akkermansia, 3 of 4 mice are colonized to a mid level (10^5). At the endpoint, all 4 mice are still colonized to similar levels (10^4) wth slightly different endpoint communities. One cage is ~90% Bacteroidetes the other is ~75% Bacteroidetes and ~20% Akkermansia
+    - Cage 116 with 5 mice, 3 recovered closely to initial communities with lower akkermansia and the other two had high levels of Firmicutes (70%). 4 of the 5 mice were colonized at low to mid levels but all cleared C. difficile. The endpoint community had Firmicutes level closer to inital
+- At the genus level
+  - The initial community was dominated by Porphymonadaceae, shifted to Esherichia/shigella dominant community with Metronidazole, and then over time with or without infection recovered to a community dominated by Barnsiella
+  - For the infected communities
+  - Communities challenged immediately following Metronidazole treatment, one cage also recovered some Porphymonadaceae to a level of 25% but were similarlly colonized as the community that did not have any Porphymonadaceae present
+  - Communities allowed to recover
+    - Cages 102 and 116 did not have consistent differences between the uncolonized and the colonized mice, most were Barnsiella dominant with the second most abundant group being turicibacter, with the exception of the two communities with a large Lachnospiraceae population but no connected differences in colonization patterns. Both cages completely clear the infection but had slightly diffeent endpoint communities.
+      - Cage 102 final community was 25% akkermansia, 50 % Barnsiella, the remaining made up of turicibacter, bifidobacterium, lactobacillus, Lachnospiraceae, and others
+      - Cage 116 final community was 60% barnsiella and the remaining a mix of turicibacter, bifidobacterium, lactobacillus, Lachnospiraceae, and others, with higher amounts of either Lachnospiraceae or Lactobacillus and others than cage 102
+    - Cages 107 and 108 were colonized similarlly but had slightly different community structures, at Day 0 they both had Porphymonadaceae (25-50%) and cage 108 had Bacteroides (30%)
+      - Cage 107 became largely Porphymonadaceae (60%) and Barnsiella (20%)
+      - Cage 108 became made of Porphymonadaceae (35%), Bacteroides (15%), Akkermansia (15%), Barnsiella (10%)
+      - interestingly, Akkermansia was present at roughly 20% in the mouse not initiallty colonized, however akkermansia disappered in that mouse. Furthermore, akkermansia was present at the endpoint in the other cage colonized at endpoint but also present in the cage whcih resisted and cleared colonization
+
+#### Questions
+  - What are the differences between the Metronidazole recovered communities that could explain the differences in colonization?
+
+***
+
+## Streptomycin - 3 Doses (0.1, 0.5, 5)
+
+- At the phylum level
+  - Generally, Streptomycin does not make large changes to the major community structures, Bacteroidetes remains the dominant group in all communities, the changes are mostly inthe members making up the lower 25%
+    - Low Streptomycin (0.1) the groups making up the lower portion shift from firmicutes to akkermanisa and return to firmicutes at the endpoint
+      - 7 of 10 mice are colonized to a low level (10^2 - 10^5), all cleared by endpoint (the uncolonized cage - 95, has lowest levels of akkermansia
+    - Mid Streptomycin (0.5) simially led to increases in akkermansia which remained through the endpoint
+      - all mice were colonized to a high level (10^8), one cage (48) appears to clear while only one mice appears to be uncolonized in the second cage (89)
+    - High Streptomycin (5) led to near complete dominance of Bacteroidetes in all but one cage (47) which responded simialr to the mid does and had increased akkermansia/decreased firmicutes. Communities remained the same from Day 0 to endpoint, with a slight increase in proteobacteria in the mice with akkermansia
+      - all mice were colonized (10^8) and at end point there was a slight reduction in the Bacteroidetes communities (cage 627)
+- At the genus level
+  - Low Streptomycin the primary change is an increase in akkermansia which is no longer present at the endpoint. At the endpoint there is an increase in the amount of community in other (not top 11 most abundant groups)
+  - Mid Streptomycin there is an expansion of akkermansia and Bacteroides and reduction in Porphymonadaceae. At the endpoint, Porphymonadaceae/Bacteroides has recovered to initial levels but with Akkermansia still present
+    - few differences between the the communites that clear and those that didnt. There are some small proportional differences between the two cages but largely similar with the even distribution of abundance between multiple OTUs within the genus
+  - High Streptomycin 
+    - With the unchallenged mice and cage 627, there is an expansion of bacteroides and to a lesser degree barnsiella, reducing Porphymonadaceae. At endpoint Bacteroides reduces and most Porphymonadaceae OTUs recover except some of the lesser abundant Porphymonadaceae otus and Alistipes does not recover
+    - With the mice in cage 47, there is an expansion of akkermansia and bacteroidales and a reduction in a few of the lower abundant Porphymonadaceae OTUs while the other Porphymonadaceae remain. At the endpoint some of the lower abundant Porphymonadaceae OTUs recover and bacteroidales decreases
+
+#### Questions
+  - What differentiates the uncolonized cage from the colonized cages with the low Streptomycin treatment?
+  - What differentiates the cages that cleared with the mid Streptomycin treatment?
+  - What differentiates the colonized cages (low Streptomycin) from untreated?
+
+***
+
+## Vancomycin - 3 Doses (0.1, 0.3, 0.625)
+
+- At the phylum level
+  - Low Vancomycin (0.1) leads to a slight increase in Proteobacteria/Akkermansia (~25%) while slightly reducing Firmicutes/Bacteroidetes. At endpoint, proteobacteria was no longer present 
+    - All mice were highly colonized and all but one were reduced at endpoint.
+  - Mid Vancomycin (0.3) leads to a nearly eliminates Bacteroidetes, expanding akkermansia (~50%) and Proteobacteria (25%). At endpoint in 3 mice (cage 740), the proteobacteria is replaced with an expansion of firmicutes and to a much lesser degree actinobacteria. for the other 5 mice (cage 86), the proteobacteria/firmicutes are greatly reduced with the recovery of bacteroidetes to half the community while akkermansia remained filling the other half.
+    - All mice were highly colonized intially, while cage 740 had reduced levels (10^4) at endpoint, this group of mice had higher portion Akkermansia/Firmicutes
+  - High Vancomycin (0.625), similar to the 0.3 dose, leads to  a nearly eliminates Bacteroidetes, expanding akkermansia (~50%) and Proteobacteria (25%). Endpoint was made of a distribution of proportions of akkermansia, proteobacteria, and firmicutes (ranging from 1/3 of each to 70% akkermansia/ 30% firmicutes). There was no recovery of bacteroidetes.
+    - All mice were highly colonized intially, and similar to dose 0.3 (cage 86) endpoint was slightly reduced to 10^7, however the endpoint communities were more similar to cage 740 which had much lower colonization.
+- At the genus/OTU level
+  - Low Vancomycin (0.1) leads leads to a decrease in Porphymonadaceae and expansion in Bacteroides, and to a lesser degree Akkermansia and some Barnsiella. At endpoint Porphymonadaceae has recovered but Bacteroides/akkermansia remain elevated and Lachnospiraceae/Lactobacillus do not recover.
+    - All mice were highly colonized and all but one were reduced at endpoint.
+    - There is reduced amount of other genus/OTUs in Day 0 and Endpoint
+    - Day 0/endpoint have loss of some Porphymonadaceae OTUs
+  - Mid/high Vancomycin (0.3/0.625) leads to a large expansion of akkermansia, elimination of Porphymonadaceae with no return overtime,  the rest of the community is made up of Esherichia/shigella, lactobacillus, and in a few enterobacteriaceae. At the end point akkermansia remains dominant (in all but one), with the remaining made up of bacteroides or lactobacillus with lactobacillus/turicibacter
+    - Communities are made up of a few OTUs, akkermansia/enterobacteriaceae/lactobacillus/Esherichia/bacteroidetes which make up ~ 75% of communites (with the exception of one mouse, cage 7)
+
+#### Questions
+  - What differentiates the reduction in colonization in cage 740 (dose 0.3) and the others?
+  - What differentiates the communites that remain colonized and the ones able to reduce/clear colonization?
+
+
+***
+
+## Comparing the possible effect of C. difficile on the community
+
+- Ampicilin (dose 0.5)
+    - Ampicilin treatment lead to very different communities so comparing the communites that looked similar on day 0, there looked fairly different at the endpoint
+    - Day 0 community was made of Esherichia/shigella and others (~40%)
+    - For unchallenged, this community shifted to turicibacter/lactobacillus/Lachnospiraceae/other
+    - For C. difficile challenged, this community shifted to akkermansia dominated (>65%), with the remainder consisting of Porphymonadaceae/turicibacter/lactobacillus/Lachnospiraceae/other
+- Cefaperazone (dose 0.5)
+    - At the genus level, in one cage of challegned mice, there is similar variation to the unchallenged community but there also is another cage with much different communities (dominated by akkermansia/bacteroidetes which are not observed in the other groups)
+- Clindamycin (dose 10)
+    - At the genus level, at endpoint colonized communities have slightly higher Porphymonadaceae and reduced lactobacillus
+- Metronidazole (dose 1)
+    - At the genus level, there doesnt appear to be any differences, although one cage challenged has Porphymonadaceae not present in the unchallenged (but that is not consistent amongst challenged cages)
+- Streptomycin (dose 5)
+    - At the genus level, colonized communities have higher levels of barnsiella and reduced bacteroides
+- Vancomycin (dose 0.625)
+    - At the genus level, colonized communities have reduced Akkermansia and more variable proportions of Esherichia/Lachnospiraceae/Lactobacillus
+
+***
+
+From Exploratory.Rmd looking at all treatments together, 
+
+
+How does C. difficile change the community?
+
+How are resistant communities different than susceptible? (within antibiotic treatment)
+
+
+What is different between persistent and clearing communities?
+
+
+How to restore colonization resistance to Clindamycin?
+  what changes precede or co-occur with decreasing CFU?
+
+How do clinda and metro differ? What’s different after antibiotics (subtracting proteo)? What’s different in unchallenged communities for recovery?
+
+Look at the community over time in treatments with differing levels of colonization or clearance
+Clear
+  - Clindamycin (clinda_10_FALSE_TRUE)
+  - 
+Different Colonization
+  - 
+Decreasing Colonization
+
+Maintain colonization with changing community
+  - Amp_0.5 - different communities infected and shift, infection maintained > 10^6, recovery allowed the community to shift but lead to 3 different communities which were all infected but at slightly lower levels than no recovery
+Maintain colonization with same community
+
+```{r community recovery}
+
+compare_community_colonization <- function(selected_treatment, taxonomic_level, n_taxa){
+	treatment_df <- meta_df %>% 
+	  filter(treatment %in% c(selected_treatment)) %>% 
+	  left_join(
+	    sum_otu_by_taxa(taxonomy_df = taxonomy_df, otu_df = rel_abund, 
+	        taxa_level = taxonomic_level, top_n = n_taxa),
+	  by = 'group') %>% 
+	  mutate(dataset = paste0(taxonomic_level, '_level'))
+	
+	if(taxonomic_level == 'tax_otu_label'){
+		treatment_df  <- treatment_df %>% 
+			mutate(dataset = 'OTU_level',
+				taxa = gsub(' \\(', '\n(', taxa),
+				taxa = gsub('_unclassified\n\\(', '\n(Unclassified, ', taxa))
+	}
+
+	community_plot <- treatment_df %>% 
+	  mutate(taxa = factor(taxa, c('Other', unique(treatment_df$taxa)[unique(treatment_df$taxa)!='Other']))) %>% 
+	  ggplot(aes(x = mouse_position, y = abundance, fill = taxa)) + 
+	    geom_bar(stat="identity", position='stack', width = 1, color = "black", size = 0.1) + 
+	    facet_grid(treatment ~ day) + 
+	    theme_bw() + labs(x = NULL) + 
+	    theme(legend.position = 'top', legend.title=element_blank(),
+	      axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+	      legend.text=element_text(size=6)) + 
+	    scale_fill_brewer(palette = 'Paired')
+
+	cdiff_plot <- treatment_df %>% 
+	  group_by(mouse_position, treatment, day, mouse_id) %>% 
+	  summarise(CFU = median(CFU) + 1) %>% 
+	  ggplot(aes(x = mouse_position, y = CFU)) + 
+	    geom_bar(stat="identity", width = 1) + 
+	    facet_grid(treatment ~ day) + 
+	    scale_y_log10() + 
+	    theme_bw() + labs(x = NULL, y = 'C. difficile CFU (log10)') + 
+	    theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+	plot_header <- ggdraw() +
+	 draw_label(paste0('Daily Community overview ', selected_treatment, ' looking at the ', 
+	    taxonomic_level), x = 0.05, hjust = 0)
+
+    ggsave(paste0('../results/figures/daily_plots/colonization_dynamics', selected_treatment, '_', taxonomic_level, '.jpg'),
+      plot_grid(plot_header, plot_grid(community_plot, cdiff_plot, ncol = 1), 
+        ncol = 1, rel_heights = c(0.1, 2)),
+      width = 20, height = 10)
+  }
+#compare_community_colonization(selected_treatment = 'cef_0.3_FALSE_TRUE', taxonomic_level = 'Phylum', n_taxa = 6)
+
+the_list <- meta_df %>% 
+	filter(cdiff == T) %>% 
+	pull(treatment) %>% 
+	unique
+
+for(trt in the_list){
+	for(tax in 1:6){
+		level <- c('Phylum','Class','Order','Family','Genus', 'tax_otu_label')[tax]
+		num <- c(6,8,8,10,11,11)[tax]
+		compare_community_colonization(selected_treatment = trt, 
+			taxonomic_level = level, n_taxa = num)
+	}
+
+}
+
+```
