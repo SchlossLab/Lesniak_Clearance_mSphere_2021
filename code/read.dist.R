@@ -2,31 +2,25 @@
 #
 # read.dist.R
 #
-# reads triangle matrices into R
-# 
-# cloned from Marc Sze
-# https://github.com/SchlossLab/Sze_PCRSeqEffects_mSphere_2019/blob/master/code/mock_beta.R
-#    
+# reads triangle matrices into R   
 #
 ###################
-
 
 library(tidyverse)
 
 read_dist <- function(dist_file_name){
+  # read in the first row to determine the matrix dimensions
+  matrix_dim <- as.numeric(read.table(dist_file_name, nrow = 1, as.is = TRUE))
   # read in all the data from the lower triangle (exlcude the first which is the matrix dim)
-  dist_data <- scan(dist_file_name, what="character", quiet=TRUE)[-1]
-  # subset the sample names (which all contain "-")
-  samples <- str_subset(dist_data, "-")
-  n_samples <- length(samples)
-  distance_strings <- str_subset(dist_data, "\\.")
-
-  distance_matrix <- matrix(0, nrow=n_samples, ncol=n_samples)
-  colnames(distance_matrix) <- samples
-  as_tibble(cbind(rows=samples, distance_matrix)) %>%
-    gather(columns, distances, -rows) %>%
-    filter(rows < columns) %>%
-    arrange(columns, rows) %>%
-    mutate(distances = as.numeric(distance_strings))
-
+  distance_matrix <- read.table(dist_file_name, fill = TRUE, skip = 1, 
+    col.names = c(as.character(1:matrix_dim)),
+    stringsAsFactor = F)
+  # add column names based on row names
+  colnames(distance_matrix) <- c('rows', distance_matrix$X1[-matrix_dim])
+  # convert to long form and eliminate NAs (upper right of triangle)
+  distance_matrix %>% 
+    pivot_longer(col = -rows, values_to = 'distances', names_to = 'columns') %>% 
+    filter(!is.na(distances))
 }
+
+
