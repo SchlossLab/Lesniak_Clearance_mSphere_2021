@@ -18,7 +18,7 @@ library(ggtext)
 source("code/R/functions.R")
 
 #args <- commandArgs(trailingOnly = TRUE)
-model_dir <- 'otu'
+model_dir <- 'l2_otu'
 
 # read in data and create key/label to add description to features
 meta_file <- 'data/process/abx_cdiff_metadata_clean.txt'
@@ -198,6 +198,7 @@ perm_imp_plot <- ggplot() +
 	geom_rect(aes(ymin=lowerq, ymax=upperq, xmin=0, xmax=Inf), fill="gray65") +
 	geom_boxplot(data=data_full, aes(x=names, y=new_auc), alpha=0.7) +
 	scale_fill_manual(values=cols) +
+	geom_hline(yintercept = 0.5, linetype="dashed") +
 	geom_hline(yintercept = data_base_medians$imp , linetype="dashed") +
 	#geom_hline(yintercept = upperq, alpha=0.5) +
 	#geom_hline(yintercept = lowerq, alpha=0.5) +
@@ -256,97 +257,97 @@ top_otu_abundance_plot <- top_otu_abundance %>%
 
 # -------------------------------------------------------------------->
 
-######################################################################
-#--------------How does the model do with specific samples ----------#
-######################################################################
-# plot the distribution of probability of clearance for each sample
-perf_by_sample_plot <- l2_sample_perf_df %>%
-	left_join(meta_df, by = 'Group') %>% 
-	mutate(mouse = paste0(' Sample ', mouse, ')'),
-		label = str_replace(label, '\\)', mouse)) %>% 
-	group_by(label) %>% 
-	mutate(median_p = median(Cleared)) %>% 
-	ggplot(aes(x = reorder(label, -median_p), y = Cleared, color = clearance)) +
-		geom_boxplot() + 
-		coord_flip() + 
-		theme_bw() + 
-		theme(legend.position = c(0.2, 0.075),
-			panel.grid.minor.x = element_blank()) + 
-		labs(x=NULL, y = 'Probabilty Colonization is Cleared', color = NULL)
-# select samples that are inbetween outcomes, ones most likely to be misclassifies
-misclass_samples <- l2_sample_perf_df %>%
-	left_join(meta_df, by = 'Group') %>% 
-	mutate(mouse = paste0(' Sample ', mouse, ')'),
-		label = str_replace(label, '\\)', mouse)) %>% 
-	group_by(label) %>% 
-	mutate(median_p = median(Cleared)) %>% 
-	filter(0.45 < median_p, median_p < 0.55) %>% 
-	select(Group, sample_label = label, median_p) %>% 
-	unique
-# plot relative abundance of top otus for potentially misclassified features
-rel_abund_misclass_samples <- top_otu_abundance %>% 
-	inner_join(summarise(data_full, new_auc = median(new_auc)), by = c('label' = 'names')) %>% 
-	right_join(misclass_samples, by = c('Group')) %>% 
-	mutate(sample_label = gsub(' \\(', '\\\n\\(', sample_label)) %>% 
-	ggplot(aes(x = fct_reorder(label, -new_auc), y = abundance, color = clearance)) + 
-		geom_point() + 
-		scale_y_log10() +
-		coord_flip() + 
-		facet_wrap(.~reorder(sample_label, median_p), nrow = 1) + 
-		theme_bw() +
-		labs(y = 'Percent Relative Abundance', x = NULL, color = NULL) + 
-		theme(legend.position = 'none',
-			panel.grid.minor.y = element_blank(),
-			axis.text.y = element_markdown())
-
-# -------------------------------------------------------------------->
-
-
-######################################################################
-#-------------------Plot facultative anaerobes---------------------- #
-######################################################################
-
-mice <- l2_sample_perf_df %>% 
-	left_join(full_meta_df, by = c('Group' = 'group')) %>% 
-	pull(mouse_id) %>% 
-	unique
-
-fac_anaerobe_plot <- full_meta_df %>% 
-	filter(mouse_id %in% mice) %>% 
-	select(mouse_id, day, clearance, abx, CFU, Group = group) %>% 
-	inner_join(select(shared_df, Group, Otu000010, Otu000011), by = 'Group') %>% 
-	pivot_longer(cols = starts_with('Otu0'), names_to = 'otu', values_to = 'abundance') %>% 
-	inner_join(label_df, by = c('otu' = 'key')) %>% 
-	mutate(abundance = (100 * abundance/total_abundance) + .05) %>% 
-	filter(day > 0) %>% 
-	ggplot(aes(x = day, y = abundance, color = label)) + 
-		stat_summary(fun = function(x) median(x), geom = "line", size = 3) + # Median darker
-		geom_line(aes(group = interaction(mouse_id, label)), alpha = 0.3) + 
-		scale_x_continuous(breaks = 1:10) + 
-		scale_y_log10() + 
-		facet_grid(abx~clearance) + 
-		theme_bw() + 
-		theme(legend.position = c(0.8, 0.5),
-			panel.grid.minor = element_blank()) +
-		labs(x = 'Day', y = 'Relative Abundance', color = NULL)
-
-cfu_plot <- full_meta_df %>% 
-	filter(mouse_id %in% mice) %>% 
-	select(mouse_id, day, clearance, abx, CFU, Group = group) %>% 
-	filter(day > 0) %>% 
-	ggplot(aes(x = day, y = CFU)) + 
-		stat_summary(fun = function(x) median(x), geom = "line", size = 3) + # Median darker
-		geom_line(aes(group = mouse_id), alpha = 0.3) + 
-		scale_x_continuous(breaks = 1:10) + 
-		scale_y_log10() + 
-		facet_grid(abx~clearance) + 
-		theme_bw() + 
-		theme(legend.position = c(0.8, 0.5),
-			panel.grid.minor = element_blank()) + 
-		labs(x = 'Day', y = expression(italic('C. difficile')~' CFU'))
+#######################################################################
+##--------------How does the model do with specific samples ----------#
+#######################################################################
+## plot the distribution of probability of clearance for each sample
+#perf_by_sample_plot <- l2_sample_perf_df %>%
+#	left_join(meta_df, by = 'Group') %>% 
+#	mutate(mouse = paste0(' Sample ', mouse, ')'),
+#		label = str_replace(label, '\\)', mouse)) %>% 
+#	group_by(label) %>% 
+#	mutate(median_p = median(Cleared)) %>% 
+#	ggplot(aes(x = reorder(label, -median_p), y = Cleared, color = clearance)) +
+#		geom_boxplot() + 
+#		coord_flip() + 
+#		theme_bw() + 
+#		theme(legend.position = c(0.2, 0.075),
+#			panel.grid.minor.x = element_blank()) + 
+#		labs(x=NULL, y = 'Probabilty Colonization is Cleared', color = NULL)
+## select samples that are inbetween outcomes, ones most likely to be misclassifies
+#misclass_samples <- l2_sample_perf_df %>%
+#	left_join(meta_df, by = 'Group') %>% 
+#	mutate(mouse = paste0(' Sample ', mouse, ')'),
+#		label = str_replace(label, '\\)', mouse)) %>% 
+#	group_by(label) %>% 
+#	mutate(median_p = median(Cleared)) %>% 
+#	filter(0.45 < median_p, median_p < 0.55) %>% 
+#	select(Group, sample_label = label, median_p) %>% 
+#	unique
+## plot relative abundance of top otus for potentially misclassified features
+#rel_abund_misclass_samples <- top_otu_abundance %>% 
+#	inner_join(summarise(data_full, new_auc = median(new_auc)), by = c('label' = 'names')) %>% 
+#	right_join(misclass_samples, by = c('Group')) %>% 
+#	mutate(sample_label = gsub(' \\(', '\\\n\\(', sample_label)) %>% 
+#	ggplot(aes(x = fct_reorder(label, -new_auc), y = abundance, color = clearance)) + 
+#		geom_point() + 
+#		scale_y_log10() +
+#		coord_flip() + 
+#		facet_wrap(.~reorder(sample_label, median_p), nrow = 1) + 
+#		theme_bw() +
+#		labs(y = 'Percent Relative Abundance', x = NULL, color = NULL) + 
+#		theme(legend.position = 'none',
+#			panel.grid.minor.y = element_blank(),
+#			axis.text.y = element_markdown())
+#
+## -------------------------------------------------------------------->
 
 
-# -------------------------------------------------------------------->
+#######################################################################
+##-------------------Plot facultative anaerobes---------------------- #
+#######################################################################
+#
+#mice <- l2_sample_perf_df %>% 
+#	left_join(full_meta_df, by = c('Group' = 'group')) %>% 
+#	pull(mouse_id) %>% 
+#	unique
+#
+#fac_anaerobe_plot <- full_meta_df %>% 
+#	filter(mouse_id %in% mice) %>% 
+#	select(mouse_id, day, clearance, abx, CFU, Group = group) %>% 
+#	inner_join(select(shared_df, Group, Otu000010, Otu000011), by = 'Group') %>% 
+#	pivot_longer(cols = starts_with('Otu0'), names_to = 'otu', values_to = 'abundance') %>% 
+#	inner_join(label_df, by = c('otu' = 'key')) %>% 
+#	mutate(abundance = (100 * abundance/total_abundance) + .05) %>% 
+#	filter(day > 0) %>% 
+#	ggplot(aes(x = day, y = abundance, color = label)) + 
+#		stat_summary(fun = function(x) median(x), geom = "line", size = 3) + # Median darker
+#		geom_line(aes(group = interaction(mouse_id, label)), alpha = 0.3) + 
+#		scale_x_continuous(breaks = 1:10) + 
+#		scale_y_log10() + 
+#		facet_grid(abx~clearance) + 
+#		theme_bw() + 
+#		theme(legend.position = c(0.8, 0.5),
+#			panel.grid.minor = element_blank()) +
+#		labs(x = 'Day', y = 'Relative Abundance', color = NULL)
+#
+#cfu_plot <- full_meta_df %>% 
+#	filter(mouse_id %in% mice) %>% 
+#	select(mouse_id, day, clearance, abx, CFU, Group = group) %>% 
+#	filter(day > 0) %>% 
+#	ggplot(aes(x = day, y = CFU)) + 
+#		stat_summary(fun = function(x) median(x), geom = "line", size = 3) + # Median darker
+#		geom_line(aes(group = mouse_id), alpha = 0.3) + 
+#		scale_x_continuous(breaks = 1:10) + 
+#		scale_y_log10() + 
+#		facet_grid(abx~clearance) + 
+#		theme_bw() + 
+#		theme(legend.position = c(0.8, 0.5),
+#			panel.grid.minor = element_blank()) + 
+#		labs(x = 'Day', y = expression(italic('C. difficile')~' CFU'))
+#
+#
+## -------------------------------------------------------------------->
 
 
 
@@ -367,13 +368,14 @@ ggsave(paste0("results/figures/Figure_S4.jpg"),
 	plot = model_perf_plot,
 	width = 6, height = 6, units="in")
 
-ggsave(paste0("results/figures/Figure_S4_L2_Logistic_Regression_sample_dist_", model_dir, ".jpg"), 
-	plot = plot_grid(plot_grid(NULL, perf_by_sample_plot, rel_heights = c(1, 19), ncol = 1), 
-			rel_abund_misclass_samples, 
-		labels = c('A', 'B'), rel_widths = c(1,2)), 
-	width = 16, height = 8, units="in")
-
-ggsave(paste0("results/figures/Figure_S4_fac_anaerobes_", model_dir, ".jpg"), 
-	plot = plot_grid(fac_anaerobe_plot, cfu_plot, 
-		labels = c('A', 'B')),  
-	width = 16, height = 8, units="in")
+#ggsave(paste0("results/figures/Figure_S4_L2_Logistic_Regression_sample_dist_", model_dir, ".jpg"), 
+#	plot = plot_grid(plot_grid(NULL, perf_by_sample_plot, rel_heights = c(1, 19), ncol = 1), 
+#			rel_abund_misclass_samples, 
+#		labels = c('A', 'B'), rel_widths = c(1,2)), 
+#	width = 16, height = 8, units="in")
+#
+#ggsave(paste0("results/figures/Figure_S4_fac_anaerobes_", model_dir, ".jpg"), 
+#	plot = plot_grid(fac_anaerobe_plot, cfu_plot, 
+#		labels = c('A', 'B')),  
+#	width = 16, height = 8, units="in")
+#

@@ -55,7 +55,8 @@ $(MOTHUR)abx_clearance.files : code/make_files_file.R $(RAW)abx_cdiff_metadata.t
 
 ################################################################################
 #
-#	Part 3: Run data through mothur
+#	Part 3: Run data through mothur 
+#		Time to run mothur pipline on HPC: 17h:21min
 #
 ################################################################################
 
@@ -110,7 +111,10 @@ data/process/abx_cdiff_taxonomy_clean.tsv : data/mothur/final.taxonomy\
 
 
 ################################################################################
+#
 # Run L2 Logistic Regression
+#		Time to run L2 pipline on HPC: 1min
+#
 ################################################################################
 
 SEARCH_DIR=data/temp/l2_otu
@@ -140,19 +144,11 @@ $SEARCH_DIR/walltime_L2_Logistic_Regression_1.csv : code/R/main.R\
 	done
 	# or run SBATCH code/run_logit.sbat on the Great Lakes cluster
 
-# concatenate results
-$FINAL_DIR/combined_all_imp_features_cor_results_L2_Logistic_Regression.csv : code/bash/cat_csv_files.sh\
-																				code/R/get_feature_rankings.R\
+# concatenate results and determine feature importance
+$FINAL_DIR/combined_all_imp_features_cor_results_L2_Logistic_Regression.csv : code/bash/process_l2_output.sh\
+																				code/R/get_feature_rankings.R
+	bash code/bash/process_l2_output.sh
 
-	bash code/bash/cat_csv_files.sh
-
-# Determine feature importance
-$FINAL_DIR/combined_L2_Logistic_Regression_feature_ranking.tsv : $FINAL_DIR/combined_all_imp_features_cor_results_L2_Logistic_Regression.csv\
-																code/R/get_feature_rankings.R\
-																code/bash/merge_feature_ranks.sh
-	Rscript code/R/get_feature_rankings.R otu
-	bash code/bash/merge_feature_ranks.sh
-#
 
 ################################################################################
 # Create figures

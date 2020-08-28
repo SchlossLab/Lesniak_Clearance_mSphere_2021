@@ -27,8 +27,7 @@ abx_color <- tibble(abx = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
 	color = c('#D37A1F', '#3A9CBC', '#A40019'))
 
 # read in data
-meta_df   <- read_tsv(meta_file) %>% 
-	filter(abx %in% c('Clindamycin', 'Streptomycin', 'Cefoperazone'))
+meta_df   <- read_tsv(meta_file)
 shared_df <- read_tsv(shared_file) %>% 
 	select(-label, -numOtus) %>% 
 	filter(Group %in% meta_df$group)
@@ -85,17 +84,16 @@ plot_colonization_abundance <- function(antibiotic, n_taxa, label_input){
 				axis.text.y = element_markdown())
 	# plot day 0 relative abundance by antibiotic dosage
 	if(antibiotic == 'Cefoperazone'){
-			taxa_order <- c('*Lactobacillus*', 'Other', 
-				'*Escherichia/Shigella*', '*Clostridium sensu stricto*', 
-				'*Enterobacteriaceae*', '*Bacteroidales*', 
-				'*Alistipes*', '*Ruminococcaceae*', '*Barnesiella*', '*Akkermansia*', 
-				'*Lachnospiraceae*', '*Porphyromonadaceae*', '*Bacteroides*')
+			taxa_order <- c('*Lactobacillus*', 'Other', '*Enterobacteriaceae*', 
+				'*Clostridium sensu stricto*', '*Pseudomonas*', '*Ruminococcaceae*', 
+				'*Barnesiella*', '*Lachnospiraceae*', '*Alistipes*', '*Clostridiales*', 
+				'*Akkermansia*', '*Porphyromonadaceae*', '*Bacteroides*')
 		} else if(antibiotic == 'Streptomycin'){
 			taxa_order <- c('*Porphyromonadaceae*','*Bacteroides*', 
 				'*Akkermansia*', '*Barnesiella*', '*Bacteroidales*', 
 				'*Lachnospiraceae*', '*Lactobacillus*', '*Ruminococcaceae*', 
-				'*Olsenella*', '*Alistipes*', '*Anaeroplasma*', 
-				'Other', '*Oscillibacter*')
+				'*Olsenella*', '*Oscillibacter*', 'Other', '*Alistipes*', 
+				'*Clostridiales*', '*Anaeroplasma*')
 	}
 
 	abundance_plot <- sum_otu_by_taxa(tax_df, abx_shared, taxa_level = 'Genus', top_n = n_taxa) %>% 

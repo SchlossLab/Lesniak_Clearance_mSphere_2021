@@ -23,11 +23,11 @@ library(ggtext)
 
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
-shared_file <- 'data/mothur/sample.final.0.03.subsample.shared'
 tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
-sum_taxa_function <- 'code/sum_otu_by_taxa.R'
+shared_file <- 'data/mothur/sample.final.0.03.subsample.shared'
 alpha_div_file <- 'data/mothur/sample.final.groups.ave-std.summary'
 beta_div_file <- 'data/mothur/sample.final.thetayc.0.03.lt.ave.dist'
+sum_taxa_function <- 'code/sum_otu_by_taxa.R'
 dist_function <- 'code/read.dist.R'
 
 # read in data
@@ -57,7 +57,7 @@ colonization_plot <- meta_df %>%
 		!is.na(CFU)) %>%
 	ggplot(aes(x = day, y = CFU)) + 
         geom_line(aes(group = mouse_id), alpha = 0.3, color = '#A40019') + 
-		stat_summary(fun.y=median, geom="line", size = 1, color = '#A40019') + # create median line
+		stat_summary(fun=median, geom="line", size = 1, color = '#A40019') + # create median line
         scale_x_continuous(breaks = -1:10) + # make ticks for each day
 		annotate(x = -1, y = 200, geom = 'label', label = "LOD", # create a dotted line labeled LOD for limit of detection
 			fill = "white", color = 'black', label.size = NA) + 
@@ -80,7 +80,7 @@ abundance_plot <- shared_genus %>%
 		relative_abundance = abundance/total * 100,
 		taxa = gsub('_unclassified', '', taxa),
 		taxa = ifelse(taxa == 'Other', taxa, paste0('*', taxa, '*')),
-		taxa = factor(taxa, levels = rev(c("*Escherichia/Shigella*", 
+		taxa = factor(taxa, levels = rev(c("*Enterobacteriaceae*", 
 				"*Lactobacillus*", "*Akkermansia*", "*Bacteroides*", 
 				"*Porphyromonadaceae*", "Other", "*Lachnospiraceae*", 
  				"*Barnesiella*", "*Turicibacter*", "*Ruminococcaceae*", 

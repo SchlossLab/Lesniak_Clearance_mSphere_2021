@@ -25,6 +25,7 @@
 # Logs
 #SBATCH --mail-user=nlesniak@umich.edu
 #SBATCH --mail-type=END,FAIL
+#SBATCH -o scratch/mothur_log/mothur.output.%j.out
 
 echo 'Starting'
 

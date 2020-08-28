@@ -31,9 +31,9 @@
 meta_file <- 'data/process/abx_cdiff_metadata_clean.txt'
 feature_file <- 'data/mothur/sample.final.0.03.subsample.shared'
 
-args <- commandArgs(trailingOnly = TRUE)
-level <- as.character(args[1])
-#level <- 'l2_otu'
+#args <- commandArgs(trailingOnly = TRUE)
+#level <- as.character(args[1])
+level <- 'l2_otu'
 
 ################### IMPORT LIBRARIES and FUNCTIONS ###################
 # The dependinces for this script are consolidated in the first part

@@ -22,12 +22,12 @@ library(cowplot)
 library(ggtext)  # remotes::install_github("wilkelab/ggtext")
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
-shared_file <- 'data/mothur/sample.final.0.03.subsample.shared'
 tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
 sum_taxa_function <- 'code/sum_otu_by_taxa.R'
+dist_function <- 'code/read.dist.R'
+shared_file <- 'data/mothur/sample.final.0.03.subsample.shared'
 alpha_div_file <- 'data/mothur/sample.final.groups.ave-std.summary'
 beta_div_file <- 'data/mothur/sample.final.thetayc.0.03.lt.ave.dist'
-dist_function <- 'code/read.dist.R'
 
 # read in data
 meta_df   <- read_tsv(meta_file) %>% 
@@ -87,7 +87,7 @@ initial_distances <- meta_beta_df %>%
 	filter(r_mouse_id != c_mouse_id,
 		c_abx == r_abx,
 		r_time_point == 'Initial' & c_time_point == 'Initial') %>% 
-	mutate(comparison = 'i_i',)
+	mutate(comparison = 'i_i')
 initial_inter_intial <- meta_beta_df %>% 
 	filter(r_mouse_id != c_mouse_id,
 		c_abx != r_abx,
@@ -95,7 +95,7 @@ initial_inter_intial <- meta_beta_df %>%
 	mutate(comparison = 'iXi')
 TOI_intra_initial <- meta_beta_df %>% 
 	filter(r_mouse_id == c_mouse_id,
-		c_time_point == 'TOI' & r_time_point == 'Initial') %>% 
+		r_time_point == 'Initial' & c_time_point == 'TOI') %>% 
 	mutate(comparison = 'i_t')
 TOI_intra_TOI <- meta_beta_df %>% 
 	filter(r_mouse_id != c_mouse_id,
@@ -109,11 +109,11 @@ TOI_inter_TOI <- meta_beta_df %>%
 	mutate(comparison = 'tXt')
 end_toi <- meta_beta_df %>% 
 	filter(r_mouse_id == c_mouse_id,
-		c_time_point == 'End' & r_time_point == 'TOI') %>% 
+		r_time_point == 'End' & c_time_point == 'TOI') %>% 
 	mutate(comparison = 'e_t')
 end_intial <- meta_beta_df %>% 
 	filter(r_mouse_id == c_mouse_id,
-		c_time_point == 'End' & r_time_point == 'Initial') %>% 
+		r_time_point == 'Initial' & c_time_point == 'End') %>% 
 	mutate(comparison = 'e_i')
 end_intra_end <- meta_beta_df %>% 
 	filter(r_mouse_id != c_mouse_id,
@@ -131,7 +131,7 @@ beta_div_df <- bind_rows(list(initial_distances, initial_inter_intial, TOI_intra
 	mutate(comparison = factor(comparison, 
 		levels = c('i_i', 'i_t', 'e_i', 'e_t', 'iXi', 't_t', 'tXt', 'e_e', 'eXe'),
 		labels = c('Initial\nvs\nInitial', 
-			'Initial\nvs\nTOI', 
+			'TOI\nvs\nInitial', 
 			'End\nvs\nInitial', 
 			'End\nvs\nTOI', 
 			'Initial\nvs\ninter\nInitial',
@@ -142,7 +142,7 @@ beta_div_df <- bind_rows(list(initial_distances, initial_inter_intial, TOI_intra
 
 beta_plot <- beta_div_df %>% 
 	filter(comparison %in% c('Initial\nvs\nInitial', 
-			'Initial\nvs\nTOI', 
+			'TOI\nvs\nInitial', 
 			'End\nvs\nInitial')) %>% 
 	mutate(c_abx = factor(c_abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin'))) %>% 
 	ggplot(aes(x = comparison, y = distances, color = as.factor(c_time_point))) + 

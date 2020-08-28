@@ -66,7 +66,7 @@ subsampled_shared_df <- read_tsv(subsampled_shared_file) %>%
 	select(-numOtus, -label) %>% 
 	filter(Group %in% meta_df$group)
 shared_df <- read_tsv(shared_file) %>% 
-	select(-numOtus, -label, -X6631) %>% 
+	select(-numOtus, -label) %>% 
 	filter(Group %in% meta_df$group)
 
 get_cdiff_network <- function(antibiotic, clearance_status){
