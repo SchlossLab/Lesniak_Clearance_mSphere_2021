@@ -77,72 +77,56 @@ colonization_plot <- meta_df %>%
 
 # plot relative abundance over time in a heatmap plot
 # mice along the x axis, taxonomic classification along the y axis and color intensity by log10 relative abundance
-plot_abundance <- function(antibiotic, n_taxa){
-	# select color for antibiotic
+
+shared_meta_toi_df <- meta_df %>% 
+	filter(day == 0)
+toi_shared <- shared_df %>% 
+	filter(Group %in% shared_meta_toi_df$group)
+
+taxa_order <- rev(c("*Enterobacteriaceae*", "*Lactobacillus*", "Other", "*Porphyromonadaceae*", 
+	"*Bacteroides*", "*Akkermansia*", "*Barnesiella*", "*Lachnospiraceae*", 
+	"*Ruminococcaceae*", "*Pseudomonas*","*Alistipes*", "*Clostridiales*", 
+	"*Clostridium sensu stricto*"))
+
+abundance_df <- sum_otu_by_taxa(tax_df, toi_shared, taxa_level = 'Genus', top_n = 12) %>% 
+	left_join(select(shared_meta_toi_df, abx, group, dose), by = c('Group' = 'group')) %>% 
+	group_by(Group) %>% 
+	mutate(total = sum(abundance),
+		relative_abundance = abundance/total * 100,
+		taxa = gsub('_unclassified', '', taxa),
+		taxa = gsub('_', ' ', taxa),
+		taxa = ifelse(taxa == 'Other', taxa, paste0('*', taxa, '*')),
+		taxa = factor(taxa, labels = taxa_order, levels = taxa_order),
+		day = 'Time of\nInfection') %>% 
+	group_by(abx, dose, taxa, day) %>% 
+	summarise(relative_abundance = log10(mean(relative_abundance) + 0.01)) 
+
+plot_abundance <- function(antibiotic){
 	abx_col <- abx_color %>% 
 		filter(abx == antibiotic) %>% 
 		pull(color)
-	# create subset shared with only antibiotic and day 0
-	abx_group <- meta_df %>% 
-		filter(abx == antibiotic,
-			cdiff == T,
-			day == 0) %>% 
-		pull(group)
-	abx_shared <- shared_df %>% 
-		filter(Group %in% abx_group)
-	abx_meta <- meta_df %>% 
-		filter(day == 0, abx == antibiotic)
-
-	if(antibiotic == 'Cefoperazone'){
-			taxa_order <- c('*Lactobacillus*', 'Other', '*Enterobacteriaceae*', 
-				'*Clostridium sensu stricto*', '*Pseudomonas*', '*Ruminococcaceae*', 
-				'*Barnesiella*', '*Lachnospiraceae*', '*Alistipes*', '*Clostridiales*', 
-				'*Akkermansia*', '*Porphyromonadaceae*', '*Bacteroides*')
-		} else if(antibiotic == 'Streptomycin'){
-			taxa_order <- c('*Porphyromonadaceae*','*Bacteroides*', 
-				'*Akkermansia*', '*Barnesiella*', 
-				'*Lachnospiraceae*', '*Lactobacillus*', '*Ruminococcaceae*', 
-				'*Olsenella*', '*Oscillibacter*', 'Other', '*Alistipes*', 
-				'*Clostridiales*', '*Anaeroplasma*')
-		} else if(antibiotic == 'Clindamycin'){
-			taxa_order <- rev(c("*Enterobacteriaceae*", 
-							"*Lactobacillus*", "*Akkermansia*", "*Bacteroides*", 
-							"*Porphyromonadaceae*", "Other", "*Lachnospiraceae*", 
-			 				"*Turicibacter*", "*Ruminococcaceae*", "*Clostridium IV*",
-			 				"*Prevotella*", "*Alistipes*", "*Alloprevotella*"))
-	}
-
-	sum_otu_by_taxa(tax_df, abx_shared, taxa_level = 'Genus', top_n = n_taxa) %>% 
-		left_join(select(abx_meta, group, dose), by = c('Group' = 'group')) %>% 
-		group_by(Group) %>% 
-		mutate(total = sum(abundance),
-			relative_abundance = abundance/total * 100,
-			taxa = gsub('_unclassified', '', taxa),
-			taxa = gsub('_', ' ', taxa),
-			taxa = ifelse(taxa == 'Other', taxa, paste0('*', taxa, '*')),
-			taxa = factor(taxa, labels = taxa_order, levels = taxa_order),
-			day = 'Time of\nInfection') %>% 
-		group_by(dose, taxa, day) %>% 
-		summarise(relative_abundance = log10(mean(relative_abundance) + 0.01)) %>% 
-		ggplot(aes(x = day, y =taxa, fill = relative_abundance)) + 
-			geom_tile(height = 0.8) +
-			scale_fill_gradient2(low="white", mid=abx_col, high = 'black',
-				limits = c(-2,2), na.value = NA, midpoint = .3,
-				breaks = c(-2.5, -1, 0, 1, 2), labels = c('', '0.1', '1', '10', '100')) + 
-			theme_bw() + 
-			facet_wrap(dose~., scales = 'free_x', nrow = 1) +
-			labs(x = NULL, y = NULL, #title = paste('Day 0 Community - Top', n_taxa, 'Genus'),
-				fill = 'Mean Relative Abundance (%)') + 
-			theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
-				axis.ticks.x=element_blank(), 
-				axis.text.y = element_markdown(),
-				legend.position = 'bottom') +
-			guides(fill = guide_colorbar(title.position = "top"))
+	
+	abundance_df %>% 
+		filter(abx == antibiotic) %>% 
+	ggplot(aes(x = day, y =taxa, fill = relative_abundance)) + 
+		geom_tile(height = 0.8) +
+		scale_fill_gradient2(low="white", mid=abx_col, high = 'black',
+			limits = c(-2,2), na.value = NA, midpoint = .3,
+			breaks = c(-2.5, -1, 0, 1, 2), labels = c('', '0.1', '1', '10', '100')) + 
+		theme_bw() + 
+		facet_wrap(dose~., scales = 'free_x', nrow = 1) +
+		labs(x = NULL, y = NULL, #title = paste('Day 0 Community - Top', n_taxa, 'Genus'),
+			fill = 'Mean Relative Abundance (%)') + 
+		theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
+			axis.ticks.x=element_blank(), 
+			axis.text.y = element_markdown(),
+			legend.position = 'bottom') + 
+		guides(fill = guide_colorbar(title.position = "top"))
 }
 
-clinda_abun_plot <- plot_abundance('Clindamycin', 12)
-cef_abun_plot <- plot_abundance('Cefoperazone', 12)
-strep_abun_plot <- plot_abundance('Streptomycin', 12)
+clinda_abun_plot <- plot_abundance('Clindamycin')
+cef_abun_plot <- plot_abundance('Cefoperazone')
+strep_abun_plot <- plot_abundance('Streptomycin')
 
 
 # save plot, top row is colonization plot, middle row are diversity plots, bottom row is temporal abundance plot
