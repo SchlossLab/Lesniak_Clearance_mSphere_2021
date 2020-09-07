@@ -112,7 +112,7 @@ plot_abundance <- function(antibiotic){
 			limits = c(-2,2), na.value = NA, midpoint = .3,
 			breaks = c(-2.5, -1, 0, 1, 2), labels = c('', '0.1', '1', '10', '100')) + 
 		theme_bw() + 
-		facet_wrap(dose~., scales = 'free_x', nrow = 1) +
+		facet_grid(.~dose, scales = 'free_x', space = 'free') +
 		labs(x = NULL, y = NULL, #title = paste('Day 0 Community - Top', n_taxa, 'Genus'),
 			fill = 'Relative Abundance (%)') + 
 		theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
@@ -134,11 +134,11 @@ plot_abundance <- function(antibiotic){
 	ggplot(aes(x = Group, y =taxa, fill = clearance)) + 
 		geom_tile() +
 		theme_bw() + 
-		facet_wrap(dose~., scales = 'free_x', nrow = 1) +
+		facet_grid(.~dose, scales = 'free_x', space = 'free') +
 		labs(x = NULL, y = NULL, title = antibiotic,
 			fill = 'Outcome') + 
 		scale_fill_manual(limits = c('Uncolonized', 'Cleared', 'Clearing', 'Colonized'),
-			values = c('white', 'grey80', 'grey50', 'grey20')) +
+			values = c('white', 'grey80', 'grey20', 'grey20')) +
 		theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
 			axis.ticks.x=element_blank(), 
 			axis.text.y=element_markdown(colour = 'white'),
@@ -168,4 +168,4 @@ ggsave('results/figures/figure_1.jpg', plot_grid(
 			plot_grid(NULL, NULL, NULL, labels = c('D', 'E', 'F'), rel_widths = c(2, 3, 3), nrow = 1),
 			plot_grid(clinda_abun_plot, cef_abun_plot, strep_abun_plot, rel_widths = c(1.8, 4, 4), nrow = 1), 
 			rel_heights = c(1, 15), ncol = 1),
-	ncol = 1), width = 15, height = 10)
+	ncol = 1), width = 18, height = 10)
