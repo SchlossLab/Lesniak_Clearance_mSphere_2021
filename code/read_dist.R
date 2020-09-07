@@ -1,6 +1,6 @@
 ###################
 #
-# read.dist.R
+# read_dist.R
 #
 # reads triangle matrices into R   
 #

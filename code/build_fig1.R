@@ -25,130 +25,134 @@ library(ggtext)
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
 shared_file <- 'data/mothur/sample.final.0.03.subsample.shared'
-alpha_div_file <- 'data/mothur/sample.final.groups.ave-std.summary'
-beta_div_file <- 'data/mothur/sample.final.thetayc.0.03.lt.ave.dist'
 sum_taxa_function <- 'code/sum_otu_by_taxa.R'
-dist_function <- 'code/read.dist.R'
 
 # read in data
-meta_df   <- read_tsv(meta_file) %>% 
-	mutate(cdiff = ifelse(cdiff == T, 'C. difficile Challenged', 'Mock Challenged')) %>% 
-	filter(abx == 'Clindamycin')
+meta_df <- read_tsv(meta_file) %>% 
+	filter(cdiff == T) %>% 
+	mutate(CFU = case_when(CFU == 0 ~ 60, T ~ CFU), # shift 0 counts to just below limit of detection line
+		dose = ifelse(abx == 'Clindamycin', paste(abx, dose, 'mg/kg'),
+			paste(abx, dose, 'mg/ml'))) %>% 
+	group_by(dose) %>% 
+	mutate(n = length(unique(mouse_id))) %>% 
+	ungroup() %>% 
+	mutate(dose = paste(dose, '(N =', n, ')'),
+		dose = factor(dose, levels = c("Clindamycin 10 mg/kg (N = 11 )", "Cefoperazone 0.5 mg/ml (N = 6 )",
+			"Cefoperazone 0.3 mg/ml (N = 13 )", "Cefoperazone 0.1 mg/ml (N = 6 )", "Streptomycin 5 mg/ml (N = 8 )", 
+			"Streptomycin 0.5 mg/ml (N = 9 )", "Streptomycin 0.1 mg/ml (N = 11 )")))
 shared_df <- read_tsv(shared_file) %>% 
 	select(-label, -numOtus) %>% 
 	filter(Group %in% meta_df$group)
 tax_df <- read_tsv(tax_file)
-alpha_df <- read_tsv(alpha_div_file) %>% 
-	filter(group %in% meta_df$group,
-		method == 'ave')
 source(sum_taxa_function) # function to create taxanomic labels for OTUs
-	# sum_otu_by_taxa(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0, silent = T){
-source(dist_function) # function to read in distance file and convert from triangle to dataframe
-beta_df <- read_dist(beta_div_file) %>% 
-	filter(rows %in% meta_df$group,
-		columns %in% meta_df$group)
+	# sum_otu_by_taxa(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0, silent = T)
 
+abx_color <- tibble(abx = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
+	color = c('#D37A1F', '#3A9CBC', '#A40019'))
+
+lod_df <- data.frame(day = 2, CFU = 100, dose = 'Clindamycin 10 mg/kg (N = 11 )')
 # plot C difficile colonization level
 colonization_plot <- meta_df %>% 
-	mutate(CFU = case_when(CFU == 0 ~ 60, # shift 0 counts to just below limit of detection line
-		T ~ CFU)) %>% 
-	filter(cdiff == 'C. difficile Challenged',
-		day >= 0,
+	filter(day >= 0,
 		!is.na(CFU)) %>%
-	ggplot(aes(x = day, y = CFU)) + 
-        geom_line(aes(group = mouse_id), alpha = 0.3, color = '#A40019') + 
-		stat_summary(fun=median, geom="line", size = 1, color = '#A40019') + # create median line
-        scale_x_continuous(breaks = -1:10) + # make ticks for each day
-		annotate(x = -1, y = 200, geom = 'label', label = "LOD", # create a dotted line labeled LOD for limit of detection
-			fill = "white", color = 'black', label.size = NA) + 
+	ggplot(aes(x = day, y = CFU, color = abx)) + 
+		geom_line(aes(group = mouse_id), alpha = 0.3) + 
+		stat_summary(fun=median, geom="line", size = 1) + # create median line
+		scale_color_manual(limits = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
+			values = c('#D37A1F', '#3A9CBC', '#A40019')) + 
+		scale_x_continuous(breaks = -1:10) + # make ticks for each day
+		# create a dotted line labeled LOD for limit of detection
 		geom_hline(yintercept = 101, linetype = 'dashed', size = 0.25) + 
+		geom_label(data = lod_df, label = "LOD", fill = 'white', color = 'white') + 
+		geom_text(data = lod_df, label = "LOD", color = 'black') + 
 		scale_y_log10(breaks = c(10^2, 10^4, 10^6, 10^8),
 				labels = c('10^2', '10^4', '10^6', '10^8')) + # scale y axis log10 and label 10^x
 		theme_bw() + labs(x = 'Day', y = expression(italic('C. difficile')~' CFU')) + 
 		theme(panel.grid.minor = element_blank(),
-			axis.text.y = element_markdown())
+			axis.text.y = element_markdown(),
+			legend.position = 'none',
+			panel.spacing = unit(c(8,1,1,8,1,1),'lines')) + 
+		facet_wrap(.~dose, nrow = 1)
 
-shared_genus <- sum_otu_by_taxa(tax_df, shared_df, taxa_level = 'Genus', top_n = 10) # sum at the genus level for the top 10
 
 # plot relative abundance over time in a heatmap plot
 # mice along the x axis, taxonomic classification along the y axis and color intensity by log10 relative abundance
-abundance_plot <- shared_genus %>% 
-	full_join(meta_df, by = c('Group' = 'group')) %>% 
-	filter(cdiff == 'C. difficile Challenged') %>% 
-	group_by(Group) %>% 
-	mutate(total = sum(abundance),
-		relative_abundance = abundance/total * 100,
-		taxa = gsub('_unclassified', '', taxa),
-		taxa = ifelse(taxa == 'Other', taxa, paste0('*', taxa, '*')),
-		taxa = factor(taxa, levels = rev(c("*Enterobacteriaceae*", 
-				"*Lactobacillus*", "*Akkermansia*", "*Bacteroides*", 
-				"*Porphyromonadaceae*", "Other", "*Lachnospiraceae*", 
- 				"*Barnesiella*", "*Turicibacter*", "*Ruminococcaceae*", 
- 				"*Alistipes*")))) %>% 
-	group_by(day, taxa) %>% 
-	summarise(relative_abundance = log10(mean(relative_abundance) + 0.001)) %>% 
-	ggplot(aes(x = day, y =taxa, fill = relative_abundance)) + 
-		geom_tile(height = 0.8) +
-		scale_fill_gradient2(low="white", mid='#A40019', high = 'black',
-			limits = c(-2.25,2), na.value = NA, midpoint = 0.5,
-			breaks = c(-2.5, -1, 0, 1, 2), labels = c('', '0.1', '1', '10', '100')) + 
-        scale_x_continuous(breaks = -1:10) + # make ticks for each day
-		theme_bw() + 
-		labs(x = 'Day', y = NULL, #title = 'Clindamycin Community',
-			fill = expression('Color Intesity Log'[10]*' Mean Relative Abundance (%)')) + 
-		theme(panel.grid.minor = element_blank(), panel.grid.major.x = element_blank(),
-			axis.text.y = element_markdown(), 
-			legend.position = 'bottom')
+plot_abundance <- function(antibiotic, n_taxa){
+	# select color for antibiotic
+	abx_col <- abx_color %>% 
+		filter(abx == antibiotic) %>% 
+		pull(color)
+	# create subset shared with only antibiotic and day 0
+	abx_group <- meta_df %>% 
+		filter(abx == antibiotic,
+			cdiff == T,
+			day == 0) %>% 
+		pull(group)
+	abx_shared <- shared_df %>% 
+		filter(Group %in% abx_group)
+	abx_meta <- meta_df %>% 
+		filter(day == 0, abx == antibiotic)
 
-# plot Sobs by day
-alpha_sobs_plot <- alpha_df %>% 
-	select(group, sobs) %>% 
-	left_join(select(meta_df, group, day, cdiff), by = c('group')) %>% 
-	ggplot(aes(x = day, y = sobs, color = cdiff, group = interaction(cdiff, day))) + 
-		geom_boxplot(position = 'dodge') + 
-		#geom_point(alpha = 0.4, position = position_jitterdodge()) + 
-		coord_cartesian(ylim = c(0,100)) +
-        scale_x_continuous(breaks = -1:10) +
-		scale_color_manual(values = c('#A40019', 'darkgray')) + 
-		theme_bw() + labs(x = 'Day', y = expression(~S[obs])) + 
-		theme(panel.grid.minor = element_blank(),
-			legend.position = 'none')
+	if(antibiotic == 'Cefoperazone'){
+			taxa_order <- c('*Lactobacillus*', 'Other', '*Enterobacteriaceae*', 
+				'*Clostridium sensu stricto*', '*Pseudomonas*', '*Ruminococcaceae*', 
+				'*Barnesiella*', '*Lachnospiraceae*', '*Alistipes*', '*Clostridiales*', 
+				'*Akkermansia*', '*Porphyromonadaceae*', '*Bacteroides*')
+		} else if(antibiotic == 'Streptomycin'){
+			taxa_order <- c('*Porphyromonadaceae*','*Bacteroides*', 
+				'*Akkermansia*', '*Barnesiella*', 
+				'*Lachnospiraceae*', '*Lactobacillus*', '*Ruminococcaceae*', 
+				'*Olsenella*', '*Oscillibacter*', 'Other', '*Alistipes*', 
+				'*Clostridiales*', '*Anaeroplasma*')
+		} else if(antibiotic == 'Clindamycin'){
+			taxa_order <- rev(c("*Enterobacteriaceae*", 
+							"*Lactobacillus*", "*Akkermansia*", "*Bacteroides*", 
+							"*Porphyromonadaceae*", "Other", "*Lachnospiraceae*", 
+			 				"*Turicibacter*", "*Ruminococcaceae*", "*Clostridium IV*",
+			 				"*Prevotella*", "*Alistipes*", "*Alloprevotella*"))
+	}
 
-# plot inverse simpson by day
-alpha_invsimp_plot <- alpha_df %>% 
-	select(group, invsimpson) %>% 
-	left_join(select(meta_df, group, day, cdiff), by = c('group')) %>% 
-	ggplot(aes(x = day, y = invsimpson, color = cdiff, group = interaction(cdiff, day))) + 
-		geom_boxplot(position = 'dodge') + 
-		#geom_point(alpha = 0.4, position = position_jitterdodge()) + 
-		coord_cartesian(ylim = c(0,20)) +
-        scale_x_continuous(breaks = -1:10) +
-		scale_color_manual(values = c('#A40019', 'darkgray')) + 
-		theme_bw() + labs(x = 'Day', y = 'Inverse Simpson', color = NULL) + 
-		theme(panel.grid.minor = element_blank(),
-			legend.position = c(0.7, 0.8),
-			legend.key.size = unit(0.2, 'in'),
-			legend.background = element_rect(color = "black"))
+	sum_otu_by_taxa(tax_df, abx_shared, taxa_level = 'Genus', top_n = n_taxa) %>% 
+		left_join(select(abx_meta, group, dose), by = c('Group' = 'group')) %>% 
+		group_by(Group) %>% 
+		mutate(total = sum(abundance),
+			relative_abundance = abundance/total * 100,
+			taxa = gsub('_unclassified', '', taxa),
+			taxa = gsub('_', ' ', taxa),
+			taxa = ifelse(taxa == 'Other', taxa, paste0('*', taxa, '*')),
+			taxa = factor(taxa, labels = taxa_order, levels = taxa_order),
+			day = 'Time of\nInfection') %>% 
+		group_by(dose, taxa, day) %>% 
+		summarise(relative_abundance = log10(mean(relative_abundance) + 0.01)) %>% 
+		ggplot(aes(x = day, y =taxa, fill = relative_abundance)) + 
+			geom_tile(height = 0.8) +
+			scale_fill_gradient2(low="white", mid=abx_col, high = 'black',
+				limits = c(-2,2), na.value = NA, midpoint = .3,
+				breaks = c(-2.5, -1, 0, 1, 2), labels = c('', '0.1', '1', '10', '100')) + 
+			theme_bw() + 
+			facet_wrap(dose~., scales = 'free_x', nrow = 1) +
+			labs(x = NULL, y = NULL, #title = paste('Day 0 Community - Top', n_taxa, 'Genus'),
+				fill = 'Mean Relative Abundance (%)') + 
+			theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
+				axis.ticks.x=element_blank(), 
+				axis.text.y = element_markdown(),
+				legend.position = 'bottom') +
+			guides(fill = guide_colorbar(title.position = "top"))
+}
 
-# plot theta yc by day
-beta_plot <- beta_df %>% 
-	inner_join(select(meta_df, group, mouse_id, day, cdiff), by = c('rows' = 'group')) %>% 
-	inner_join(select(meta_df, group, mouse_id, day), by = c('columns' = 'group')) %>% 
-	filter(mouse_id.x == mouse_id.y, 
-		day.x == -1) %>% 
-	ggplot(aes(x = day.y, y = distances, group = interaction(cdiff, day.y), color = cdiff)) + 
-        scale_x_continuous(breaks = -1:10) +
-        coord_cartesian(ylim = c(0,1)) +
-		geom_boxplot(position = 'dodge') + 
-		#geom_point(alpha = 0.4, position = position_jitterdodge(jitter.width = 0.25)) + 
-		scale_color_manual(values = c('#A40019', 'darkgray')) + 
-		theme_bw() + 
-		theme(panel.grid.minor = element_blank(),
-			legend.position = 'none') + 
-		labs(x = 'Day', y = expression(theta[YC]), color = NULL)
+clinda_abun_plot <- plot_abundance('Clindamycin', 12)
+cef_abun_plot <- plot_abundance('Cefoperazone', 12)
+strep_abun_plot <- plot_abundance('Streptomycin', 12)
 
 
 # save plot, top row is colonization plot, middle row are diversity plots, bottom row is temporal abundance plot
-ggsave('results/figures/figure_1.jpg', plot_grid(colonization_plot, 
-	plot_grid(alpha_sobs_plot, alpha_invsimp_plot, beta_plot, nrow = 1), 
-	abundance_plot, ncol = 1, labels = c('A', 'B', 'C'), rel_heights = c(1, 1, 2)), width = 10, height = 10)
+ggsave('results/figures/figure_1.jpg', plot_grid(
+		plot_grid(
+			plot_grid(NULL, NULL, NULL, labels = c('A', 'B', 'C'), rel_widths = c(2, 3, 3), nrow = 1),
+			plot_grid(NULL, colonization_plot, rel_widths = c(1, 16)),
+			rel_heights = c(1, 15), ncol = 1),
+		plot_grid(
+			plot_grid(NULL, NULL, NULL, labels = c('D', 'E', 'F'), rel_widths = c(2, 3, 3), nrow = 1),
+			plot_grid(clinda_abun_plot, cef_abun_plot, strep_abun_plot, rel_widths = c(1.8, 4, 4), nrow = 1), 
+			rel_heights = c(1, 15), ncol = 1),
+	ncol = 1), width = 15, height = 10)

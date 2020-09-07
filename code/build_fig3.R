@@ -24,10 +24,8 @@ library(ggtext)  # remotes::install_github("wilkelab/ggtext")
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
 sum_taxa_function <- 'code/sum_otu_by_taxa.R'
-dist_function <- 'code/read.dist.R'
 shared_file <- 'data/mothur/sample.final.0.03.subsample.shared'
 alpha_div_file <- 'data/mothur/sample.final.groups.ave-std.summary'
-beta_div_file <- 'data/mothur/sample.final.thetayc.0.03.lt.ave.dist'
 
 # read in data
 meta_df   <- read_tsv(meta_file) %>% 
@@ -40,10 +38,6 @@ alpha_df <- read_tsv(alpha_div_file) %>%
 	filter(group %in% meta_df$group)
 source(sum_taxa_function) # function to create taxanomic labels for OTUs
 	# sum_otu_by_taxa(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0, silent = T){
-source(dist_function) # function to read in distance file and convert from triangle to dataframe
-beta_df <- read_dist(beta_div_file) %>% 
-	filter(rows %in% meta_df$group,
-		columns %in% meta_df$group)
 
 # get minimum relative abundance to set out limit of detection in plots
 n_seqs <- median(apply(shared_df[,-1], 1, sum))
@@ -62,128 +56,6 @@ meta_abund_df <- meta_df %>%
 		abundance = abundance/total * 100) %>% # generate relative abundance
 	group_by(abx, OTU) %>% 
 	ungroup
-
-###############################################################################
-#   How different are communities at TOI and End?
-####
-
-# plot Theta yc differences for 
-#	initial as control range, 
-#	TOI vs own initial, TOI vs other Initial, 
-#	End vs End, End vs Initial, End vs TOI, End vs other End
-beta_meta_df <- meta_df %>% 
-	filter(clearance %in% c('Cleared', 'Colonized'),
-		time_point != 'Intermediate',
-		cdiff == TRUE) %>% 
-	mutate(time_point = ifelse(time_point == 'Day 0', 'TOI', time_point)) %>% 
-	select(group, abx, dose, clearance, time_point, mouse_id) 
-
-meta_beta_df <- beta_df %>% 
-	inner_join(rename_all(beta_meta_df, list(~paste0('r_', .))), by = c('rows' = 'r_group')) %>% 
-	inner_join(rename_all(beta_meta_df, list(~paste0('c_', .))), by = c('columns' = 'c_group')) %>% 
-	filter()
-
-initial_distances <- meta_beta_df %>% 
-	filter(r_mouse_id != c_mouse_id,
-		c_abx == r_abx,
-		r_time_point == 'Initial' & c_time_point == 'Initial') %>% 
-	mutate(comparison = 'i_i')
-initial_inter_intial <- meta_beta_df %>% 
-	filter(r_mouse_id != c_mouse_id,
-		c_abx != r_abx,
-		c_time_point == 'Initial' & r_time_point == 'Initial') %>% 
-	mutate(comparison = 'iXi')
-TOI_intra_initial <- meta_beta_df %>% 
-	filter(r_mouse_id == c_mouse_id,
-		r_time_point == 'Initial' & c_time_point == 'TOI') %>% 
-	mutate(comparison = 'i_t')
-TOI_intra_TOI <- meta_beta_df %>% 
-	filter(r_mouse_id != c_mouse_id,
-		c_abx == r_abx,
-		c_time_point == 'TOI' & r_time_point == 'TOI') %>% 
-	mutate(comparison = 't_t')
-TOI_inter_TOI <- meta_beta_df %>% 
-	filter(r_mouse_id != c_mouse_id,
-		c_abx != r_abx,
-		c_time_point == 'TOI' & r_time_point == 'TOI') %>% 
-	mutate(comparison = 'tXt')
-end_toi <- meta_beta_df %>% 
-	filter(r_mouse_id == c_mouse_id,
-		r_time_point == 'End' & c_time_point == 'TOI') %>% 
-	mutate(comparison = 'e_t')
-end_intial <- meta_beta_df %>% 
-	filter(r_mouse_id == c_mouse_id,
-		r_time_point == 'Initial' & c_time_point == 'End') %>% 
-	mutate(comparison = 'e_i')
-end_intra_end <- meta_beta_df %>% 
-	filter(r_mouse_id != c_mouse_id,
-		c_abx == r_abx,
-		c_time_point == 'End' & r_time_point == 'End') %>% 
-	mutate(comparison = 'e_e')
-end_inter_end <- meta_beta_df %>% 
-	filter(r_mouse_id != c_mouse_id,
-		c_abx != r_abx,
-		c_time_point == 'End' & r_time_point == 'End') %>% 
-	mutate(comparison = 'eXe')
-
-beta_div_df <- bind_rows(list(initial_distances, initial_inter_intial, TOI_intra_initial, TOI_intra_TOI, 
-	TOI_inter_TOI, end_toi, end_intial, end_intra_end, end_inter_end)) %>% 
-	mutate(comparison = factor(comparison, 
-		levels = c('i_i', 'i_t', 'e_i', 'e_t', 'iXi', 't_t', 'tXt', 'e_e', 'eXe'),
-		labels = c('Initial\nvs\nInitial', 
-			'TOI\nvs\nInitial', 
-			'End\nvs\nInitial', 
-			'End\nvs\nTOI', 
-			'Initial\nvs\ninter\nInitial',
-			'TOI\nvs\nintra\nTOI', 
-			'TOI\nvs\ninter\nTOI',
-			'End\nvs\nintra\nEnd', 
-			'End\nvs\ninter\nEnd')))
-
-beta_plot <- beta_div_df %>% 
-	filter(comparison %in% c('Initial\nvs\nInitial', 
-			'TOI\nvs\nInitial', 
-			'End\nvs\nInitial')) %>% 
-	mutate(c_abx = factor(c_abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin'))) %>% 
-	ggplot(aes(x = comparison, y = distances, color = as.factor(c_time_point))) + 
-		coord_cartesian(ylim = c(0,1)) +
-		geom_boxplot(aes(fill = c_clearance)) + 
-		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) +
-		facet_wrap(.~c_abx) + 
-		theme_bw() + 
-		labs(x = NULL, y = expression(theta[YC]), fill = 'Outcome', color = 'Time Point') + 
-		scale_color_manual(values = c('green4', 'blue3', 'red3'),
-			breaks = c('Initial', 'TOI', 'End')) + 
-		theme(legend.position = 'bottom',
-			legend.key.size = unit(0.2, 'in'),
-			legend.background = element_rect(color = "black"),
-			panel.spacing = unit(c(3,3),'lines'))
-# add labels to plots for figure
-beta_plot <- plot_grid(
-	plot_grid(NULL, NULL, NULL, labels = c('A', 'B', 'C'), nrow = 1), 
-	beta_plot, ncol = 1, rel_heights = c(1,19))
-
-beta_supp_plot <- beta_div_df %>% 
-	filter(comparison %in% c('End\nvs\nintra\nEnd', 
-			'End\nvs\ninter\nEnd')) %>% 
-	mutate(c_abx = factor(c_abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin')),
-		comparison = case_when(comparison == 'End\nvs\nintra\nEnd' ~ 'Within\nAntibiotic', 
-			comparison == 'End\nvs\ninter\nEnd' ~ 'Across\nAntibiotic'),
-		comparison = factor(comparison, levels = c('Within\nAntibiotic', 'Across\nAntibiotic'))) %>% 
-	ggplot(aes(x = comparison, y = distances, color = c_abx)) + 
-		coord_cartesian(ylim = c(0,1)) +
-		geom_boxplot(aes(fill = c_clearance)) + 
-		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) +
-		facet_grid(.~c_abx) + 
-		theme_bw() + 
-		labs(x = NULL, y = expression(theta[YC]), fill = 'Outcome') + 
-		scale_color_manual(breaks = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
-			values = c('#D37A1F', '#3A9CBC', '#A40019')) + 
-		guides(color = 'none') + 
-		theme(legend.position = 'bottom',
-			legend.key.size = unit(0.2, 'in'),
-			legend.background = element_rect(color = "black"))
-
 
 ###############################################################################
 #   What OTUs are associated with clearance?
@@ -278,12 +150,12 @@ diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
 		labs(x = NULL, y = 'Relative Abundance (%)', shape = 'Outcome') + 
 		theme(panel.grid.minor.x = element_blank(),
 			legend.position = 'none', 
-			panel.spacing.y = unit(3, 'lines'),
+			panel.spacing.y = unit(1, 'lines'),
 			text = element_text(size = 10), 
 			axis.text.y = element_markdown(), axis.text.x = element_markdown()) + 
 		facet_grid(abx~time_point, scales = 'free', space = 'free') 
 diff_abund_clear_colon_plot <- plot_grid(
-	plot_grid(NULL, NULL, labels = c('D', 'E'), ncol = 1, rel_heights = c(9,3.5)),
+	plot_grid(NULL, NULL, labels = c('A', 'B'), ncol = 1, rel_heights = c(9,5)),
 	diff_abund_clear_colon_plot, nrow = 1, rel_widths = c(1,19))
 
 #### Compare the changes with in a mouse between time points , split by end status #####
@@ -424,10 +296,10 @@ diff_abund_cleared_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared
 	antibiotics = c('Clindamycin', 'Streptomycin'), lod_label_df = main_lod_label_df) + 
 	facet_grid(abx~comparison, scales = 'free_y', space = 'free',
 		labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of infection", TOI_End = "Time of infection vs End of experiment"))) + 
-	theme(panel.spacing.y = unit(3, 'lines'))
+	theme(panel.spacing.y = unit(1, 'lines'))
 # attach labels to this part of figure
 diff_abund_cleared_plot <- plot_grid(
-	plot_grid(NULL, NULL, labels = c('F', 'G'), ncol = 1, rel_heights = c(8,4)),
+	plot_grid(NULL, NULL, labels = c('C', 'D'), ncol = 1, rel_heights = c(9,5)),
 	diff_abund_cleared_plot, nrow = 1, rel_widths = c(1,19))
 # plot single difference between time points of mice that cleared C diff for cef
 cef_cleared_supp_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared', 
@@ -439,22 +311,17 @@ diff_abund_colon_plot <- plot_temporal_diff_by_clearance(end_status = 'Colonized
 	antibiotics = c('Cefoperazone', 'Streptomycin'), lod_label_df = main_lod_label_df) + 
 	facet_grid(abx~comparison, scales = 'free_y', space = 'free',
 		labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of infection", TOI_End = "Time of infection vs End of experiment"))) + 
-	theme(panel.spacing.y = unit(3, 'lines'))
+	theme(panel.spacing.y = unit(1, 'lines'))
 # attach labels to this part of figure
 diff_abund_colon_plot <- plot_grid(
-	plot_grid(NULL, NULL, labels = c('H', 'I'), ncol = 1, rel_heights = c(9,4)),
+	plot_grid(NULL, NULL, labels = c('E', 'F'), ncol = 1, rel_heights = c(8,5)),
 	diff_abund_colon_plot, nrow = 1, rel_widths = c(1,19))
 
 
 ggsave('results/figures/figure_3.jpg', 
-	plot_grid(
-		plot_grid(beta_plot, diff_abund_clear_colon_plot, nrow = 1),
-		plot_grid(diff_abund_cleared_plot, diff_abund_colon_plot, nrow = 1),
-		ncol = 1), 
-	width = 25, height = 20, units = 'in')
-
-ggsave('results/figures/figure_S1.jpg', beta_supp_plot, 
-	width = 10, height = 10, units = 'in')
+	plot_grid(diff_abund_clear_colon_plot, NULL, diff_abund_cleared_plot, 
+		NULL, diff_abund_colon_plot, rel_heights = c(19,1,19,1,19), ncol = 1),
+	width = 10, height = 20, units = 'in')
 
 ggsave('results/figures/figure_S2.jpg', cef_cleared_supp_plot, 
 	width = 6, height = 2, units = 'in')

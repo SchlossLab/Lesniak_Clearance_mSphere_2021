@@ -14,129 +14,197 @@
 ##############
 
 
+
 library(tidyverse)
 library(cowplot)
-library(ggtext)
+library(ggtext)  # remotes::install_github("wilkelab/ggtext")
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
-shared_file <- 'data/mothur/sample.final.0.03.subsample.shared'
-tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
-sum_taxa_function <- 'code/sum_otu_by_taxa.R'
+alpha_div_file <- 'data/mothur/sample.final.groups.ave-std.summary'
+beta_div_file <- 'data/mothur/sample.final.thetayc.0.03.lt.ave.dist'
+dist_function <- 'code/read_dist.R'
+
+# read in data
+meta_df   <- read_tsv(meta_file) %>% 
+	filter(clearance %in% c('Cleared', 'Colonized'),
+		cdiff == T, time_point != 'Intermediate') %>%  
+	mutate(time_point = ifelse(time_point == 'Day 0', 'TOI', time_point),
+		time_point = factor(time_point, levels = c('Initial', 'TOI', 'End'),
+			labels = c('Initial', 'TOI', 'End')),
+		abx = factor(abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin'),
+			labels = c('Clindamycin', 'Cefoperazone', 'Streptomycin'))) %>% 
+	select(group, dose, day, abx, mouse_id, clearance, time_point) 
+
+alpha_df <- read_tsv(alpha_div_file) %>% 
+	filter(group %in% meta_df$group,
+		method == 'ave')
+
+source(dist_function) # function to read in distance file and convert from triangle to dataframe
+beta_df <- read_dist(beta_div_file) %>% 
+	filter(rows %in% meta_df$group,
+		columns %in% meta_df$group)
 
 abx_color <- tibble(abx = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
 	color = c('#D37A1F', '#3A9CBC', '#A40019'))
 
-# read in data
-meta_df   <- read_tsv(meta_file)
-shared_df <- read_tsv(shared_file) %>% 
-	select(-label, -numOtus) %>% 
-	filter(Group %in% meta_df$group)
-tax_df <- read_tsv(tax_file)
-source(sum_taxa_function) # function to create taxanomic labels for OTUs
-	# sum_otu_by_taxa(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0, silent = T){
-
-# plot colonization dynamics and Day 0 abundances for Strep and Cef, faceted by dosage of antibiotic
-plot_colonization_abundance <- function(antibiotic, n_taxa, label_input){
-	# get vector of antibiotic dosages for labeling
-	dosages <- meta_df %>% 
-		filter(abx == antibiotic) %>% 
-		pull(dose) %>% 
-		unique
-	# select color for antibiotic
-	abx_col <- abx_color %>% 
-		filter(abx == antibiotic) %>% 
-		pull(color)
-	# create subset shared with only antibiotic and day 0
-	abx_group <- meta_df %>% 
-		filter(abx == antibiotic,
-			cdiff == T,
-			day == 0) %>% 
-		pull(group)
-	abx_shared <- shared_df %>% 
-		filter(Group %in% abx_group)
-	# filter metadata and modify dosage for plot labeling
-	abx_meta <- meta_df %>% 
-		filter(cdiff == T, day >= -1, abx == antibiotic) %>% 
-		mutate(CFU = case_when(CFU == 0 ~ 60, T ~ CFU),
-			dose = paste(antibiotic, '-', dose, 'mg/mL'),
-			dose = factor(dose, levels = c(paste(antibiotic, '-', max(dosages), 'mg/mL'), 
-				paste(antibiotic, '-', median(dosages), 'mg/mL') ,paste(antibiotic, '-', min(dosages), 'mg/mL')))) %>% 
-		filter(!is.na(CFU))
-	# plot cfu over time, with median/IQR bars overall plus lines for individual mice
-	lod_label_df <- data.frame(day = 8, CFU = 90, fill = 'white', color = 'black',
-		dose = factor(levels(abx_meta$dose)[1], levels = levels(abx_meta$dose)))
-	cfu_plot <- abx_meta %>% 
-		filter(day >= 0) %>% 
-		ggplot(aes(x = day, y = CFU)) + 
-			stat_summary(fun=median, geom="line", size = 1, color = abx_col) +
-	        geom_line(aes(group = mouse_id), alpha = 0.3, color = abx_col) + 
-	        scale_x_continuous(breaks = -1:10) +
-			geom_hline(yintercept = 90, linetype = 'dashed', size = 0.25) + 
-			geom_label(data = lod_label_df, label = "LOD", color = 'white') + 
-			geom_text(data = lod_label_df, label = "LOD") + 
-			scale_y_log10(breaks = c(10^2, 10^4, 10^6, 10^8),
-				labels = c('10^2', '10^4', '10^6', '10^8')) + 
-			theme_bw() + 
-			facet_wrap(.~dose, nrow = 1) + 
-			labs(x = 'Day', y = expression(italic('C. difficile')~' CFU')) + 
-			theme(panel.grid.minor = element_blank(),
-				panel.spacing = unit(c(3,1),'lines'),
-				axis.text.y = element_markdown())
-	# plot day 0 relative abundance by antibiotic dosage
-	if(antibiotic == 'Cefoperazone'){
-			taxa_order <- c('*Lactobacillus*', 'Other', '*Enterobacteriaceae*', 
-				'*Clostridium sensu stricto*', '*Pseudomonas*', '*Ruminococcaceae*', 
-				'*Barnesiella*', '*Lachnospiraceae*', '*Alistipes*', '*Clostridiales*', 
-				'*Akkermansia*', '*Porphyromonadaceae*', '*Bacteroides*')
-		} else if(antibiotic == 'Streptomycin'){
-			taxa_order <- c('*Porphyromonadaceae*','*Bacteroides*', 
-				'*Akkermansia*', '*Barnesiella*', '*Bacteroidales*', 
-				'*Lachnospiraceae*', '*Lactobacillus*', '*Ruminococcaceae*', 
-				'*Olsenella*', '*Oscillibacter*', 'Other', '*Alistipes*', 
-				'*Clostridiales*', '*Anaeroplasma*')
-	}
-
-	abundance_plot <- sum_otu_by_taxa(tax_df, abx_shared, taxa_level = 'Genus', top_n = n_taxa) %>% 
-		left_join(select(abx_meta, group, dose), by = c('Group' = 'group')) %>% 
-		group_by(Group) %>% 
-		mutate(total = sum(abundance),
-			relative_abundance = abundance/total * 100,
-			taxa = gsub('_unclassified', '', taxa),
-			taxa = gsub('_', ' ', taxa),
-			taxa = ifelse(taxa == 'Other', taxa, paste0('*', taxa, '*')),
-			taxa = factor(taxa, levels = taxa_order),
-			day = 'Time of\nInfection') %>% 
-		group_by(dose, taxa, day) %>% 
-		summarise(relative_abundance = log10(mean(relative_abundance) + 0.01)) %>% 
-		ggplot(aes(x = day, y =taxa, fill = relative_abundance)) + 
-			geom_tile(height = 0.8) +
-			scale_fill_gradient2(low="white", mid=abx_col, high = 'black',
-				limits = c(-2,1.8), na.value = NA, midpoint = .3,
-				breaks = c(-2.5, -1, 0, 1, 2), labels = c('', '0.1', '1', '10', '100')) + 
-			theme_bw() + 
-			facet_wrap(dose~., scales = 'free_x', nrow = 1) +
-			labs(x = NULL, y = NULL, #title = paste('Day 0 Community - Top', n_taxa, 'Genus'),
-				fill = expression('Color Intesity based on Log'[10]*' Mean Relative Abundance (%)')) + 
-			theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
-	        	axis.ticks.x=element_blank(), 
-	        	axis.text.y = element_markdown(),
-	        	legend.position = 'bottom')
-	# return a plot with top row colonization plot shifted right to align with abundance plot
-	if(label_input){
-			return(plot_grid(
-				plot_grid(NULL, NULL, NULL, nrow = 1, rel_widths = c(1,2,3), labels = c('A', 'B', 'C')),
-				plot_grid(cfu_plot, abundance_plot, nrow = 1),
-				ncol = 1, rel_heights = c(1, 20)))
-		}else{
-			return(plot_grid(cfu_plot, abundance_plot, nrow = 1))
-	}
-}
+# plot Sobs by day
+alpha_sobs_plot <- alpha_df %>% 
+	select(group, sobs) %>% 
+	inner_join(select(meta_df, abx, group, time_point, clearance), by = c('group')) %>% 
+	ggplot(aes(x = time_point, y = sobs, color = abx, fill = clearance, group = interaction(clearance, time_point))) + 
+		geom_boxplot(position = 'dodge') + 
+		#geom_point(alpha = 0.4, position = position_jitterdodge()) + 
+		coord_cartesian(ylim = c(0,160)) +
+        #scale_x_continuous(breaks = -1:10) +
+		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) +
+		scale_color_manual(values = abx_color$color, limits = abx_color$abx) + 
+		theme_bw() + labs(x = 'Day', y = expression(~S[obs])) + 
+		theme(panel.grid.minor = element_blank(),
+			legend.position = 'none',
+			panel.spacing = unit(c(3,3),'lines')) + 
+		facet_wrap(.~abx)
+# add labels to plots for figure
+alpha_sobs_plot <- plot_grid(
+	plot_grid(NULL, NULL, NULL, labels = c('A', 'B', 'C'), nrow = 1), 
+	alpha_sobs_plot, ncol = 1, rel_heights = c(1,19))
 
 
-# create plots with the top 12 genus for relative abundance plot
-cef_abundance <- plot_colonization_abundance('Cefoperazone', 12, T)
-strep_abundance <- plot_colonization_abundance('Streptomycin', 12, F)
+# plot inverse simpson by day
+alpha_invsimpson_plot <- alpha_df %>% 
+	select(group, invsimpson) %>% 
+	inner_join(select(meta_df, abx, group, time_point, clearance), by = c('group')) %>% 
+	ggplot(aes(x = time_point, y = invsimpson, color = abx, fill = clearance, group = interaction(clearance, time_point))) + 
+		geom_boxplot(position = 'dodge') + 
+		#geom_point(alpha = 0.4, position = position_jitterdodge()) + 
+		#coord_cartesian(ylim = c(0,160)) +
+        #scale_x_continuous(breaks = -1:10) +
+		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) +
+		scale_color_manual(values = abx_color$color, limits = abx_color$abx) + 
+		theme_bw() + labs(x = 'Day', y = 'Inverse Simpson') + 
+		theme(panel.grid.minor = element_blank(),
+			legend.position = 'none',
+			panel.spacing = unit(c(3,3),'lines')) + 
+		facet_wrap(.~abx)
+
+###############################################################################
+#   How different are communities at TOI and End?
+####
+
+# plot Theta yc differences for 
+#	initial as control range, 
+#	TOI vs own initial, TOI vs other Initial, 
+#	End vs End, End vs Initial, End vs TOI, End vs other End
+beta_meta_df <- meta_df %>% 
+	select(group, abx, dose, clearance, time_point, mouse_id) 
+
+meta_beta_df <- beta_df %>% 
+	inner_join(rename_all(beta_meta_df, list(~paste0('r_', .))), by = c('rows' = 'r_group')) %>% 
+	inner_join(rename_all(beta_meta_df, list(~paste0('c_', .))), by = c('columns' = 'c_group')) %>% 
+	filter()
+
+initial_distances <- meta_beta_df %>% 
+	filter(r_mouse_id != c_mouse_id,
+		c_abx == r_abx,
+		r_time_point == 'Initial' & c_time_point == 'Initial') %>% 
+	mutate(comparison = 'i_i')
+initial_inter_intial <- meta_beta_df %>% 
+	filter(r_mouse_id != c_mouse_id,
+		c_abx != r_abx,
+		c_time_point == 'Initial' & r_time_point == 'Initial') %>% 
+	mutate(comparison = 'iXi')
+TOI_intra_initial <- meta_beta_df %>% 
+	filter(r_mouse_id == c_mouse_id,
+		r_time_point == 'Initial' & c_time_point == 'TOI') %>% 
+	mutate(comparison = 'i_t')
+TOI_intra_TOI <- meta_beta_df %>% 
+	filter(r_mouse_id != c_mouse_id,
+		c_abx == r_abx,
+		c_time_point == 'TOI' & r_time_point == 'TOI') %>% 
+	mutate(comparison = 't_t')
+TOI_inter_TOI <- meta_beta_df %>% 
+	filter(r_mouse_id != c_mouse_id,
+		c_abx != r_abx,
+		c_time_point == 'TOI' & r_time_point == 'TOI') %>% 
+	mutate(comparison = 'tXt')
+end_toi <- meta_beta_df %>% 
+	filter(r_mouse_id == c_mouse_id,
+		r_time_point == 'End' & c_time_point == 'TOI') %>% 
+	mutate(comparison = 'e_t')
+end_intial <- meta_beta_df %>% 
+	filter(r_mouse_id == c_mouse_id,
+		r_time_point == 'Initial' & c_time_point == 'End') %>% 
+	mutate(comparison = 'e_i')
+end_intra_end <- meta_beta_df %>% 
+	filter(r_mouse_id != c_mouse_id,
+		c_abx == r_abx,
+		c_time_point == 'End' & r_time_point == 'End') %>% 
+	mutate(comparison = 'e_e')
+end_inter_end <- meta_beta_df %>% 
+	filter(r_mouse_id != c_mouse_id,
+		c_abx != r_abx,
+		c_time_point == 'End' & r_time_point == 'End') %>% 
+	mutate(comparison = 'eXe')
+
+beta_div_df <- bind_rows(list(initial_distances, initial_inter_intial, TOI_intra_initial, TOI_intra_TOI, 
+	TOI_inter_TOI, end_toi, end_intial, end_intra_end, end_inter_end)) %>% 
+	mutate(comparison = factor(comparison, 
+		levels = c('i_i', 'i_t', 'e_i', 'e_t', 'iXi', 't_t', 'tXt', 'e_e', 'eXe'),
+		labels = c('Initial\nvs\nInitial', 
+			'TOI\nvs\nInitial', 
+			'End\nvs\nInitial', 
+			'End\nvs\nTOI', 
+			'Initial\nvs\ninter\nInitial',
+			'TOI\nvs\nintra\nTOI', 
+			'TOI\nvs\ninter\nTOI',
+			'End\nvs\nintra\nEnd', 
+			'End\nvs\ninter\nEnd')))
+
+beta_plot <- beta_div_df %>% 
+	filter(comparison %in% c('Initial\nvs\nInitial', 
+			'TOI\nvs\nInitial', 
+			'End\nvs\nInitial')) %>% 
+	mutate(c_abx = factor(c_abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin'))) %>% 
+	ggplot(aes(x = comparison, y = distances, color = c_abx)) + 
+		coord_cartesian(ylim = c(0,1)) +
+		geom_boxplot(aes(fill = c_clearance)) + 
+		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) +
+		facet_wrap(.~c_abx) + 
+		theme_bw() + 
+		labs(x = NULL, y = expression(theta[YC]), fill = 'Outcome', color = 'Time Point') + 
+		scale_color_manual(values = abx_color$color,
+			limits = abx_color$abx) + 
+		theme(legend.position = 'bottom',
+			legend.key.size = unit(0.2, 'in'),
+			legend.background = element_rect(color = "black"),
+			panel.spacing = unit(c(3,3),'lines'))
+
+beta_supp_plot <- beta_div_df %>% 
+	filter(comparison %in% c('End\nvs\nintra\nEnd', 
+			'End\nvs\ninter\nEnd')) %>% 
+	mutate(c_abx = factor(c_abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin')),
+		comparison = case_when(comparison == 'End\nvs\nintra\nEnd' ~ 'Within\nAntibiotic', 
+			comparison == 'End\nvs\ninter\nEnd' ~ 'Across\nAntibiotic'),
+		comparison = factor(comparison, levels = c('Within\nAntibiotic', 'Across\nAntibiotic'))) %>% 
+	ggplot(aes(x = comparison, y = distances, color = c_abx)) + 
+		coord_cartesian(ylim = c(0,1)) +
+		geom_boxplot(aes(fill = c_clearance)) + 
+		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) +
+		facet_grid(.~c_abx) + 
+		theme_bw() + 
+		labs(x = NULL, y = expression(theta[YC]), fill = 'Outcome') + 
+		scale_color_manual(breaks = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
+			values = c('#D37A1F', '#3A9CBC', '#A40019')) + 
+		guides(color = 'none') + 
+		theme(legend.position = 'bottom',
+			legend.key.size = unit(0.2, 'in'),
+			legend.background = element_rect(color = "black"))
+
 
 ggsave('results/figures/figure_2.jpg', 
-	plot_grid(cef_abundance, strep_abundance, ncol =1), 
-	width = 14, height = 12)
+	plot_grid(
+		plot_grid(alpha_sobs_plot, alpha_invsimpson_plot, beta_plot, ncol = 1),
+		ncol = 1), 
+	width = 10, height = 15, units = 'in')
+
+ggsave('results/figures/figure_S1.jpg', beta_supp_plot, 
+	width = 10, height = 10, units = 'in')
