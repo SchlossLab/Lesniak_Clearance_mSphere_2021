@@ -89,26 +89,24 @@ taxa_order <- rev(c("*Enterobacteriaceae*", "*Lactobacillus*", "Other", "*Porphy
 	"*Clostridium sensu stricto*"))
 
 abundance_df <- sum_otu_by_taxa(tax_df, toi_shared, taxa_level = 'Genus', top_n = 12) %>% 
-	left_join(select(shared_meta_toi_df, abx, group, dose), by = c('Group' = 'group')) %>% 
+	left_join(select(shared_meta_toi_df, abx, group, dose, clearance), by = c('Group' = 'group')) %>% 
 	group_by(Group) %>% 
 	mutate(total = sum(abundance),
-		relative_abundance = abundance/total * 100,
+		relative_abundance = log10((abundance/total * 100) + 0.01),
 		taxa = gsub('_unclassified', '', taxa),
 		taxa = gsub('_', ' ', taxa),
 		taxa = ifelse(taxa == 'Other', taxa, paste0('*', taxa, '*')),
 		taxa = factor(taxa, labels = taxa_order, levels = taxa_order),
-		day = 'Time of\nInfection') %>% 
-	group_by(abx, dose, taxa, day) %>% 
-	summarise(relative_abundance = log10(mean(relative_abundance) + 0.01)) 
+		day = 'Time of\nInfection')
 
 plot_abundance <- function(antibiotic){
 	abx_col <- abx_color %>% 
 		filter(abx == antibiotic) %>% 
 		pull(color)
 	
-	abundance_df %>% 
+	abundance_plot <- abundance_df %>% 
 		filter(abx == antibiotic) %>% 
-	ggplot(aes(x = day, y =taxa, fill = relative_abundance)) + 
+	ggplot(aes(x = Group, y =taxa, fill = relative_abundance)) + 
 		geom_tile(height = 0.8) +
 		scale_fill_gradient2(low="white", mid=abx_col, high = 'black',
 			limits = c(-2,2), na.value = NA, midpoint = .3,
@@ -116,12 +114,43 @@ plot_abundance <- function(antibiotic){
 		theme_bw() + 
 		facet_wrap(dose~., scales = 'free_x', nrow = 1) +
 		labs(x = NULL, y = NULL, #title = paste('Day 0 Community - Top', n_taxa, 'Genus'),
-			fill = 'Mean Relative Abundance (%)') + 
+			fill = 'Relative Abundance (%)') + 
 		theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
 			axis.ticks.x=element_blank(), 
 			axis.text.y = element_markdown(),
+			strip.text = element_blank(),
+			strip.background =element_blank(),
+			plot.margin = margin(0, 0.1, 0, 0.1, "cm"), 
 			legend.position = 'bottom') + 
 		guides(fill = guide_colorbar(title.position = "top"))
+	
+	outcome_plot <- abundance_df %>% 
+		filter(abx == antibiotic,
+			taxa == '*Clostridium sensu stricto*') %>% 
+		mutate(dose = factor(gsub(paste0(antibiotic, ' '), '', dose),
+				levels = c("10 mg/kg (N = 11 )", "0.5 mg/ml (N = 6 )",
+			"0.3 mg/ml (N = 13 )", "0.1 mg/ml (N = 6 )", "5 mg/ml (N = 8 )", 
+			"0.5 mg/ml (N = 9 )", "0.1 mg/ml (N = 11 )"))) %>% 
+	ggplot(aes(x = Group, y =taxa, fill = clearance)) + 
+		geom_tile() +
+		theme_bw() + 
+		facet_wrap(dose~., scales = 'free_x', nrow = 1) +
+		labs(x = NULL, y = NULL, title = antibiotic,
+			fill = 'Outcome') + 
+		scale_fill_manual(limits = c('Uncolonized', 'Cleared', 'Clearing', 'Colonized'),
+			values = c('white', 'grey80', 'grey50', 'grey20')) +
+		theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
+			axis.ticks.x=element_blank(), 
+			axis.text.y=element_markdown(colour = 'white'),
+			axis.ticks.y=element_line(colour = 'white'), 
+			panel.grid=element_blank(), panel.border=element_blank(),
+			legend.position = 'none',
+			plot.margin = margin(0, 0.1, 0, 0.1, "cm"), 
+			strip.background =element_rect(fill=abx_col),
+			strip.text = element_text(colour = 'white'),
+			plot.title = element_text(hjust = 0.5),
+			)
+	plot_grid(outcome_plot, abundance_plot, ncol = 1, rel_heights = c(2, 12))
 }
 
 clinda_abun_plot <- plot_abundance('Clindamycin')
