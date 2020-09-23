@@ -198,18 +198,64 @@ get_centrality <- function(x){
 		gather(metric, value, -antibiotic, -clearance)
 }
 
-centrality_plot <- map_dfr(networks, get_centrality) %>% 
-	mutate(antibiotic = factor(antibiotic, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin'))) %>% 
+centrality_df <- map_dfr(networks, get_centrality) 
+# test diffs
+pvalue_df <- centrality_df %>% 
+	mutate(subset = paste(antibiotic, clearance, sep = '_')) %>% 
+	select(metric, subset, value) %>% 
+	group_by(metric) %>% 
+	nest()  %>% 
+	mutate(data = map(data, function(data) nest(group_by(data, subset)))) %>% 	
+	mutate(data = map(data, function(nested_df){
+		test_df <- sapply(nested_df$data, function(x) sapply(nested_df$data, function(y) wilcox.test(x$value,y$value)$p.value)) %>% 
+			data.frame
+		test_df[upper.tri(test_df)] <- NA # set all of upper triangle to 1 to eliminate duplicate comparisons
+		colnames(test_df) <- nested_df$subset
+		test_df <- test_df %>% 
+			mutate(row_names = nested_df$subset) %>% 
+			pivot_longer(col = -row_names, names_to = 'col_names', values_to = 'pvalue') %>% 
+			filter(pvalue != 1, !is.na(pvalue)) %>% # eliminate all self comparisons and upper triangle
+			mutate(pvalue = p.adjust(pvalue, method = 'BH')) # correct p values
+		return(test_df)
+		})) %>% 
+	unnest(data)
+
+annotation_df <- data.frame(metric = rep(c('Degree', 'Betweenness'), each = 6),
+	x1=c(1, 1, 2.85, 2.85, 3.15, 3.15, 1, 1, 2.85, 2.85, 3.15, 3.15), 
+	x2=c(1.85, 2.15, 1.85, 2.15, 1.85, 2.15, 1.85, 2.15, 1.85, 2.15, 1.85, 2.15), 
+	xnote = c(1.5, 1.5, 2.5, 2.5, 2.5, 2.5, 1.5, 1.5, 2.5, 2.5, 2.5, 2.5),
+	y1 = c(10^0.843, 10^0.878, 10^0.913, 10^0.948, 10^0.983, 10^1.018, 
+			10^2.41, 10^2.51, 10^2.61, 10^2.71, 10^2.81, 10^2.91),
+	ynote = c(10^0.8445, 10^0.8795, 10^0.9145, 10^0.9495, 10^0.9845, 10^1.0195, 
+			10^2.42, 10^2.52, 10^2.62, 10^2.72, 10^2.82, 10^2.92),
+	annotations='*', clearance = 'NA', antibiotic = 'NA')
+
+centrality_plot <- centrality_df %>% 
+	mutate(antibiotic = factor(antibiotic, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin')),
+		metric = case_when(metric == 'betweenness' ~ 'Betweenness',
+			metric == 'degree' ~ 'Degree',
+			T ~ metric)) %>% 
 	ggplot(aes(x = antibiotic, y = value, fill = clearance, color = antibiotic)) + 
-		geom_boxplot() + 
+		geom_boxplot(width = 0.6,  position = position_dodge2(preserve = "single"),
+			show.legend = F) + 
+		geom_point(size = NA, shape = 22) + 
 		scale_color_manual(values = abx_color$color, limits = abx_color$abx) + 
 		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) + 
 		facet_wrap(.~metric, scales = 'free') + 
 		scale_y_log10() + 
 		guides(color = 'none') + theme_bw() + 
 		labs(x = NULL, y = NULL, fill = NULL) +
-		theme(legend.position = c(0.05, 0.1),
-			legend.background = element_rect(color = "black"))
+		theme(legend.position = c(0.5, 0.565),
+			panel.spacing = unit(5,'lines'),
+			strip.background = element_blank(),
+			strip.text = element_text(size = 14)) +
+		guides(fill = guide_legend(override.aes = list(size = 5))) + 
+		geom_text(data = annotation_df, aes(x = xnote, y = ynote, label = annotations), 
+			color = 'black') +
+		geom_segment(data = annotation_df, aes(x = x1, xend = x2, y = y1, yend = y1), 
+			color = 'black', size = 0.25)
+
+write_tsv(pvalue_df, 'data/process/network_wilcoxon_BHadjusted_pvalue.tsv')
 
 ggsave('results/figures/figure_6.jpg',
 		plot_grid(
