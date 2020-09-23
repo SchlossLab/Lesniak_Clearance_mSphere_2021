@@ -50,30 +50,47 @@ source(sum_taxa_function) # function to create taxanomic labels for OTUs
 abx_color <- tibble(abx = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
 	color = c('#D37A1F', '#3A9CBC', '#A40019'))
 
-lod_df <- data.frame(day = 2, CFU = 100, dose = 'Clindamycin 10 mg/kg (N = 11 )')
+lod_df <- data.frame(day = 2, CFU = 100, dose = '10 mg/kg (N = 11 )')
 # plot C difficile colonization level
-colonization_plot <- meta_df %>% 
-	filter(day >= 0,
-		!is.na(CFU)) %>%
-	ggplot(aes(x = day, y = CFU, color = abx)) + 
-		geom_line(aes(group = mouse_id), alpha = 0.3) + 
-		stat_summary(fun=median, geom="line", size = 1) + # create median line
-		scale_color_manual(limits = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
-			values = c('#D37A1F', '#3A9CBC', '#A40019')) + 
-		scale_x_continuous(breaks = -1:10) + # make ticks for each day
-		# create a dotted line labeled LOD for limit of detection
-		geom_hline(yintercept = 101, linetype = 'dashed', size = 0.25) + 
-		geom_label(data = lod_df, label = "LOD", fill = 'white', color = 'white') + 
-		geom_text(data = lod_df, label = "LOD", color = 'black') + 
-		scale_y_log10(breaks = c(10^2, 10^4, 10^6, 10^8),
-				labels = c('10^2', '10^4', '10^6', '10^8')) + # scale y axis log10 and label 10^x
-		theme_bw() + labs(x = 'Day', y = expression(italic('C. difficile')~' CFU')) + 
-		theme(panel.grid.minor = element_blank(),
-			axis.text.y = element_markdown(),
-			legend.position = 'none',
-			panel.spacing = unit(c(8,1,1,8,1,1),'lines')) + 
-		facet_wrap(.~dose, nrow = 1)
-
+plot_colonization <- function(antibiotic){
+	abx_col <- abx_color %>% 
+		filter(abx == antibiotic) %>% 
+		pull(color)
+	
+	colonization_plot <- meta_df %>% 
+		filter(day >= 0,
+			abx == antibiotic,
+			!is.na(CFU)) %>%
+		mutate(dose = factor(gsub(paste0(antibiotic, ' '), '', dose),
+				levels = c("10 mg/kg (N = 11 )", "0.5 mg/ml (N = 6 )",
+				"0.3 mg/ml (N = 13 )", "0.1 mg/ml (N = 6 )", "5 mg/ml (N = 8 )", 
+				"0.5 mg/ml (N = 9 )", "0.1 mg/ml (N = 11 )"))) %>% 
+		ggplot(aes(x = day, y = CFU)) + 
+			geom_line(aes(group = mouse_id), color = abx_col, alpha = 0.3) + 
+			stat_summary(fun=median, geom="line", size = 1, color = abx_col) + # create median line
+			scale_x_continuous(breaks = -1:10) + # make ticks for each day
+			# create a dotted line labeled LOD for limit of detection
+			scale_y_log10(breaks = c(10^2, 10^4, 10^6, 10^8),
+					labels = c('10^2', '10^4', '10^6', '10^8')) + # scale y axis log10 and label 10^x
+			theme_bw() + labs(x = 'Day', y = expression(italic('C. difficile')~' CFU')) + 
+			theme(panel.grid.minor = element_blank(),
+				axis.text.y = element_markdown(),
+				legend.position = 'none',
+				strip.background =element_rect(fill=abx_col),
+				strip.text = element_text(colour = 'white'),
+				plot.title = element_text(hjust = 0.5)) + 
+			facet_wrap(.~dose, nrow = 1) + 
+			labs(title = antibiotic)
+	if(antibiotic == 'Clindamycin'){
+		colonization_plot <- colonization_plot +
+			geom_hline(yintercept = 101, linetype = 'dashed', size = 0.25) + 
+			geom_label(data = lod_df, label = "LOD", fill = 'white', color = 'white') + 
+			geom_text(data = lod_df, label = "LOD", color = 'black')
+	} else {
+		colonization_plot <- colonization_plot +
+			geom_hline(yintercept = 101, linetype = 'dashed', size = 0.25)
+	}
+}
 
 # plot relative abundance over time in a heatmap plot
 # mice along the x axis, taxonomic classification along the y axis and color intensity by log10 relative abundance
@@ -130,28 +147,42 @@ plot_abundance <- function(antibiotic){
 		mutate(dose = factor(gsub(paste0(antibiotic, ' '), '', dose),
 				levels = c("10 mg/kg (N = 11 )", "0.5 mg/ml (N = 6 )",
 			"0.3 mg/ml (N = 13 )", "0.1 mg/ml (N = 6 )", "5 mg/ml (N = 8 )", 
-			"0.5 mg/ml (N = 9 )", "0.1 mg/ml (N = 11 )"))) %>% 
-	ggplot(aes(x = Group, y =taxa, fill = clearance)) + 
-		geom_tile() +
-		theme_bw() + 
-		facet_grid(.~dose, scales = 'free_x', space = 'free') +
-		labs(x = NULL, y = NULL, title = antibiotic,
-			fill = 'Outcome') + 
-		scale_fill_manual(limits = c('Uncolonized', 'Cleared', 'Clearing', 'Colonized'),
-			values = c('white', 'grey80', 'grey20', 'grey20')) +
-		theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
-			axis.ticks.x=element_blank(), 
-			axis.text.y=element_markdown(colour = 'white'),
-			axis.ticks.y=element_line(colour = 'white'), 
-			panel.grid=element_blank(), panel.border=element_blank(),
-			legend.position = 'none',
-			plot.margin = margin(0, 0.1, 0, 0.1, "cm"), 
-			strip.background =element_rect(fill=abx_col),
-			strip.text = element_text(colour = 'white'),
-			plot.title = element_text(hjust = 0.5),
-			)
-	plot_grid(outcome_plot, abundance_plot, ncol = 1, rel_heights = c(2, 12))
+			"0.5 mg/ml (N = 9 )", "0.1 mg/ml (N = 11 )")),
+			clearance = ifelse(clearance == 'Clearing', 'Colonized', clearance),
+			clearance = ifelse(clearance == 'Uncolonized', 'Not Colonized', clearance),
+			taxa = '     Colonization Outcome') %>% 
+		ggplot(aes(x = Group, y =taxa, fill = clearance)) + 
+			geom_tile() +
+			theme_bw() + 
+			facet_grid(.~dose, scales = 'free_x', space = 'free') +
+			labs(x = NULL, y = NULL, title = NULL, fill = NULL) + 
+			scale_fill_manual(limits = c('Not Colonized', 'Cleared', 'Colonized'),
+				values = c('white', 'grey80', 'grey20')) +
+			theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
+				axis.ticks.x=element_blank(), 
+				axis.ticks.y=element_line(colour = 'white'), 
+				panel.grid=element_blank(), panel.border=element_blank(),
+				legend.key=element_rect(color='black'),
+				plot.margin = margin(0, 0.1, 0, 0.1, "cm"), 
+				strip.background =element_rect(fill=abx_col),
+				strip.text = element_text(colour = 'white'),
+				plot.title = element_text(hjust = 0.5))
+	if(antibiotic == 'Cefoperazone'){
+		outcome_plot <- outcome_plot +
+			theme(legend.position = 'top')
+		plot_grid(outcome_plot, abundance_plot, ncol = 1, rel_heights = c(2, 10))
+	} else {
+		outcome_plot <- outcome_plot +
+			theme(legend.position = 'none')
+		plot_grid(NULL, outcome_plot, abundance_plot, ncol = 1, rel_heights = c(1 , 1, 10))
+	}
+	
 }
+
+clinda_cfu_plot <- plot_colonization('Clindamycin')
+cef_cfu_plot <- plot_colonization('Cefoperazone')
+strep_cfu_plot <- plot_colonization('Streptomycin')
+
 
 clinda_abun_plot <- plot_abundance('Clindamycin')
 cef_abun_plot <- plot_abundance('Cefoperazone')
@@ -160,12 +191,9 @@ strep_abun_plot <- plot_abundance('Streptomycin')
 
 # save plot, top row is colonization plot, middle row are diversity plots, bottom row is temporal abundance plot
 ggsave('results/figures/figure_1.jpg', plot_grid(
-		plot_grid(
-			plot_grid(NULL, NULL, NULL, labels = c('A', 'B', 'C'), rel_widths = c(2, 3, 3), nrow = 1),
-			plot_grid(NULL, colonization_plot, rel_widths = c(1, 16)),
-			rel_heights = c(1, 15), ncol = 1),
-		plot_grid(
-			plot_grid(NULL, NULL, NULL, labels = c('D', 'E', 'F'), rel_widths = c(2, 3, 3), nrow = 1),
-			plot_grid(clinda_abun_plot, cef_abun_plot, strep_abun_plot, rel_widths = c(1.8, 4, 4), nrow = 1), 
-			rel_heights = c(1, 15), ncol = 1),
-	ncol = 1), width = 18, height = 10)
+		plot_grid(NULL, clinda_cfu_plot, NULL, cef_cfu_plot, NULL, strep_cfu_plot, rel_widths = c(1, 2, 1, 6, 1, 6), 
+			labels = c('A', '', 'B', '', 'C', ''), nrow = 1),
+		NULL,
+		plot_grid(clinda_abun_plot, cef_abun_plot, strep_abun_plot, rel_widths = c(1.8, 4, 4), 
+			labels = c('D', 'E', 'F'), nrow = 1),
+	rel_heights = c(4, .25, 6), ncol = 1), width = 18, height = 12)

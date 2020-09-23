@@ -18,8 +18,10 @@
 
 
 library(tidyverse)
-library(cowplot)
-library(ggtext)  # remotes::install_github("wilkelab/ggtext")
+library(cowplot) 
+library(grid) # convert plot to grob to edit individual facet labels
+library(ggpubr) # as_ggplot to convert grob to ggplot for creating figure panels
+library(ggtext)  # element_markdown to allow italicized and normal text on axis ticks
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
@@ -39,6 +41,32 @@ alpha_df <- read_tsv(alpha_div_file) %>%
 source(sum_taxa_function) # function to create taxanomic labels for OTUs
 	# sum_otu_by_taxa(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0, silent = T){
 
+# colors for each antibiotic
+abx_color <- tibble(abx = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
+	color = c('#D37A1F', '#3A9CBC', '#A40019'))
+# function to background of facets
+edit_facet_background <- function(plot, fills){
+	#Generate the ggplot2 plot grob
+	g <- grid.force(ggplotGrob(plot))
+	# Get the names of grobs and their gPaths into a data.frame structure
+	grobs_df <- do.call(cbind.data.frame, grid.ls(g, print = FALSE))
+	# Build optimal gPaths that will be later used to identify grobs and edit them
+	grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::")
+	grobs_df$gPath_full <- gsub("layout::", "",  grobs_df$gPath_full, fixed = TRUE)
+	# Get the gPaths of the strip background grobs
+	strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = "strip-r.*.background.*", 
+		x = grobs_df$gPath_full)]
+	# Get the gPaths of the strip titles
+	strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip-r.*titleGrob.*text.*", 
+		x = grobs_df$gPath_full)]
+	# Edit the grobs
+	for (i in 1:length(strip_bg_gpath)){
+		g <- editGrob(grob = g, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
+		g <- editGrob(grob = g, gPath = strip_txt_gpath[i], gp = gpar(col = 'white'))
+	}
+	as_ggplot(g)
+}
+
 # get minimum relative abundance to set out limit of detection in plots
 n_seqs <- median(apply(shared_df[,-1], 1, sum))
 min_rel_abund <- 100 * 1/n_seqs
@@ -46,8 +74,8 @@ lod_df <- data.frame(x = 0.75, y = min_rel_abund)
 
 # create dataframe with relative abundance subset with samples used in following analysis
 meta_abund_df <- meta_df %>%
-	filter(cdiff == T, time_point != 'Intermediate') %>%  # filter mice the were challenged and samples from day of infection
-	mutate(time_point = ifelse(time_point == 'Day 0', 'TOI', time_point)) %>% 
+	filter(cdiff == T, time_point != 'Intermediate') %>%  # filter mice the were challenged and samples from day of challenge
+	mutate(time_point = ifelse(time_point == 'Day 0', 'TOC', time_point)) %>% 
 	inner_join(shared_df, by = c('group' = 'Group')) %>% 
 	pivot_longer(names_to = 'OTU', values_to = 'abundance', starts_with('Otu')) %>% # convert abundances to single column
 	select(group, day, abx, mouse_id, OTU, clearance, time_point, abundance) %>% 
@@ -102,8 +130,8 @@ colon_clear_median_df <- pval_diff_colon_clear_df %>%
 pval_diff_colon_clear_df <- pval_diff_colon_clear_df %>% 
 	full_join(colon_clear_median_df, by = c('abx', 'tax_otu_label', 'time_point')) %>% 
 	mutate(tax_otu_label = gsub('_unclassified', '', tax_otu_label),
-		time_point = factor(time_point, levels = c('Initial', 'TOI', 'End'),
-			labels = c('Initial', 'Time of infection', 'End of experiment'))) 
+		time_point = factor(time_point, levels = c('Initial', 'TOC', 'End'),
+			labels = c('Initial', 'Time of challenge', 'End of experiment'))) 
 # create label df to eliminate over plotting of labels
 colon_clear_otu_label <- pval_diff_colon_clear_df %>% 
 		select(abx, order, tax_otu_label) %>% 
@@ -141,50 +169,57 @@ diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
 		geom_point(aes(y = Colonized), shape = 16, size = 3) + 
 		scale_shape_manual(values = c(1,16), breaks = c('Cleared', 'Colonized')) + 
 		scale_color_manual(values = c('green4', 'blue3', 'red3'),
-			breaks = c('Initial', 'Time of infection', 'End of experiment')) + 
+			breaks = c('Initial', 'Time of challenge', 'End of experiment')) + 
 		# plot layout
 		scale_y_log10(limits = c(0.04,100),
 	   		breaks = c(0.01, 0.1, 1, 10, 100),
 	   		labels = c('10^-2', '10^-1', '10^0', '10^1', '10^2')) + 
 		coord_flip() + theme_bw() + 
-		labs(x = NULL, y = 'Relative Abundance (%)', shape = 'Outcome') + 
+		labs(x = NULL, y = 'Relative Abundance (%)', shape = 'Outcome', color = 'Time Point') + 
 		theme(panel.grid.minor.x = element_blank(),
-			legend.position = 'none', 
-			panel.spacing.y = unit(1, 'lines'),
+			legend.position = 'bottom', 
+			legend.background = element_rect(colour = 'black'),
+			panel.spacing.y = unit(1.5, 'lines'),
 			text = element_text(size = 10), 
 			axis.text.y = element_markdown(), axis.text.x = element_markdown()) + 
+		guides(shape = guide_legend(override.aes = list(alpha = 1))) +
 		facet_grid(abx~time_point, scales = 'free', space = 'free') 
+# edit color of facet label background
+fills <- c(pull(filter(abx_color, abx == 'Cefoperazone'), color),
+		pull(filter(abx_color, abx == 'Streptomycin'), color))
+diff_abund_clear_colon_plot <- edit_facet_background(diff_abund_clear_colon_plot, fills)
+# add labels
 diff_abund_clear_colon_plot <- plot_grid(
-	plot_grid(NULL, NULL, labels = c('A', 'B'), ncol = 1, rel_heights = c(9,5)),
+	plot_grid(NULL, NULL, labels = c('A', 'B'), ncol = 1, rel_heights = c(8,5)),
 	diff_abund_clear_colon_plot, nrow = 1, rel_widths = c(1,19))
 
 #### Compare the changes with in a mouse between time points , split by end status #####
 
 
-# get OTUs significantly different between day of infection and at the end of the experiment for mice that clear
+# get OTUs significantly different between day of challenge and at the end of the experiment for mice that clear
 pval_diff_cleared_df <- meta_abund_df %>% 
 	filter(clearance %in% c('Cleared', 'Colonized')) %>% # only mice that colonization clears
 	select(-day, -group, -total) %>% 
 	pivot_wider(names_from = 'time_point', values_from = 'abundance') %>% 
 	group_by(abx, OTU, clearance) %>% # compare OTUs across timepoints within each antibiotic
-	mutate(median_TOI = median(TOI, na.rm = T), median_end = median(End, na.rm = T), median_in = median(Initial, na.rm = T)) %>%
-	filter(median_TOI > 0.5 | median_end > 0.5 | median_in > 0.5)  %>% # select otus with median relative abundance > 0.5%
+	mutate(median_TOC = median(TOC, na.rm = T), median_end = median(End, na.rm = T), median_in = median(Initial, na.rm = T)) %>%
+	filter(median_TOC > 0.5 | median_end > 0.5 | median_in > 0.5)  %>% # select otus with median relative abundance > 0.5%
 	nest() %>% 
-	mutate(TOI_End = map(.x = data, .f = ~wilcox.test(.x$TOI, .x$End)$p.value), # compare time of infection to end point
-		Initial_TOI = map(.x = data, .f = ~wilcox.test(.x$Initial, .x$TOI)$p.value)) %>% # compare time of infection to initial
-		# did not do paired comparison because strep is missing 4 initial samples and one TOI sample resulting in a loss of all significant results
-		# only comparison gained wit paired is Clindamycin OTU 15 initial VS TOI, which is initial present (~3.5%) in 2 cages, 7 mice, 
+	mutate(TOC_End = map(.x = data, .f = ~wilcox.test(.x$TOC, .x$End)$p.value), # compare time of challenge to end point
+		Initial_TOC = map(.x = data, .f = ~wilcox.test(.x$Initial, .x$TOC)$p.value)) %>% # compare time of challenge to initial
+		# did not do paired comparison because strep is missing 4 initial samples and one TOC sample resulting in a loss of all significant results
+		# only comparison gained wit paired is Clindamycin OTU 15 initial VS TOC, which is initial present (~3.5%) in 2 cages, 7 mice, 
 		# decreases in all cages (~0.1% RA), and recovers in one cage but not the other
-	unnest(TOI_End, Initial_TOI) %>% 
-	pivot_longer(names_to = 'comparison', values_to = 'pvalue', c(TOI_End, Initial_TOI)) %>% # combine all pvalues into one column
+	unnest(TOC_End, Initial_TOC) %>% 
+	pivot_longer(names_to = 'comparison', values_to = 'pvalue', c(TOC_End, Initial_TOC)) %>% # combine all pvalues into one column
 	group_by(abx) %>% 
 	mutate(pvalue = p.adjust(pvalue, method = 'BH')) %>% # adjust pvalue
 	filter(pvalue < 0.05) %>% # filter only those below 0.05 after correction
 	unnest(data) %>% 
-	pivot_longer(names_to = 'time_point', values_to = 'abundance', c(Initial, TOI, End)) %>% # unnest abundance
+	pivot_longer(names_to = 'time_point', values_to = 'abundance', c(Initial, TOC, End)) %>% # unnest abundance
 	filter(!is.na(abundance)) %>% 
-	filter(comparison == 'TOI_End' & time_point %in% c('TOI', 'End') | 
-		comparison == 'Initial_TOI' & time_point %in% c('TOI', 'Initial')) %>% # only keep abundances that match comparison 
+	filter(comparison == 'TOC_End' & time_point %in% c('TOC', 'End') | 
+		comparison == 'Initial_TOC' & time_point %in% c('TOC', 'Initial')) %>% # only keep abundances that match comparison 
 	left_join(select(tax_df, OTU, tax_otu_label), by = 'OTU') # add otu labels
 # find mean abundance of comparsions to set order in plot
 pval_diff_cleared_df <- pval_diff_cleared_df %>% 
@@ -266,62 +301,89 @@ plot_temporal_diff_by_clearance <- function(end_status, antibiotics, lod_label_d
 			geom_text(data = filter(lod_label_df, clearance == end_status), 
 				aes(y = y), label = 'LOD', color = 'black') + 
 			# points with arrows indicating direction of change
-			geom_segment(aes(y = Initial, yend = TOI, xend = -order), 
+			geom_segment(aes(y = Initial, yend = TOC, xend = -order), 
 					arrow = arrow(type = 'closed', angle = 10), color = 'black', size = 0.5) + 
-			geom_segment(aes(y = TOI, yend = End, xend = -order), 
+			geom_segment(aes(y = TOC, yend = End, xend = -order), 
 					arrow = arrow(type = 'closed', angle = 10), color = 'black', size = 0.25) + 
 			geom_point(aes(y = (abundance) + 0.04), 
 				position = position_dodge(width = .7), alpha = 0.3) + 
 			geom_point(aes(y = Initial), color = 'green4', size = 3, 
 				shape = point_shape, stroke = point_stroke) + 
-			geom_point(aes(y = TOI), color = 'blue3', size = 3, 
+			geom_point(aes(y = TOC), color = 'blue3', size = 3, 
 				shape = point_shape, stroke = point_stroke) + 
 			geom_point(aes(y = End), color = 'red3', size = 3, 
 				shape = point_shape, stroke = point_stroke) + 
 			scale_color_manual(values = c('green4', 'blue3', 'red3'),
-				breaks = c('Initial', 'TOI', 'End')) + 
+				breaks = c('Initial', 'TOC', 'End')) + 
 			# plot layout
 			scale_y_log10(limits = c(0.04,100),
 		   		breaks = c(0.01, 0.1, 1, 10, 100),
 		   		labels = c('10^-2', '10^-1', '10^0', '10^1', '10^2')) + 
 			coord_flip() + theme_bw() +  
-			labs(x = NULL, y = 'Relative Abundance (%)') + 
+			labs(x = NULL, y = 'Relative Abundance (%)', color = 'Time Point') + 
 			theme(panel.grid.minor = element_blank(),
 				legend.position = 'none', 
 				text = element_text(size = 10),
 				axis.text.y = element_markdown(), axis.text.x = element_markdown())
 }
+
+###############################################################################
 # plot difference between time points of mice that cleared C diff
+###############################################################################
 diff_abund_cleared_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared', 
 	antibiotics = c('Clindamycin', 'Streptomycin'), lod_label_df = main_lod_label_df) + 
 	facet_grid(abx~comparison, scales = 'free_y', space = 'free',
-		labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of infection", TOI_End = "Time of infection vs End of experiment"))) + 
-	theme(panel.spacing.y = unit(1, 'lines'))
+		labeller = labeller(comparison = c(Initial_TOC = "Initial vs Time of challenge", TOC_End = "Time of challenge vs End of experiment"))) + 
+	theme(panel.spacing.y = unit(1, 'lines'),
+		legend.position = 'right', 
+		legend.background = element_rect(colour = 'black')) + 
+	guides(colour = guide_legend(override.aes = list(alpha = 1)))
+# edit colors of facet label backgrounds
+fills <- c(pull(filter(abx_color, abx == 'Clindamycin'), color),
+		pull(filter(abx_color, abx == 'Streptomycin'), color))
+diff_abund_cleared_plot <- edit_facet_background(diff_abund_cleared_plot, fills)
 # attach labels to this part of figure
 diff_abund_cleared_plot <- plot_grid(
-	plot_grid(NULL, NULL, labels = c('C', 'D'), ncol = 1, rel_heights = c(9,5)),
+	plot_grid(NULL, NULL, labels = c('A', 'B'), ncol = 1, rel_heights = c(9,5)),
 	diff_abund_cleared_plot, nrow = 1, rel_widths = c(1,19))
-# plot single difference between time points of mice that cleared C diff for cef
-cef_cleared_supp_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared', 
-	antibiotics = c('Cefoperazone'), lod_label_df = cef_lod_label_df) + 
-	facet_grid(.~comparison, scales = 'free_y', space = 'free',
-		labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of infection", TOI_End = "Time of infection vs End of experiment"))) 
+
+###############################################################################
 # plot difference between time points of mice that remained colonized by C diff
+###############################################################################
 diff_abund_colon_plot <- plot_temporal_diff_by_clearance(end_status = 'Colonized',
 	antibiotics = c('Cefoperazone', 'Streptomycin'), lod_label_df = main_lod_label_df) + 
 	facet_grid(abx~comparison, scales = 'free_y', space = 'free',
-		labeller = labeller(comparison = c(Initial_TOI = "Initial vs Time of infection", TOI_End = "Time of infection vs End of experiment"))) + 
+		labeller = labeller(comparison = c(Initial_TOC = "Initial vs Time of challenge", TOC_End = "Time of challenge vs End of experiment"))) + 
 	theme(panel.spacing.y = unit(1, 'lines'))
+# edit colors of facel label backgrounds
+fills <- c(pull(filter(abx_color, abx == 'Cefoperazone'), color),
+		pull(filter(abx_color, abx == 'Streptomycin'), color))
+diff_abund_colon_plot <- edit_facet_background(diff_abund_colon_plot, fills)
+
 # attach labels to this part of figure
 diff_abund_colon_plot <- plot_grid(
-	plot_grid(NULL, NULL, labels = c('E', 'F'), ncol = 1, rel_heights = c(8,5)),
+	plot_grid(NULL, NULL, labels = c('C', 'D'), ncol = 1, rel_heights = c(8,5)),
 	diff_abund_colon_plot, nrow = 1, rel_widths = c(1,19))
+
+# plot single difference between time points of mice that cleared C diff for cef
+cef_cleared_supp_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared', 
+	antibiotics = c('Cefoperazone'), lod_label_df = cef_lod_label_df) + 
+	facet_grid(abx~comparison, scales = 'free_y', space = 'free',
+		labeller = labeller(comparison = c(Initial_TOC = "Initial vs Time of challenge", TOC_End = "Time of challenge vs End of experiment"))) +
+	theme(legend.position = 'bottom',
+		legend.background = element_rect(colour = 'black')) + 
+	guides(colour = guide_legend(override.aes = list(alpha = 1)))
+fills <- c(pull(filter(abx_color, abx == 'Cefoperazone'), color))
+cef_cleared_supp_plot <- edit_facet_background(cef_cleared_supp_plot, fills)
 
 
 ggsave('results/figures/figure_3.jpg', 
-	plot_grid(diff_abund_clear_colon_plot, NULL, diff_abund_cleared_plot, 
-		NULL, diff_abund_colon_plot, rel_heights = c(19,1,19,1,19), ncol = 1),
-	width = 10, height = 20, units = 'in')
+	diff_abund_clear_colon_plot,
+	width = 10, height = 10, units = 'in')
+
+ggsave('results/figures/figure_4.jpg', 
+	plot_grid(diff_abund_cleared_plot, diff_abund_colon_plot, nrow = 1, rel_widths = c(8,7)),
+	width = 20, height = 10, units = 'in')
 
 ggsave('results/figures/figure_S2.jpg', cef_cleared_supp_plot, 
-	width = 6, height = 2, units = 'in')
+	width = 6, height = 4, units = 'in')

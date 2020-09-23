@@ -28,16 +28,19 @@ dist_function <- 'code/read_dist.R'
 meta_df   <- read_tsv(meta_file) %>% 
 	filter(clearance %in% c('Cleared', 'Colonized'),
 		cdiff == T, time_point != 'Intermediate') %>%  
-	mutate(time_point = ifelse(time_point == 'Day 0', 'TOI', time_point),
-		time_point = factor(time_point, levels = c('Initial', 'TOI', 'End'),
-			labels = c('Initial', 'TOI', 'End')),
+	mutate(time_point = ifelse(time_point == 'Day 0', 'TOC', time_point),
+		time_point = factor(time_point, levels = c('Initial', 'TOC', 'End'),
+			labels = c('Initial', 'TOC', 'End')),
 		abx = factor(abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin'),
 			labels = c('Clindamycin', 'Cefoperazone', 'Streptomycin'))) %>% 
 	select(group, dose, day, abx, mouse_id, clearance, time_point) 
 
 alpha_df <- read_tsv(alpha_div_file) %>% 
 	filter(group %in% meta_df$group,
-		method == 'ave')
+		method == 'ave') %>% 
+	select(group, sobs, invsimpson) %>% 
+	inner_join(select(meta_df, abx, group, time_point, clearance), by = c('group'))
+
 
 source(dist_function) # function to read in distance file and convert from triangle to dataframe
 beta_df <- read_dist(beta_div_file) %>% 
@@ -49,14 +52,10 @@ abx_color <- tibble(abx = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
 
 # plot Sobs by day
 alpha_sobs_plot <- alpha_df %>% 
-	select(group, sobs) %>% 
-	inner_join(select(meta_df, abx, group, time_point, clearance), by = c('group')) %>% 
-	ggplot(aes(x = time_point, y = sobs, color = abx, fill = clearance, group = interaction(clearance, time_point))) + 
-		geom_boxplot(position = 'dodge') + 
-		#geom_point(alpha = 0.4, position = position_jitterdodge()) + 
-		coord_cartesian(ylim = c(0,160)) +
-        #scale_x_continuous(breaks = -1:10) +
-		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) +
+	ggplot(aes(x = time_point, y = sobs)) + 
+		geom_point(aes(shape = clearance, color = abx), 
+			position = position_jitterdodge()) + 
+		scale_shape_manual(values = c(1, 16), limits = c('Cleared', 'Colonized')) +
 		scale_color_manual(values = abx_color$color, limits = abx_color$abx) + 
 		theme_bw() + labs(x = 'Day', y = expression(~S[obs])) + 
 		theme(panel.grid.minor = element_blank(),
@@ -71,14 +70,10 @@ alpha_sobs_plot <- plot_grid(
 
 # plot inverse simpson by day
 alpha_invsimpson_plot <- alpha_df %>% 
-	select(group, invsimpson) %>% 
-	inner_join(select(meta_df, abx, group, time_point, clearance), by = c('group')) %>% 
-	ggplot(aes(x = time_point, y = invsimpson, color = abx, fill = clearance, group = interaction(clearance, time_point))) + 
-		geom_boxplot(position = 'dodge') + 
-		#geom_point(alpha = 0.4, position = position_jitterdodge()) + 
-		#coord_cartesian(ylim = c(0,160)) +
-        #scale_x_continuous(breaks = -1:10) +
-		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) +
+	ggplot(aes(x = time_point, y = invsimpson)) + 
+		geom_point(aes(shape = clearance, color = abx), 
+			position = position_jitterdodge()) + 
+		scale_shape_manual(values = c(1, 16), limits = c('Cleared', 'Colonized')) +
 		scale_color_manual(values = abx_color$color, limits = abx_color$abx) + 
 		theme_bw() + labs(x = 'Day', y = 'Inverse Simpson') + 
 		theme(panel.grid.minor = element_blank(),
@@ -87,13 +82,13 @@ alpha_invsimpson_plot <- alpha_df %>%
 		facet_wrap(.~abx)
 
 ###############################################################################
-#   How different are communities at TOI and End?
+#   How different are communities at TOC and End?
 ####
 
 # plot Theta yc differences for 
 #	initial as control range, 
-#	TOI vs own initial, TOI vs other Initial, 
-#	End vs End, End vs Initial, End vs TOI, End vs other End
+#	TOC vs own initial, TOC vs other Initial, 
+#	End vs End, End vs Initial, End vs TOC, End vs other End
 beta_meta_df <- meta_df %>% 
 	select(group, abx, dose, clearance, time_point, mouse_id) 
 
@@ -112,23 +107,23 @@ initial_inter_intial <- meta_beta_df %>%
 		c_abx != r_abx,
 		c_time_point == 'Initial' & r_time_point == 'Initial') %>% 
 	mutate(comparison = 'iXi')
-TOI_intra_initial <- meta_beta_df %>% 
+TOC_intra_initial <- meta_beta_df %>% 
 	filter(r_mouse_id == c_mouse_id,
-		r_time_point == 'Initial' & c_time_point == 'TOI') %>% 
+		r_time_point == 'Initial' & c_time_point == 'TOC') %>% 
 	mutate(comparison = 'i_t')
-TOI_intra_TOI <- meta_beta_df %>% 
+TOC_intra_TOC <- meta_beta_df %>% 
 	filter(r_mouse_id != c_mouse_id,
 		c_abx == r_abx,
-		c_time_point == 'TOI' & r_time_point == 'TOI') %>% 
+		c_time_point == 'TOC' & r_time_point == 'TOC') %>% 
 	mutate(comparison = 't_t')
-TOI_inter_TOI <- meta_beta_df %>% 
+TOC_inter_TOC <- meta_beta_df %>% 
 	filter(r_mouse_id != c_mouse_id,
 		c_abx != r_abx,
-		c_time_point == 'TOI' & r_time_point == 'TOI') %>% 
+		c_time_point == 'TOC' & r_time_point == 'TOC') %>% 
 	mutate(comparison = 'tXt')
-end_toi <- meta_beta_df %>% 
+end_toC <- meta_beta_df %>% 
 	filter(r_mouse_id == c_mouse_id,
-		r_time_point == 'End' & c_time_point == 'TOI') %>% 
+		r_time_point == 'End' & c_time_point == 'TOC') %>% 
 	mutate(comparison = 'e_t')
 end_intial <- meta_beta_df %>% 
 	filter(r_mouse_id == c_mouse_id,
@@ -145,17 +140,17 @@ end_inter_end <- meta_beta_df %>%
 		c_time_point == 'End' & r_time_point == 'End') %>% 
 	mutate(comparison = 'eXe')
 
-beta_div_df <- bind_rows(list(initial_distances, initial_inter_intial, TOI_intra_initial, TOI_intra_TOI, 
-	TOI_inter_TOI, end_toi, end_intial, end_intra_end, end_inter_end)) %>% 
+beta_div_df <- bind_rows(list(initial_distances, initial_inter_intial, TOC_intra_initial, TOC_intra_TOC, 
+	TOC_inter_TOC, end_toC, end_intial, end_intra_end, end_inter_end)) %>% 
 	mutate(comparison = factor(comparison, 
 		levels = c('i_i', 'i_t', 'e_i', 'e_t', 'iXi', 't_t', 'tXt', 'e_e', 'eXe'),
 		labels = c('Initial\nvs\nInitial', 
-			'TOI\nvs\nInitial', 
+			'TOC\nvs\nInitial', 
 			'End\nvs\nInitial', 
-			'End\nvs\nTOI', 
+			'End\nvs\nTOC', 
 			'Initial\nvs\ninter\nInitial',
-			'TOI\nvs\nintra\nTOI', 
-			'TOI\nvs\ninter\nTOI',
+			'TOC\nvs\nintra\nTOC', 
+			'TOC\nvs\ninter\nTOC',
 			'End\nvs\nintra\nEnd', 
 			'End\nvs\ninter\nEnd')))
 
@@ -207,4 +202,4 @@ ggsave('results/figures/figure_2.jpg',
 	width = 10, height = 15, units = 'in')
 
 ggsave('results/figures/figure_S1.jpg', beta_supp_plot, 
-	width = 10, height = 10, units = 'in')
+	width = 10, height = 5, units = 'in')

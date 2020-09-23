@@ -15,6 +15,7 @@ library(tidyverse)
 library(cowplot)
 library(pROC)
 library(ggtext)
+
 source("code/R/functions.R")
 
 #args <- commandArgs(trailingOnly = TRUE)
@@ -45,7 +46,12 @@ l2_performance_by_sample <- paste0('data/process/', model_dir,
 l2_sample_perf_df <- read_csv(l2_performance_by_sample) #%>% 
 	#inner_join(tibble(Group = samples$Group, cdiff_colonization = outcomes$cdiff_colonization))
 
+# colors for each antibiotic
+abx_color <- tibble(abx = c('Clindamycin', 'Cefoperazone', 'Streptomycin'),
+	color = c('#A40019', '#3A9CBC', '#D37A1F'))
 
+
+#wilcox.test(l2_performance_df$cv_aucs,l2_performance_df$test_aucs)$p.value
 # plot the aucs
 model_perf_plot <- l2_performance_df %>% 
 	rename(`Test\nAUC` = test_aucs, `CV\nAUC` = cv_aucs) %>% 
@@ -68,53 +74,8 @@ model_perf_plot <- l2_performance_df %>%
 		      axis.title.y=element_text(size = 10),
 		      axis.title.x=element_text(size = 10),
 		      panel.border = element_rect(linetype="solid", colour = "black", fill=NA, size=1.5)) + 
-		labs(x = NULL, y = "AUROC")
-
-
-## Feature importance
-
-# ------------------- Re-organize feature importance  ----------------->
-# This function:
-#     1. Takes in a combined (100 split) feature rankings for each model) and the model name
-#     2. Returns the top 5 ranked (1-5 with 1 being the highest ranked) OTUs (ranks of the OTU for 100 splits)
-get_feature_ranked_files <- function(file_name, model_name){
-  importance_data <- read_tsv(file_name)
-  ranks <- get_interp_info(importance_data, model_name) %>%
-    as.data.frame()
-  return(ranks)
-}
-
-# This function:
-#     1. Top 5 ranked (1-5 lowest rank) OTUs (ranks of the OTU for 100 splits)
-#     2. Returns a plot. Each datapoint is the rank of the OTU at one datasplit.
-                        
-plot_feature_ranks <- function(data){
-    # Plot from highest median ranked OTU to least (only top 5) and thir ranks that lay between 1-100
-    # Rank 1 is the highest rank
-    plot <- ggplot(data, aes(reorder(data$label, -data$rank, FUN = median), data$rank)) +
-      geom_point(aes(colour= factor(data$sign)), size=1.5) + # datapoints lighter color
-      scale_color_manual(values=c("#56B4E9","red3", "#999999"),
-      	breaks = c('negative', 'positive', 'zero'),
-      	labels = c('Decreased', 'Maintained', 'Null')) +
-      stat_summary(fun.y = function(x) median(x), colour = 'black', geom = "point", size = 3) + # Median darker
-      coord_flip(ylim=c(0,100)) +
-      theme_classic() +
-      theme(plot.margin=unit(c(1.5,3,1.5,3),"mm"),
-          panel.border = element_rect(colour = "black", fill=NA, size=1),
-          legend.title = element_blank(),
-          legend.position = c(0.85,0.9),
-          panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          panel.background = element_blank(),
-          axis.title.x=element_blank(),
-          axis.text.x=element_blank(),
-          axis.title.y=element_text(size = 11, colour='black', face="bold"), 
-          axis.text.y=element_text(size = 8, colour='black')) + 
-      labs(y = 'Feature ranks')
-
-    return(plot)
-}
-# -------------------------------------------------------------------->
+		labs(x = NULL, y = "AUROC") + 
+		
 
 
 ######################################################################
@@ -125,12 +86,6 @@ label_df <- bind_rows(tax_df, select(meta_df, -mouse, -Group), abx_df) %>%
 	mutate(label = paste0('*', label),
 		label = gsub(' \\(', '* \\(', label))
 
-logit_imp <- get_feature_ranked_files(paste0("data/process/", model_dir, 
-	"/combined_L2_Logistic_Regression_feature_ranking.tsv"), 'L2_Logistic_Regression') %>% 
-	left_join(label_df, by = c('key'))
-logit_graph <- plot_feature_ranks(logit_imp) +
-  scale_x_discrete(name = expression(paste(L[2], "-regularized logistic regression"))) +
-  theme(axis.text.x=element_text(size = 12, colour='black'))
 # -------------------------------------------------------------------->
 
 
@@ -144,9 +99,9 @@ logit <- read_files(paste0("data/process/", model_dir,
 # ----------------------------------------------------------------------------->
 
 
-# --------  Get the top 20 OTUs that have the largest impact on AUROC ---------->
+# --------  Get the top OTUs that have the largest impact on AUROC ---------->
 
-# Define the function to get the  most important top 20 OTUs
+# Define the function to get the  most important top OTUs
 # Order the dataframe from smallest new_auc to largest.
 # Because the smallest new_auc means that that OTU decreased AUC a lot when permuted
 top_features_file <- paste0("data/process/", model_dir, 
@@ -193,33 +148,68 @@ mediandf <-  median(data_base$new_auc) %>%
   data.frame()
 
 # Plot the figure
-perm_imp_plot <- ggplot() +
-	geom_boxplot(data=data_full, aes(fct_reorder(names, -new_auc), new_auc), alpha=0.7) +
-	geom_rect(aes(ymin=lowerq, ymax=upperq, xmin=0, xmax=Inf), fill="gray65") +
-	geom_boxplot(data=data_full, aes(x=names, y=new_auc), alpha=0.7) +
-	scale_fill_manual(values=cols) +
-	geom_hline(yintercept = 0.5, linetype="dashed") +
+perm_imp_plot <- ggplot(data_full, aes(fct_reorder(names, -new_auc), new_auc)) +
+	#geom_rect(aes(ymin=lowerq, ymax=upperq, xmin=1, xmax=length(unique(data_full$names))), 
+	#	fill="gray80", alpha = 0.2, inherit.aes = F) +
+	geom_boxplot(fill = NA, width = 0.5) +
+	geom_hline(yintercept = lowerq, linetype="dotted") +
+	geom_hline(yintercept = upperq, linetype="dotted") +
+	#geom_hline(yintercept = 0.5, linetype="dashed") +
 	geom_hline(yintercept = data_base_medians$imp , linetype="dashed") +
-	#geom_hline(yintercept = upperq, alpha=0.5) +
-	#geom_hline(yintercept = lowerq, alpha=0.5) +
 	coord_flip() +
-	theme_classic() +
-	labs(y = "AUROC with the OTU permuted randomly",
-		x = expression(paste(L[2], "-regularized logistic regression"))) +
-	theme(plot.margin=unit(c(1.5,3,1.5,3),"mm"),
-		legend.position="none",
-		axis.title = element_text(size=10),
-		axis.text = element_text(size=10),
-		panel.border = element_rect(colour = "black", fill=NA, size=2),
+	theme_bw() +
+	labs(y = "AUROC with the OTU permuted randomly", x = NULL) + 
+		#x = expression(paste(L[2], "-regularized logistic regression"))) +
+	theme(legend.position="none",
 		panel.grid.major = element_blank(),
 		panel.grid.minor = element_blank(),
 		panel.background = element_blank(),
-		axis.text.y=element_markdown(),
-		axis.ticks = element_line(colour = "black", size = 1.1)) +
-	theme(axis.text.x=element_text(size = 10, colour='black'))
+		axis.text.y=element_markdown())
 
 # -------------------------------------------------------------------->
 
+######################################################################
+#------------------  Plot feature coefficients  -------------------- #
+######################################################################
+otu_order <- data_full %>% 
+	group_by(names) %>% 
+	summarise(new_auc = median(new_auc))
+
+logit_imp <- read_tsv(paste0("data/process/", model_dir, 
+	"/combined_L2_Logistic_Regression_feature_ranking.tsv")) %>% 
+	left_join(label_df, by = c('key')) %>% 
+	group_by(key) %>% 
+	mutate(sign = ifelse(names(which.max(table(sign))) == 'negative', 'Cleared', 'Colonized')) %>% 
+	inner_join(otu_order, by = c('label' = 'names'))  %>% 
+	ungroup
+
+axis_colors <- logit_imp %>% 
+	select(label, sign, new_auc) %>% 
+	distinct() %>% 
+	mutate(sign = ifelse(sign == 'Cleared', '#C14642', '#008E94'),
+		label = fct_reorder(label, -new_auc)) %>% 
+	arrange(label) %>% 
+	pull(sign)
+	
+
+logit_coef_plot <- logit_imp %>% 
+	ggplot(aes(x = fct_reorder(label, -new_auc), y = value, color = sign)) +
+      geom_boxplot(width = 0.5, show.legend = F) +
+      geom_point(size = 0, shape = 15) +
+      geom_hline(yintercept = 0, linetype='dashed') + 
+      #geom_point(size=1.5, alpha = 0.1) + # datapoints lighter color
+      # stat_summary(fun = function(x) median(x), geom = "point", size = 3) + # Median darker
+      coord_flip() +
+      theme_bw() +
+      theme(legend.title = element_blank(),
+          legend.position = c(0.15,0.05),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(),
+          axis.text.y=element_markdown(color = axis_colors)) + 
+	  guides(colour = guide_legend(override.aes = list(size = 5))) + 
+      labs(y = 'Feature coefficient', x = NULL) 
+# -------------------------------------------------------------------->
 
 ######################################################################
 #------------------ Do the features make sense? -------------------- #
@@ -239,21 +229,49 @@ top_otu_abundance <- shared_df %>%
 	inner_join(label_df, by = c('otu' = 'key')) # add column with otu label
 
 # plot otus by decreasing importance and distribution of abundance by abx/outcome
-top_otu_abundance_plot <- top_otu_abundance %>% 
-	inner_join(data_full, by = 'label') %>% # add perm importance aucs to order otus
-	ggplot(aes(x = fct_reorder(names, -new_auc), y = abundance, color = clearance)) + 
-		geom_boxplot() + 
-		scale_y_log10(limits = c(0.04,100),
-		   		breaks = c(0.01, 0.1, 1, 10, 100),
-		   		labels = c('10^-2', '10^-1', '10^0', '10^1', '10^2')) + 
-		coord_flip() + 
-		facet_wrap(.~abx) + 
-		theme_bw() +
-		labs(y = 'Percent Relative Abundance', x = NULL, color = NULL) + 
-		theme(legend.position = 'bottom',
-			panel.grid.minor.y = element_blank(),
-			axis.text.y = element_markdown(),
-			axis.text.x = element_markdown())
+plot_abundance <- function(antibiotic){
+	abx_col <- pull(filter(abx_color, abx == antibiotic), color)
+
+	p <- top_otu_abundance %>% 
+		filter(abx == antibiotic) %>% 
+		mutate(abx = factor(abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin'))) %>% 
+		inner_join(otu_order, by = c('label' = 'names')) %>% # add perm importance aucs to order otus
+		ggplot(aes(x = fct_reorder(label, -new_auc), y = abundance, color = clearance)) + 
+			geom_point(position = position_jitterdodge(jitter.width = 0.25), alpha = .3) + 
+			scale_y_log10(limits = c(0.04,100),
+			   		breaks = c(0.01, 0.1, 1, 10, 100),
+			   		labels = c('10^-2', '10^-1', '10^0', '10^1', '10^2')) + 
+			coord_flip() + 
+			facet_wrap(.~abx) + 
+			theme_bw() +
+			labs(x = NULL, color = NULL) + 
+			theme(panel.grid.minor.y = element_blank(),
+				axis.text.y = element_markdown(),
+				axis.text.x = element_markdown(),
+				strip.background = element_rect(fill = abx_col),
+				strip.text = element_text(color = 'white'))
+	if(antibiotic == 'Clindamycin'){
+		p + theme(legend.position = 'none') + 
+			labs(y = NULL)
+	} else if(antibiotic == 'Cefoperazone') {
+		p + theme(legend.position = 'none',
+				axis.ticks.y = element_blank(),
+				axis.text.y = element_blank()) + 
+			labs(y = 'Relative Abundance (%)') +
+			guides(colour = guide_legend(override.aes = list(alpha = 1)))
+	} else {
+		p + theme(legend.position = 'none',
+				axis.ticks.y = element_blank(),
+				axis.text.y = element_blank()) + 
+			labs(y = NULL)
+	}
+}
+
+top_otu_abundance_plot <- plot_grid(
+	plot_grid(plot_abundance('Clindamycin'), NULL, ncol = 1, rel_heights = c(50, 1)), 
+	plot_abundance('Cefoperazone'), 
+	plot_grid(plot_abundance('Streptomycin'), NULL, ncol = 1, rel_heights = c(50, 1)), 
+	nrow = 1, rel_widths = c(7, 4, 4))
 
 # -------------------------------------------------------------------->
 
@@ -357,14 +375,15 @@ top_otu_abundance_plot <- top_otu_abundance %>%
 #combine with cowplot
 
 
-ggsave(paste0("results/figures/Figure_4.jpg"), 
+ggsave(paste0("results/figures/figure_5.jpg"), 
 	plot = plot_grid(
-			plot_grid(NULL, perm_imp_plot, NULL, rel_heights = c(1,45,2), ncol = 1),
+			plot_grid(NULL, perm_imp_plot, rel_heights = c(1,45), ncol = 1),
+			plot_grid(NULL, logit_coef_plot, rel_heights = c(1,45), ncol = 1),
 			top_otu_abundance_plot,
-			labels = c('A', 'B'), nrow = 1),
-	width = 12, height = 10, units="in")
+			labels = c('A', 'B', 'C'), nrow = 1, rel_widths = c(4,4,5)),
+	width = 18, height = 10, units="in")
 
-ggsave(paste0("results/figures/Figure_S4.jpg"), 
+ggsave(paste0("results/figures/figure_S3.jpg"), 
 	plot = model_perf_plot,
 	width = 6, height = 6, units="in")
 

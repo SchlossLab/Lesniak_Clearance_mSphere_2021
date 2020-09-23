@@ -211,7 +211,7 @@ centrality_plot <- map_dfr(networks, get_centrality) %>%
 		theme(legend.position = c(0.05, 0.1),
 			legend.background = element_rect(color = "black"))
 
-ggsave('results/figures/figure_5.jpg',
+ggsave('results/figures/figure_6.jpg',
 		plot_grid(
 			plot_grid(
 				plot_grid(clinda_network_graph, labels = c('Clindamycin'), label_colour = '#A40019'),
