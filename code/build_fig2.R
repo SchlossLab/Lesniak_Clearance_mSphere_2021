@@ -18,11 +18,38 @@
 library(tidyverse)
 library(cowplot)
 library(ggtext)  # remotes::install_github("wilkelab/ggtext")
+library(ggpubr) # as_ggplot to convert grob to ggplot for creating figure panels
+library(grid) # convert plot to grob to edit individual facet labels
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 alpha_div_file <- 'data/mothur/sample.final.groups.ave-std.summary'
 beta_div_file <- 'data/mothur/sample.final.thetayc.0.03.lt.ave.dist'
 dist_function <- 'code/read_dist.R'
+
+abx_color <- tibble(abx = c('Clindamycin', 'Cefoperazone', 'Streptomycin'),
+	color = c('#A40019', '#3A9CBC', '#D37A1F'))
+# function to background of facets
+edit_facet_background <- function(plot, fills){
+	#Generate the ggplot2 plot grob
+	g <- grid.force(ggplotGrob(plot))
+	# Get the names of grobs and their gPaths into a data.frame structure
+	grobs_df <- do.call(cbind.data.frame, grid.ls(g, print = FALSE))
+	# Build optimal gPaths that will be later used to identify grobs and edit them
+	grobs_df$gPath_full <- paste(grobs_df$gPath, grobs_df$name, sep = "::")
+	grobs_df$gPath_full <- gsub("layout::", "",  grobs_df$gPath_full, fixed = TRUE)
+	# Get the gPaths of the strip background grobs
+	strip_bg_gpath <- grobs_df$gPath_full[grepl(pattern = "strip-*.background.*", 
+		x = grobs_df$gPath_full)]
+	# Get the gPaths of the strip titles
+	strip_txt_gpath <- grobs_df$gPath_full[grepl(pattern = "strip.*titleGrob.*text.*", 
+		x = grobs_df$gPath_full)]
+	# Edit the grobs
+	for (i in 1:length(strip_bg_gpath)){
+		g <- editGrob(grob = g, gPath = strip_bg_gpath[i], gp = gpar(fill = fills[i]))
+		g <- editGrob(grob = g, gPath = strip_txt_gpath[i], gp = gpar(col = 'white'))
+	}
+	as_ggplot(g)
+}
 
 # read in data
 meta_df   <- read_tsv(meta_file) %>% 
@@ -130,6 +157,8 @@ alpha_sobs_plot <- alpha_df %>%
 			aes(x = xnote, y = ynote, label = label, alpha = alpha)) + 
 		geom_segment(data = filter(signif_label_df, metric == 'sobs'), 
 			aes(x = x1, xend = x2, y = y1, yend = y1, alpha = alpha), size = 0.25)
+
+alpha_sobs_plot <- edit_facet_background(alpha_sobs_plot, abx_color$color)
 # add labels to plots for figure
 alpha_sobs_plot <- plot_grid(
 	plot_grid(NULL, NULL, NULL, labels = c('A', 'B', 'C'), nrow = 1), 
@@ -146,7 +175,9 @@ alpha_invsimpson_plot <- alpha_df %>%
 		theme_bw() + labs(x = 'Day', y = 'Inverse Simpson') + 
 		theme(panel.grid.minor = element_blank(),
 			legend.position = 'none',
-			panel.spacing = unit(c(3,3),'lines')) + 
+			panel.spacing = unit(c(3,3),'lines'),
+			strip.background = element_blank(),
+			strip.text = element_blank()) + 
 		facet_wrap(.~abx) + 
 		geom_text(data = filter(signif_label_df, metric == 'invsimpson'), 
 			aes(x = xnote, y = ynote, label = label, alpha = alpha)) + 
@@ -308,7 +339,9 @@ beta_plot <- beta_div_df %>%
 		theme(legend.position = 'bottom',
 			legend.key.size = unit(0.2, 'in'),
 			legend.background = element_rect(color = "black"),
-			panel.spacing = unit(c(3,3),'lines')) +
+			panel.spacing = unit(c(3,3),'lines'),
+			strip.background = element_blank(),
+			strip.text = element_blank()) +
 		geom_text(data = beta_sig_initial_df,
 			aes(x = xnote, y = ynote, label = label, alpha = alpha), 
 			show.legend = F, color = 'black') + 
@@ -354,6 +387,7 @@ beta_supp_plot <- beta_div_df %>%
 			aes(x = x1, xend = x2, y = y1, yend = y1, alpha = alpha), 
 			size = 0.25, show.legend = F, color = 'black')
 
+beta_supp_plot <- edit_facet_background(beta_supp_plot, abx_color$color)
 
 ggsave('results/figures/figure_2.jpg', 
 	plot_grid(
