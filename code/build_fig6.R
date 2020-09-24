@@ -199,6 +199,9 @@ get_centrality <- function(x){
 }
 
 centrality_df <- map_dfr(networks, get_centrality) 
+write_tsv(centrality_df, 'data/process/network_centrality.tsv')
+#centrality_df <- read_tsv('data/process/network_centrality.tsv')
+
 # test diffs
 pvalue_df <- centrality_df %>% 
 	mutate(subset = paste(antibiotic, clearance, sep = '_')) %>% 
@@ -219,8 +222,9 @@ pvalue_df <- centrality_df %>%
 		return(test_df)
 		})) %>% 
 	unnest(data)
+write_tsv(pvalue_df, 'data/process/network_wilcoxon_BHadjusted_pvalue.tsv')
 
-annotation_df <- data.frame(metric = rep(c('Degree', 'Betweenness'), each = 6),
+annotation_df <- data.frame(metric = rep(c('Degree Centrality', 'Betweenness Centrality'), each = 6),
 	x1=c(1, 1, 2.85, 2.85, 3.15, 3.15, 1, 1, 2.85, 2.85, 3.15, 3.15), 
 	x2=c(1.85, 2.15, 1.85, 2.15, 1.85, 2.15, 1.85, 2.15, 1.85, 2.15, 1.85, 2.15), 
 	xnote = c(1.5, 1.5, 2.5, 2.5, 2.5, 2.5, 1.5, 1.5, 2.5, 2.5, 2.5, 2.5),
@@ -232,17 +236,18 @@ annotation_df <- data.frame(metric = rep(c('Degree', 'Betweenness'), each = 6),
 
 centrality_plot <- centrality_df %>% 
 	mutate(antibiotic = factor(antibiotic, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin')),
-		metric = case_when(metric == 'betweenness' ~ 'Betweenness',
-			metric == 'degree' ~ 'Degree',
+		metric = case_when(metric == 'betweenness' ~ 'Betweenness Centrality',
+			metric == 'degree' ~ 'Degree Centrality',
 			T ~ metric)) %>% 
-	ggplot(aes(x = antibiotic, y = value, fill = clearance, color = antibiotic)) + 
+	ggplot(aes(x = antibiotic, y = value + .1, fill = clearance, color = antibiotic)) + 
 		geom_boxplot(width = 0.6,  position = position_dodge2(preserve = "single"),
 			show.legend = F) + 
 		geom_point(size = NA, shape = 22) + 
 		scale_color_manual(values = abx_color$color, limits = abx_color$abx) + 
 		scale_fill_manual(values = c(NA, 'gray'), limits = c('Cleared', 'Colonized')) + 
 		facet_wrap(.~metric, scales = 'free') + 
-		scale_y_log10() + 
+		scale_y_log10(breaks = c(0.1, 1, 10, 100),
+			   		labels = c('0', '1', '10', '100')) + 
 		guides(color = 'none') + theme_bw() + 
 		labs(x = NULL, y = NULL, fill = NULL) +
 		theme(legend.position = c(0.5, 0.565),
@@ -254,8 +259,6 @@ centrality_plot <- centrality_df %>%
 			color = 'black') +
 		geom_segment(data = annotation_df, aes(x = x1, xend = x2, y = y1, yend = y1), 
 			color = 'black', size = 0.25)
-
-write_tsv(pvalue_df, 'data/process/network_wilcoxon_BHadjusted_pvalue.tsv')
 
 ggsave('results/figures/figure_6.jpg',
 		plot_grid(
