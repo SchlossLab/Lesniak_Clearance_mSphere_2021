@@ -61,20 +61,11 @@ model_perf_plot <- l2_performance_df %>%
 		geom_hline(yintercept = 0.5, linetype="dashed") +
 		coord_cartesian(ylim = c(0.4, 1)) +
 		theme_bw() +
-		theme(plot.margin=unit(c(0,1.1,0,0),"cm"),
-		      legend.justification=c(1,0),
-		      legend.position='none',
+		theme(legend.position='none',
 		      panel.grid.major.y = element_blank(),
-		      panel.grid.major.x = element_line( size=0.6),
 		      panel.grid.minor = element_blank(),
-		      panel.background = element_blank(),
-		      text = element_text(size = 12),
-		      axis.text.x=element_text(size = 10, colour='black'),
-		      axis.text.y=element_text(size = 10, colour='black'),
-		      axis.title.y=element_text(size = 10),
-		      axis.title.x=element_text(size = 10),
-		      panel.border = element_rect(linetype="solid", colour = "black", fill=NA, size=1.5)) + 
-		labs(x = NULL, y = "AUROC") + 
+		      panel.background = element_blank()) + 
+		labs(x = NULL, y = "AUROC") 
 		
 
 
@@ -179,7 +170,10 @@ logit_imp <- read_tsv(paste0("data/process/", model_dir,
 	"/combined_L2_Logistic_Regression_feature_ranking.tsv")) %>% 
 	left_join(label_df, by = c('key')) %>% 
 	group_by(key) %>% 
-	mutate(sign = ifelse(names(which.max(table(sign))) == 'negative', 'Cleared', 'Colonized')) %>% 
+	mutate(sign = ifelse(names(which.max(table(sign))) == 'negative', 'Cleared', 'Colonized'),
+		p_cleared =  1 - (exp(value)/(1+exp(value))), # convert logit of remaining colonized to probability of clearance 
+		OR_cleared = p_cleared/(1-p_cleared),
+		logit_cleared = log(OR_cleared)) %>% # convert probability to odds ratio
 	inner_join(otu_order, by = c('label' = 'names'))  %>% 
 	ungroup
 
@@ -190,25 +184,22 @@ axis_colors <- logit_imp %>%
 		label = fct_reorder(label, -new_auc)) %>% 
 	arrange(label) %>% 
 	pull(sign)
-	
 
-logit_coef_plot <- logit_imp %>% 
-	ggplot(aes(x = fct_reorder(label, -new_auc), y = value, color = sign)) +
+coef_plot <- logit_imp %>% 
+	ggplot(aes(x = fct_reorder(label, -new_auc), y = OR_cleared, color = sign)) +
       geom_boxplot(width = 0.5, show.legend = F) +
-      geom_point(size = 0, shape = 15) +
-      geom_hline(yintercept = 0, linetype='dashed') + 
-      #geom_point(size=1.5, alpha = 0.1) + # datapoints lighter color
-      # stat_summary(fun = function(x) median(x), geom = "point", size = 3) + # Median darker
+      geom_point(size = NA, shape = 15) +
+      geom_hline(yintercept = 1, linetype='dashed') + 
       coord_flip() +
       theme_bw() +
       theme(legend.title = element_blank(),
-          legend.position = c(0.15,0.05),
+          legend.position = c(0.85,0.05),
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
           panel.background = element_blank(),
           axis.text.y=element_markdown(color = axis_colors)) + 
 	  guides(colour = guide_legend(override.aes = list(size = 5))) + 
-      labs(y = 'Feature coefficient', x = NULL) 
+      labs(y = 'Odds ratio', x = NULL) 
 # -------------------------------------------------------------------->
 
 ######################################################################
@@ -257,7 +248,7 @@ plot_abundance <- function(antibiotic){
 		p + theme(legend.position = 'none',
 				axis.ticks.y = element_blank(),
 				axis.text.y = element_blank()) + 
-			labs(y = 'Relative Abundance (%)') +
+			labs(y = 'Relative abundance (%)') +
 			guides(colour = guide_legend(override.aes = list(alpha = 1)))
 	} else {
 		p + theme(legend.position = 'none',
@@ -378,7 +369,7 @@ top_otu_abundance_plot <- plot_grid(
 ggsave(paste0("results/figures/figure_5.jpg"), 
 	plot = plot_grid(
 			plot_grid(NULL, perm_imp_plot, rel_heights = c(1,45), ncol = 1),
-			plot_grid(NULL, logit_coef_plot, rel_heights = c(1,45), ncol = 1),
+			plot_grid(NULL, coef_plot, rel_heights = c(1,45), ncol = 1),
 			top_otu_abundance_plot,
 			labels = c('A', 'B', 'C'), nrow = 1, rel_widths = c(4,4,5)),
 	width = 18, height = 10, units="in")
