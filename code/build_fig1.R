@@ -97,8 +97,13 @@ plot_colonization <- function(antibiotic){
 
 shared_meta_toi_df <- meta_df %>% 
 	filter(day == 0)
+meta_initial_df <- meta_df %>% 
+	filter(time_point == 'Initial')	 %>% 
+	pull(group)
 toi_shared <- shared_df %>% 
 	filter(Group %in% shared_meta_toi_df$group)
+intial_shared <- shared_df %>% 
+	filter(Group %in% meta_initial_df)
 
 taxa_order <- rev(c("*Enterobacteriaceae*", "*Lactobacillus*", "Other", "*Porphyromonadaceae*", 
 	"*Bacteroides*", "*Akkermansia*", "*Barnesiella*", "*Lachnospiraceae*", 
@@ -188,6 +193,46 @@ clinda_abun_plot <- plot_abundance('Clindamycin')
 cef_abun_plot <- plot_abundance('Cefoperazone')
 strep_abun_plot <- plot_abundance('Streptomycin')
 
+# plot initial community
+meta_initial_df <- meta_df %>% 
+	filter(time_point == 'Initial')	 %>% 
+	pull(group)
+
+intial_shared <- shared_df %>% 
+	filter(Group %in% meta_initial_df)
+
+initial_abundance_df <- sum_otu_by_taxa(tax_df, intial_shared, taxa_level = 'Genus') %>% 
+	mutate(taxa = gsub('_unclassified', '', taxa),
+		taxa = gsub('_', ' ', taxa),
+		taxa = ifelse(taxa == 'Other', taxa, paste0('*', taxa, '*')),
+		taxa = ifelse(taxa %in% taxa_order, taxa, 'Other'),
+		taxa = factor(taxa, labels = taxa_order, levels = taxa_order)) %>% 
+	group_by(Group, taxa) %>% 
+	mutate(abundance = sum(abundance)) %>% 
+	group_by(Group) %>% 
+	mutate(total = sum(abundance),
+		relative_abundance = log10((abundance/total * 100) + 0.01),
+		day = 'Initial')
+
+initial_abundance_plot <- initial_abundance_df %>% 
+	ggplot(aes(x = Group, y =taxa, fill = relative_abundance)) + 
+		geom_tile(height = 0.8) +
+		scale_fill_gradient2(low="white", mid='#0B775E', high = 'black',
+			limits = c(-2,2), na.value = NA, midpoint = .3,
+			breaks = c(-2.5, -1, 0, 1, 2), labels = c('', '0.1', '1', '10', '100')) + 
+		theme_bw() + 
+		labs(x = NULL, y = NULL, #title = paste('Day 0 Community - Top', n_taxa, 'Genus'),
+			fill = 'Relative Abundance (%)') + 
+		theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
+			axis.ticks.x=element_blank(), 
+			axis.text.y = element_markdown(),
+			panel.grid = element_blank(),
+			strip.text = element_blank(),
+			strip.background =element_blank(),
+			plot.margin = margin(0, 0.1, 0, 0.1, "cm"), 
+			legend.position = 'bottom') + 
+		guides(fill = guide_colorbar(title.position = "top"))
+
 
 # save plot, top row is colonization plot, middle row are diversity plots, bottom row is temporal abundance plot
 ggsave('results/figures/figure_1.jpg', plot_grid(
@@ -197,3 +242,7 @@ ggsave('results/figures/figure_1.jpg', plot_grid(
 		plot_grid(clinda_abun_plot, cef_abun_plot, strep_abun_plot, rel_widths = c(1.8, 4, 4), 
 			labels = c('D', 'E', 'F'), nrow = 1),
 	rel_heights = c(4, .25, 6), ncol = 1), width = 18, height = 12)
+
+ggsave(paste0("results/figures/figure_S1.jpg"), 
+	plot = initial_abundance_plot,
+	width = 6, height = 12, units="in")
