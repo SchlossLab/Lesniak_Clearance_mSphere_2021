@@ -139,7 +139,8 @@ signif_label_df <- alpha_wilcox_df %>%
 			x1 == 0.85 & x2 == 3.15 ~ 0.4,
 			x2 == 0.85 & x1 == 2.15 ~ 0.4,
 			x1 == 0.85 & x2 == 2.15 ~ 0.4,
-			T ~ 1))
+			T ~ 1))  %>% 
+	filter(alpha == 1)
 
 # plot Sobs by day
 alpha_sobs_plot <- alpha_df %>% 
@@ -154,9 +155,9 @@ alpha_sobs_plot <- alpha_df %>%
 			panel.spacing = unit(c(3,3),'lines')) + 
 		facet_wrap(.~abx) + 
 		geom_text(data = filter(signif_label_df, metric == 'sobs'), 
-			aes(x = xnote, y = ynote, label = label, alpha = alpha)) + 
+			aes(x = xnote, y = ynote, label = label)) + 
 		geom_segment(data = filter(signif_label_df, metric == 'sobs'), 
-			aes(x = x1, xend = x2, y = y1, yend = y1, alpha = alpha), size = 0.25)
+			aes(x = x1, xend = x2, y = y1, yend = y1), size = 0.25)
 
 alpha_sobs_plot <- edit_facet_background(alpha_sobs_plot, abx_color$color)
 # add labels to plots for figure
@@ -180,9 +181,9 @@ alpha_invsimpson_plot <- alpha_df %>%
 			strip.text = element_blank()) + 
 		facet_wrap(.~abx) + 
 		geom_text(data = filter(signif_label_df, metric == 'invsimpson'), 
-			aes(x = xnote, y = ynote, label = label, alpha = alpha)) + 
+			aes(x = xnote, y = ynote, label = label)) + 
 		geom_segment(data = filter(signif_label_df, metric == 'invsimpson'), 
-			aes(x = x1, xend = x2, y = y1, yend = y1, alpha = alpha), size = 0.25)
+			aes(x = x1, xend = x2, y = y1, yend = y1), size = 0.25)
 
 ###############################################################################
 #   How different are communities at TOC and End?
@@ -319,7 +320,8 @@ beta_sig_initial_df <- beta_signif_label_df %>%
 	 mutate(y1 = c(c(1.1,1.25,1.175,1.325,1.275,1.1), # cef
 	 	c(1,1.225,1.075,1.25,1.3,1.15,1), # strep
 	 	c(1.1, 1.175, 1.25)), # clinda
-	 	ynote = 0.01 + y1)
+	 	ynote = 0.01 + y1) %>% 
+	 filter(alpha == 1)
 	
 
 beta_plot <- beta_div_df %>% 
@@ -343,10 +345,10 @@ beta_plot <- beta_div_df %>%
 			strip.background = element_blank(),
 			strip.text = element_blank()) +
 		geom_text(data = beta_sig_initial_df,
-			aes(x = xnote, y = ynote, label = label, alpha = alpha), 
+			aes(x = xnote, y = ynote, label = label), 
 			show.legend = F, color = 'black') + 
 		geom_segment(data = beta_sig_initial_df, 
-			aes(x = x1, xend = x2, y = y1, yend = y1, alpha = alpha), 
+			aes(x = x1, xend = x2, y = y1, yend = y1), 
 			size = 0.25, show.legend = F, color = 'black')
 
 end_diff <- c('End\nvs\nintra\nEnd', 'End\nvs\ninter\nEnd')
@@ -357,10 +359,9 @@ beta_sig_end_df <- beta_signif_label_df %>%
 	 mutate(y1 = c(c(1.1,1.25,1.175,1.1), # cef
 	 	c(1.1,1.25,1.325,1.175), # strep
 	 	c(1.1)), # clinda
-	 	ynote = 0.01 + y1)
+	 	ynote = 0.01 + y1) %>% 
+	 filter(alpha == 1)
 	
-
-
 beta_supp_plot <- beta_div_df %>% 
 	filter(comparison %in% end_diff) %>% 
 	mutate(c_abx = factor(c_abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin')),
@@ -381,10 +382,10 @@ beta_supp_plot <- beta_div_df %>%
 			legend.key.size = unit(0.2, 'in'),
 			legend.background = element_rect(color = "black")) + 
 		geom_text(data = beta_sig_end_df,
-			aes(x = xnote, y = ynote, label = label, alpha = alpha), 
+			aes(x = xnote, y = ynote, label = label), 
 			show.legend = F, color = 'black') + 
 		geom_segment(data = beta_sig_end_df, 
-			aes(x = x1, xend = x2, y = y1, yend = y1, alpha = alpha), 
+			aes(x = x1, xend = x2, y = y1, yend = y1), 
 			size = 0.25, show.legend = F, color = 'black')
 
 beta_supp_plot <- edit_facet_background(beta_supp_plot, abx_color$color)
@@ -395,5 +396,5 @@ ggsave('results/figures/figure_2.jpg',
 		ncol = 1), 
 	width = 10, height = 15, units = 'in')
 
-ggsave('results/figures/figure_S1.jpg', beta_supp_plot, 
-	width = 10, height = 5, units = 'in')
+#ggsave('results/figures/figure_S#.jpg', beta_supp_plot, 
+#	width = 10, height = 5, units = 'in')
