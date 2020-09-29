@@ -136,7 +136,8 @@ pval_diff_colon_clear_df <- pval_diff_colon_clear_df %>%
 colon_clear_otu_label <- pval_diff_colon_clear_df %>% 
 		select(abx, order, tax_otu_label) %>% 
 		mutate(tax_otu_label = gsub(' \\(', '* \\(', tax_otu_label),
-			tax_otu_label = paste0('*', tax_otu_label)) %>% 
+			tax_otu_label = paste0('*', tax_otu_label),
+			tax_otu_label = gsub('_', ' ', tax_otu_label)) %>% 
 		unique
 
 # create df to plot LOD on one set of graphs instead of all
@@ -278,6 +279,7 @@ plot_temporal_diff_by_clearance <- function(end_status, antibiotics, lod_label_d
 	otu_label <- plot_df %>% 
 		select(abx, comparison, order, tax_otu_label, both) %>% 
 		mutate(tax_otu_label = gsub(' \\(', '* \\(', tax_otu_label),
+			tax_otu_label = gsub('_', ' ', tax_otu_label),
 			tax_otu_label = paste0('*', tax_otu_label),
 			tax_otu_label = ifelse(both == T, paste0('**', tax_otu_label, '**'), 
 				tax_otu_label)) %>% 
