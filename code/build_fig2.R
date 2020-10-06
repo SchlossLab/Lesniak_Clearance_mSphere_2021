@@ -74,9 +74,6 @@ beta_df <- read_dist(beta_div_file) %>%
 	filter(rows %in% meta_df$group,
 		columns %in% meta_df$group)
 
-abx_color <- tibble(abx = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
-	color = c('#D37A1F', '#3A9CBC', '#A40019'))
-
 alpha_wilcox_df <- alpha_df %>% 
 	mutate(subset = paste(time_point, clearance, sep = '.')) %>% 
 	group_by(abx) %>% 
