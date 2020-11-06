@@ -141,7 +141,7 @@ We have shown that mice became susceptible to *C. difficile* colonization after 
 
 **Code availability.** Scripts necessary to reproduce our analysis and this paper are available in an online repository (https://github.com/SchlossLab/Lesniak_Clearance_mBio_2020).
 
-**Sequence data accession number.** All 16S rRNA gene sequence data and associated metadata are available through the Sequence Read Archive via accession no. SXX#######.
+**Sequence data accession number.** All 16S rRNA gene sequence data and associated metadata are available through the Sequence Read Archive via accession PRJNA674858.
 
 ## Acknowledgements
 
