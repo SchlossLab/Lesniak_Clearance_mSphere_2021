@@ -130,7 +130,7 @@ is associated with antibiotic-specific bacterial changes
 
 \vspace{20mm}
 
-Nicholas A. Lesniak\(^1\), Alyxandria M. Schubert\(^{1,2}\), Hamide
+Nicholas A. Lesniak\(^1\), Alyxandria M. Schubert\(^1\), Hamide
 Sinani\(^1\), Patrick D. Schloss\(^{1,\dagger}\)
 
 \vspace{30mm}
@@ -139,11 +139,7 @@ Sinani\(^1\), Patrick D. Schloss\(^{1,\dagger}\)
 \href{mailto:pschloss@umich.edu}{\nolinkurl{pschloss@umich.edu}}
 
 1. Department of Microbiology and Immunology, University of Michigan,
-Ann Arbor, MI 2. Current address: Laboratory of Mucosal Pathogens and
-Cellular Immunology, Division of Bacterial Pathogens and Allergenic
-Products, Office of Vaccines Research and Review, Center for Biologics
-Evaluation and Research, United States Food and Drug Administration,
-Silver Spring, Maryland, United States of America.
+Ann Arbor, MI
 
 \newpage
 \linenumbers
@@ -257,12 +253,12 @@ difficile} colonization. We hypothesized that each colonized community
 has perturbation-specific susceptibilities and requires specific changes
 to clear the pathogen. To induce a less severe perturbation, we reduced
 the doses of cefoperazone and streptomycin. This resulted in communities
-that were initially colonized to a high level (\textgreater{}\(10^{6}\))
-and then spontaneously cleared \emph{C. difficile}. We found each
-antibiotic resulted in unique changes in the microbiota that were
-associated with the persistence or clearance of \emph{C. difficile}.
-These data further support the hypothesis that \emph{C. difficile} can
-exploit numerous niches in perturbed communities.
+that were initially colonized to a high level (\textgreater{}\(10^{6}\)
+CFU/g feces) and then spontaneously cleared \emph{C. difficile}. We
+found each antibiotic resulted in unique changes in the microbiota that
+were associated with the persistence or clearance of \emph{C.
+difficile}. These data further support the hypothesis that \emph{C.
+difficile} can exploit numerous niches in perturbed communities.
 
 \hypertarget{results}{%
 \subsection{Results}\label{results}}
@@ -541,7 +537,7 @@ difficile} colonization (17--20, 24). We attempted to understand the
 general trends in each antibiotic treatment that lead to clearance of
 \emph{C. difficile}. We categorized the general changes and microbial
 relationships of these experiments into three models. First, a model of
-limited opportunity characterized by the transient dominance of a
+temporary opportunity characterized by the transient dominance of a
 facultative anaerobe which permits \emph{C. difficile} colonization but
 \emph{C. difficile} is not able to persist, as with clindamycin
 treatment. We hypothesize this susceptibility is due to a transient
@@ -575,7 +571,7 @@ colonized community. Analyzing each of these colonization models
 individually allowed us to understand how each may clear \emph{C.
 difficile} colonization.
 
-Future investigations can further elucidate the exposed niches of
+Future investigations can further identify the exposed niches of
 susceptible communities and the requirements to clear \emph{C.
 difficile} colonization. One common theme for susceptibility across
 treatments was the increased abundance of facultative anaerobes. These
@@ -690,13 +686,15 @@ with a Benjamini and Hochberg adjustment for a type I error rate of 0.05
 (43). Logistic regression models were constructed with OTUs from all day
 0 samples using half of the samples to train and the other half to test
 the model. The model was developed from the caret R package (v6.0-85)
-and previously developed machine learning pipeline (44). Conditional
-independence networks were calculated using SPIEC-EASI (sparse inverse
-covariance estimation for ecological association inference) methods from
-the SpiecEasi R package after optimizing lambda to 0.001 with a network
-stability between 0.045 and 0.05 (v1.0.7) (21). Network centrality
-measures degree and betweenness were calculated on whole networks using
-functions from the igraph R package (v1.2.4.1).
+and previously developed machine learning pipeline (44). For each
+antibiotic treatment, conditional independence networks were calculated
+from the day 1 through 10 samples of all mice initially colonized using
+SPIEC-EASI (sparse inverse covariance estimation for ecological
+association inference) methods from the SpiecEasi R package after
+optimizing lambda to 0.001 with a network stability between 0.045 and
+0.05 (v1.0.7) (21). Network centrality measures degree and betweenness
+were calculated on whole networks using functions from the igraph R
+package (v1.2.4.1).
 
 \textbf{Code availability.} Scripts necessary to reproduce our analysis
 and this paper are available in an online repository
@@ -1087,10 +1085,10 @@ doi:\href{https://doi.org/10.1128/mbio.00434-20}{10.1128/mbio.00434-20}.
 
 \textbf{Figure 1. Reduced antibiotic doses permitted murine communities
 to be colonized and spontaneously clear that \emph{C. difficile}
-colonization} (A-C) Daily CFU of \emph{C. difficile} in fecal samples of
-mice treated with clindamycin, cefoperazone, or streptomycin from time
-of challenge (Day 0) through 10 days post infection (dpi). The bold line
-is the median CFU of the group and the transparent lines are the
+colonization.} (A-C) Daily CFU of \emph{C. difficile} in fecal samples
+of mice treated with clindamycin, cefoperazone, or streptomycin from
+time of challenge (Day 0) through 10 days post infection (dpi). The bold
+line is the median CFU of the group and the transparent lines are the
 individual mice. (D-F) Relative abundance of twelve most abundant genera
 at the time of \emph{C. difficile} challenge, all other genera grouped
 into Other. Each column is an individual mouse. LOD = Limit of
@@ -1104,22 +1102,22 @@ mg/mL N = 7, 0.1 mg/mL N = 7).
 
 \textbf{Figure 2. Microbiota community diversity showed
 antibiotic-specific trends associated with \emph{C. difficle}
-colonization clearance} For clindamycin (A), cefoperazone (B), and
+colonization clearance.} For communities colonized with \emph{C.
+difficile} from mice treated with clindamycin (A), cefoperazone (B), and
 streptomycin (C), microbiota \(\alpha\)-diversity (S\textsubscript{obs}
 and Inverse Simpson) and \(\beta\)-diversity
 (\(\theta\)\textsubscript{YC}) were compared at the initial
 pre-antibiotic treatment state, time of \emph{C. difficile} challenge
 (TOC), and end of the experiment. \(\beta\)-diversity
 (\(\theta\)\textsubscript{YC}) was compared between the initial
-pre-antibiotic treatment state relative and all other initial
-pre-antibiotic treatment communities treated with the same antibitoic,
-the initial community to the same community at the time of \emph{C.
-difficile} challenge, and the initial community to the same community at
-end of the experiment. (clindamycin - cleared N = 11; cefoperazone -
-cleared N = 7, colonized N = 9; streptomycin - cleared N = 9, colonized
-N = 11). * indicates statistical significance of \emph{P} \textless{}
-0.05, calculated by Wilcoxon rank sum test with Benjamini-Hochberg
-correction.
+pre-antibiotic treatment to all other initial pre-antibiotic treatment
+communities treated with the same antibiotic, the initial community to
+the same community at the time of \emph{C. difficile} challenge, and the
+initial community to the same community at end of the experiment.
+(clindamycin - cleared N = 11; cefoperazone - cleared N = 7, colonized N
+= 9; streptomycin - cleared N = 9, colonized N = 11). * indicates
+statistical significance of \emph{P} \textless{} 0.05, calculated by
+Wilcoxon rank sum test with Benjamini-Hochberg correction.
 
 \hfill\break
 
@@ -1127,17 +1125,16 @@ correction.
 
 \textbf{Figure 3. OTU abundance differences between communities that
 cleared \emph{C. difficile} colonization and remained colonized are
-unique to each treatment} For cefoperazone (A) and streptomycin (B), the
-difference in the relative abundance of OTUs that were significantly
+unique to each treatment.} For cefoperazone (A) and streptomycin (B),
+the difference in the relative abundance of OTUs that were significantly
 different between communities that eliminated \emph{C. difficile}
 colonization and those that remained colonized within each antibiotic
-treatment for each time point. Lines connect points by OTU within each
-comparison to show difference in medians. Only plotted OTUs at time
-points which differences were statistically significant, \emph{P}
-\textless{} 0.05, and calculated by Wilcoxon rank sum test with
-Benjamini-Hochberg correction. Bold points are median relative abundance
-and transparent points are relative abundance of individual mice. Limit
-of detection (LOD).
+treatment for each time point. Bold points are median relative abundance
+and transparent points are relative abundance of individual mice. Lines
+connect points within each comparison to show difference in medians.
+Only OTUs at time points with statistically significant differences,
+\emph{P} \textless{} 0.05, were plotted (calculated by Wilcoxon rank sum
+test with Benjamini-Hochberg correction). Limit of detection (LOD).
 
 \hfill\break
 
@@ -1145,35 +1142,35 @@ of detection (LOD).
 
 \textbf{Figure 4. Each antibiotic had specific sets of temporal changes
 in OTU abundance associated with \emph{C. difficile} colonization and
-clearance} For clindamycin (A), cefoperazone (C), and streptomycin (B,
+clearance.} For clindamycin (A), cefoperazone (C), and streptomycin (B,
 D), the difference in the relative abundance of OTUs that were
 significantly different between time points within each \emph{C.
-difficile} colonization outcome for each antibiotic treatment. Arrows
-point in the direction of the temporal change of the relative abundance.
-Lines connect points by OTU within each comparison to show difference in
-medians. Bold OTUs were shared across comparisons. Only plotted OTUs at
-time points which differences were statistically significant, \emph{P}
-\textless{} 0.05, and calculated by Wilcoxon rank sum test with
-Benjamini-Hochberg correction. Bold points are median relative abundance
-and transparent points are relative abundance of individual mice. Limit
-of detection (LOD).
+difficile} colonization outcome for each antibiotic treatment. Bold
+points are median relative abundance and transparent points are relative
+abundance of individual mice. Lines connect points within each
+comparison to show difference in medians. Arrows point in the direction
+of the temporal change of the relative abundance. Only OTUs at time
+points with statistically significant differences, \emph{P} \textless{}
+0.05, were plotted (calculated by Wilcoxon rank sum test with
+Benjamini-Hochberg correction). Bold OTUs were shared across outcomes.
+Limit of detection (LOD).
 
 \hfill\break
 
 \includegraphics{../results/figures/figure_5.jpg}
 
 \textbf{Figure 5. Distinct features of the bacterial community at the
-time of infection can classify end point colonization} (A) L2 logistic
-regression model feature importances determined by the negative effect
-randomizing an individual feature has on the model performance. All OTUs
-affecting performance shown. Gray column shows performance range of
-final model with all features included. (B) Distibution of odds ratio
-used in L2 logistic regression model. Values above 1 indicated abundance
+time of infection can classify end point colonization.} (A) L2 logistic
+regression model features' importance determined by the decrease in
+model performance when randomizing an individual feature. All OTUs
+affecting performance shown. Dashed lines show performance range of
+final model with all features included. (B) Distribution of odds ratio
+used in L2 logistic regression model. Values above 1 indicate abundance
 predicted the community cleared colonization (red) and values below 1
-indicated abundance predicted \emph{C. difficile} remained colonized
-(blue). Feature label and boxplot colored to match the median odds
+indicate abundance predicted \emph{C. difficile} remained colonized
+(blue). Feature label and boxplot are colored to match the median odds
 ratio. (C) Relative abundance difference in features used by L2 logistic
-regression model faceted by antibiotic treatment.
+regression model displayed by antibiotic treatment.
 
 \hfill\break
 
@@ -1181,25 +1178,25 @@ regression model faceted by antibiotic treatment.
 
 \textbf{Figure 6. Conditional independence networks reveal
 treatment-specific relationships between the community and \emph{C.
-difficile} during colonization clearance} (A) SPIEC-EASI (sparse inverse
-covariance estimation for ecological association inference) networks
-showing conditionally independent first-order relationships between
-\emph{C. difficile} and the community as \emph{C. difficile} was cleared
-for the gut environment. Nodes sized by median relative abundance of
-OTU. Edges thickness is determined by the relationship strength and
-colored red for negative interactions and blue for positive
-interactions. (B) Network centrality measured with betweenness, how many
-paths between two OTUs pass through an individual, and degree, how many
-connections an OTU had. * indicates statistical significance of \emph{P}
-\textless{} 0.05, calculated by Wilcoxon rank sum test with
-Benjamini-Hochberg correction.
+difficile} during colonization clearance.} (A) SPIEC-EASI (sparse
+inverse covariance estimation for ecological association inference)
+networks showing conditionally independent first-order relationships
+between \emph{C. difficile} and the community as \emph{C. difficile} was
+cleared from the gut environment. Nodes are sized by median relative
+abundance of the OTU. A red colored edge indicates a negative
+interaction and blue indicates a positive interaction, while edge
+thickness indicates the interaction strength. (B) Network centrality
+measured with betweenness, i.e.~how many paths between two OTUs pass
+through an individual, and degree, i.e.~how many connections an OTU had.
+* indicates statistical significance of \emph{P} \textless{} 0.05,
+calculated by Wilcoxon rank sum test with Benjamini-Hochberg correction.
 
 \hfill\break
 
 \includegraphics{../results/figures/figure_S1.jpg}
 
 \textbf{Figure S1. Initial microbiota relative abundance of mice prior
-to antibiotic treatment} Relative abundance at the beginning of the
+to antibiotic treatment.} Relative abundance at the beginning of the
 experiment prior to antibiotic treatment of twelve most abundant genera
 post antibiotic treatment, all other genera grouped into Other. Each
 column is an individual mouse. Color intensity is
@@ -1211,20 +1208,27 @@ each day. (N = 57).
 \includegraphics{../results/figures/figure_S2.jpg}
 
 \textbf{Figure S2. Temporally differing OTU for cefoperazone-treated
-mice that cleared \emph{C. difficile} colonization} Arrow shows the
-change over time. Only plotted OTUs at time points which differences
-were statistically significant, \emph{P} \textless{} 0.05, and
-calculated by Wilcoxon rank sum test with Benjamini-Hochberg correction.
+mice that cleared \emph{C. difficile} colonization.} Bold points are
+median relative abundance and transparent points are relative abundance
+of individual mice. Lines connect points within each comparison to show
+difference in medians. Arrows point in the direction of the temporal
+change of the relative abundance. Only OTUs at time points with
+statistically significant differences, \emph{P} \textless{} 0.05, were
+plotted (calculated by Wilcoxon rank sum test with Benjamini-Hochberg
+correction). Limit of detection (LOD).
 
 \hfill\break
 
 \includegraphics{../results/figures/figure_S3.jpg}
 
 \textbf{Figure S3. Bacterial community at the time of infection can
-classify endpoint colonization} Classification performance of L2
+classify endpoint colonization.} Classification performance of L2
 logistic regression. Area under the receiver-operator curve for
 classifying if the community will remain colonized based on the OTUs
 present at the time of \emph{C. difficile} infection (Day 0).
+Cross-validation of model performed on half of the data to tune model
+(CV AUC) and then tuned model was tested on the held-out data (Test
+AUC).
 
 
 \end{document}
