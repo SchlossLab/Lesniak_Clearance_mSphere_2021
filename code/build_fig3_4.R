@@ -183,7 +183,8 @@ diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
 			panel.spacing.y = unit(1.5, 'lines'),
 			text = element_text(size = 10), 
 			axis.text.y = element_markdown(), axis.text.x = element_markdown()) + 
-		guides(shape = guide_legend(override.aes = list(alpha = 1))) +
+		guides(shape = guide_legend(override.aes = list(alpha = 1)),
+			color = guide_legend(override.aes = list(linetype = 0))) +
 		facet_grid(abx~time_point, scales = 'free', space = 'free') 
 # edit color of facet label background
 fills <- c(pull(filter(abx_color, abx == 'Cefoperazone'), color),
@@ -289,6 +290,7 @@ plot_temporal_diff_by_clearance <- function(end_status, antibiotics, lod_label_d
 	point_stroke <- ifelse(end_status == 'Cleared', 1, 2)
 
 	output_plot <- plot_df %>% 
+		mutate(Outcome = as.character(point_shape)) %>% 
 		ggplot(aes(x = -order, color = time_point)) + 
 			# specify labels for row numbers
 			scale_x_continuous(breaks = -otu_label$order, 
@@ -307,7 +309,7 @@ plot_temporal_diff_by_clearance <- function(end_status, antibiotics, lod_label_d
 					arrow = arrow(type = 'closed', angle = 10), color = 'black', size = 0.5) + 
 			geom_segment(aes(y = TOC, yend = End, xend = -order), 
 					arrow = arrow(type = 'closed', angle = 10), color = 'black', size = 0.25) + 
-			geom_point(aes(y = (abundance) + 0.04), 
+			geom_point(aes(y = (abundance) + 0.04, , shape = Outcome), 
 				position = position_dodge(width = .7), alpha = 0.3) + 
 			geom_point(aes(y = Initial), color = 'green4', size = 3, 
 				shape = point_shape, stroke = point_stroke) + 
@@ -336,10 +338,12 @@ diff_abund_cleared_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared
 	antibiotics = c('Clindamycin', 'Streptomycin'), lod_label_df = main_lod_label_df) + 
 	facet_grid(abx~comparison, scales = 'free_y', space = 'free',
 		labeller = labeller(comparison = c(Initial_TOC = "Initial vs Time of challenge", TOC_End = "Time of challenge vs End of experiment"))) + 
+	scale_shape_manual(values = c(1,16), limits = c('Cleared', 'Colonized')) + 
 	theme(panel.spacing.y = unit(1, 'lines'),
 		legend.position = 'right', 
 		legend.background = element_rect(colour = 'black')) + 
-	guides(colour = guide_legend(override.aes = list(alpha = 1)))
+	guides(colour = guide_legend(override.aes = list(alpha = 1)),
+		shape = guide_legend(override.aes = list(alpha = 1)))
 # edit colors of facet label backgrounds
 fills <- c(pull(filter(abx_color, abx == 'Clindamycin'), color),
 		pull(filter(abx_color, abx == 'Streptomycin'), color))
@@ -374,7 +378,8 @@ cef_cleared_supp_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared',
 		labeller = labeller(comparison = c(Initial_TOC = "Initial vs Time of challenge", TOC_End = "Time of challenge vs End of experiment"))) +
 	theme(legend.position = 'bottom',
 		legend.background = element_rect(colour = 'black')) + 
-	guides(colour = guide_legend(override.aes = list(alpha = 1)))
+	guides(shape = 'none',
+		colour = guide_legend(override.aes = list(alpha = 1)))
 fills <- c(pull(filter(abx_color, abx == 'Cefoperazone'), color))
 cef_cleared_supp_plot <- edit_facet_background(cef_cleared_supp_plot, fills)
 

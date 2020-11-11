@@ -149,7 +149,7 @@ perm_imp_plot <- ggplot(data_full, aes(fct_reorder(names, -new_auc), new_auc)) +
 	geom_hline(yintercept = data_base_medians$imp , linetype="dashed") +
 	coord_flip() +
 	theme_bw() +
-	labs(y = "AUROC with the OTU permuted randomly", x = NULL) + 
+	labs(y = "AUROC", x = NULL) + 
 		#x = expression(paste(L[2], "-regularized logistic regression"))) +
 	theme(legend.position="none",
 		panel.grid.major = element_blank(),
