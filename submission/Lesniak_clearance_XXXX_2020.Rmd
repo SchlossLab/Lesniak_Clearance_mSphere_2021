@@ -46,7 +46,7 @@ rm(l2_performance_df, temp_data, l2_performance)
 \vspace{30mm}
 
 
-Running title: Clearance of *Clostridioides difficile* colonization is associated with antibiotic-specific bacterial changes
+Running title: Clearance of *Clostridioides difficile* colonization
 
 \vspace{20mm}
 

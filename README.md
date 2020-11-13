@@ -1,4 +1,4 @@
-Effect of *C. difficile* colonization on recovery of gut microbiota in antibiotic-treated mice
+Clearance of *Clostridioides difficile* colonization is associated with antibiotic-specific bacterial changes
 =======
 
 Abstract goes here...
@@ -33,5 +33,3 @@ Overview
     |- study.html      # HTML version of *.Rmd file
     |
     +- Makefile        # executable Makefile for this study, if applicable
-
-
