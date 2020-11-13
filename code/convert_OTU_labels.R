@@ -16,7 +16,7 @@ library(dplyr)
 library(tidyr)
 library(readr)
 
-taxonomy_file <- 'data/mothur/final.taxonomy'
+taxonomy_file <- 'data/process/final.taxonomy'
 taxonomy_df <- read.table(taxonomy_file, sep = '\t', header = T)
 
 levels <- c('Kingdom','Phylum','Class','Order','Family','Genus')
