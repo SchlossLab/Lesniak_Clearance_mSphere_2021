@@ -392,5 +392,5 @@ ggsave('results/figures/figure_4.jpg',
 	plot_grid(diff_abund_cleared_plot, diff_abund_colon_plot, nrow = 1, rel_widths = c(8,7)),
 	width = 20, height = 10, units = 'in')
 
-ggsave('results/figures/figure_S2.jpg', cef_cleared_supp_plot, 
+ggsave('results/figures/figure_S4.jpg', cef_cleared_supp_plot, 
 	width = 6, height = 4, units = 'in')
