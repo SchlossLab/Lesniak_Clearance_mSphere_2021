@@ -66,7 +66,7 @@ alpha_df <- read_tsv(alpha_div_file) %>%
 	filter(group %in% meta_df$group,
 		method == 'ave') %>%
 	select(group, sobs, invsimpson) %>%
-	inner_join(select(meta_df, abx, group, time_point, clearance), by = c('group'))
+	inner_join(select(meta_df, abx, group, time_point, clearance, dose), by = c('group'))
 
 
 source(dist_function) # function to read in distance file and convert from triangle to dataframe
@@ -156,6 +156,7 @@ alpha_sobs_plot <- alpha_df %>%
 		geom_segment(data = filter(signif_label_df, metric == 'sobs'),
 			aes(x = x1, xend = x2, y = y1, yend = y1), size = 0.25)
 
+
 alpha_sobs_plot <- edit_facet_background(alpha_sobs_plot, abx_color$color)
 # add labels to plots for figure
 alpha_sobs_plot <- plot_grid(
@@ -181,6 +182,67 @@ alpha_invsimpson_plot <- alpha_df %>%
 			aes(x = xnote, y = ynote, label = label)) +
 		geom_segment(data = filter(signif_label_df, metric == 'invsimpson'),
 			aes(x = x1, xend = x2, y = y1, yend = y1), size = 0.25)
+
+############
+# Does dose contribute to high variation alpha in colonized cef mice?
+############
+#test_dose_toc_df <- alpha_df %>% 
+#  filter(abx == 'Cefoperazone', clearance == 'Colonized', time_point == 'TOC') %>% 
+#  select(sobs, invsimpson, dose) %>% 
+#  pivot_longer(c(sobs, invsimpson), names_to = 'measure') %>% 
+#  mutate(sample = paste(measure, dose, sep = '_')) %>% 
+#  select(sample, value) %>% 
+#  pivot_wider(names_from = 'sample', values_from = 'value')
+#test_dose_end_df <- alpha_df %>% 
+#  filter(abx == 'Cefoperazone', clearance == 'Colonized', time_point == 'End') %>% 
+#  select(sobs, invsimpson, dose) %>% 
+#  pivot_longer(c(sobs, invsimpson), names_to = 'measure') %>% 
+#  mutate(sample = paste(measure, dose, sep = '_')) %>% 
+#  select(sample, value) %>% 
+#  pivot_wider(names_from = 'sample', values_from = 'value')
+#pval_cef_dose <- c(wilcox.test(test_dose_toc_df$sobs_0.3[[1]], test_dose_toc_df$sobs_0.5[[1]])$p.value,
+#  wilcox.test(test_dose_toc_df$invsimpson_0.3[[1]], test_dose_toc_df$invsimpson_0.5[[1]])$p.value,
+#  wilcox.test(test_dose_end_df$sobs_0.3[[1]], test_dose_end_df$sobs_0.5[[1]])$p.value,
+#  wilcox.test(test_dose_end_df$invsimpson_0.3[[1]], test_dose_end_df$invsimpson_0.5[[1]])$p.value)
+## 0.02857143 0.20000000 0.11111111 0.41269841
+#pval_cef_dose <- p.adjust(pval_cef_dose, method = 'BH')
+## 0.1142857 0.2666667 0.2222222 0.4126984
+#
+alpha_sobs_plot_by_dose <- alpha_df %>%
+  filter(abx =='Cefoperazone') %>% 
+  ggplot(aes(x = time_point, y = sobs)) +
+  geom_point(aes(shape = interaction(dose, clearance)),
+             color = abx_color$color[2],
+             position = position_jitterdodge()) +
+  scale_shape_manual(values = c(1, 2, 17, 15), 
+                     limits = c('0.1.Cleared', '0.3.Cleared', '0.3.Colonized', '0.5.Colonized')) +
+  theme_bw() + labs(x = NULL, y = expression(~S[obs])) +
+  theme(panel.grid.minor = element_blank(),
+        strip.background =element_rect(fill=abx_color$color[2]), 
+        strip.text = element_text(colour = 'white'),
+        legend.position = 'none',
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) +
+  facet_wrap(.~abx)
+
+alpha_invsimpson_plot_by_dose <- alpha_df %>%
+  filter(abx == 'Cefoperazone') %>% 
+  ggplot(aes(x = time_point, y = invsimpson)) +
+  geom_point(aes(shape = interaction(dose, clearance)),
+             color = abx_color$color[2],
+             position = position_jitterdodge()) +
+  scale_shape_manual(values = c(1, 2, 17, 15), 
+                     limits = c('0.1.Cleared', '0.3.Cleared', '0.3.Colonized', '0.5.Colonized'),
+                     labels = c('0.1 mg/mL\nCleared', '0.3 mg/mL\nCleared', '0.3 mg/mL\nColonized', '0.5 mg/mL\nColonized')) +
+  scale_color_manual(values = abx_color$color, limits = abx_color$abx) +
+  theme_bw() + labs(x = 'Day', y = 'Inverse Simpson', shape = NULL) +
+  theme(panel.grid.minor = element_blank(),
+        legend.position = 'bottom',
+        strip.background = element_blank(),
+        strip.text = element_blank()) +
+  facet_wrap(.~abx)
+
+
 
 ###############################################################################
 #   How different are communities at TOC and End?
@@ -349,44 +411,44 @@ beta_plot <- beta_div_df %>%
 			aes(x = x1, xend = x2, y = y1, yend = y1),
 			size = 0.25, show.legend = F, color = 'black')
 
-end_diff <- c('End\nvs\nintra\nEnd', 'End\nvs\ninter\nEnd')
-
-beta_sig_end_df <- beta_signif_label_df %>%
-	filter(grepl(paste(end_diff, collapse = '|'), row_names),
-			grepl(paste(end_diff, collapse = '|'), col_names)) %>%
-	 mutate(y1 = c(c(1.1,1.25,1.175,1.1), # cef
-	 	c(1.1,1.25,1.325,1.175), # strep
-	 	c(1.1)), # clinda
-	 	ynote = 0.01 + y1) %>%
-	 filter(alpha == 1)
-
-beta_supp_plot <- beta_div_df %>%
-	filter(comparison %in% end_diff) %>%
-	mutate(c_abx = factor(c_abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin')),
-		comparison = case_when(comparison == 'End\nvs\nintra\nEnd' ~ 'Within\nAntibiotic',
-			comparison == 'End\nvs\ninter\nEnd' ~ 'Across\nAntibiotic'),
-		comparison = factor(comparison, levels = c('Within\nAntibiotic', 'Across\nAntibiotic'))) %>%
-	ggplot(aes(x = comparison, y = distances, color = c_abx)) +
-		geom_rect(xmin = 0, xmax = 4, ymin = 1.0000001, ymax = 2, color = NA, fill = 'white') +
-		geom_point(aes(shape = c_clearance), position = position_jitterdodge()) +
-		scale_shape_manual(values = c(1, 16), limits = c('Cleared', 'Colonized')) +
-		facet_grid(.~c_abx) +
-		theme_bw() +
-		labs(x = NULL, y = expression(theta[YC]), shape = 'Outcome') +
-		scale_color_manual(breaks = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
-			values = c('#D37A1F', '#3A9CBC', '#A40019')) +
-		guides(color = 'none') +
-		theme(legend.position = 'bottom',
-			legend.key.size = unit(0.2, 'in'),
-			legend.background = element_rect(color = "black")) +
-		geom_text(data = beta_sig_end_df,
-			aes(x = xnote, y = ynote, label = label),
-			show.legend = F, color = 'black') +
-		geom_segment(data = beta_sig_end_df,
-			aes(x = x1, xend = x2, y = y1, yend = y1),
-			size = 0.25, show.legend = F, color = 'black')
-
-beta_supp_plot <- edit_facet_background(beta_supp_plot, abx_color$color)
+#end_diff <- c('End\nvs\nintra\nEnd', 'End\nvs\ninter\nEnd')
+#
+#beta_sig_end_df <- beta_signif_label_df %>%
+#	filter(grepl(paste(end_diff, collapse = '|'), row_names),
+#			grepl(paste(end_diff, collapse = '|'), col_names)) %>% data.frame
+#	 mutate(y1 = c(c(1.1,1.25,1.175,1.1), # cef
+#	 	c(1.1,1.25,1.325,1.175), # strep
+#	 	c(1.1)), # clinda
+#	 	ynote = 0.01 + y1) %>%
+#	 filter(alpha == 1)
+#
+#beta_supp_plot <- beta_div_df %>%
+#	filter(comparison %in% end_diff) %>%
+#	mutate(c_abx = factor(c_abx, levels = c('Clindamycin', 'Cefoperazone', 'Streptomycin')),
+#		comparison = case_when(comparison == 'End\nvs\nintra\nEnd' ~ 'Within\nAntibiotic',
+#			comparison == 'End\nvs\ninter\nEnd' ~ 'Across\nAntibiotic'),
+#		comparison = factor(comparison, levels = c('Within\nAntibiotic', 'Across\nAntibiotic'))) %>%
+#	ggplot(aes(x = comparison, y = distances, color = c_abx)) +
+#		geom_rect(xmin = 0, xmax = 4, ymin = 1.0000001, ymax = 2, color = NA, fill = 'white') +
+#		geom_point(aes(shape = c_clearance), position = position_jitterdodge()) +
+#		scale_shape_manual(values = c(1, 16), limits = c('Cleared', 'Colonized')) +
+#		facet_grid(.~c_abx) +
+#		theme_bw() +
+#		labs(x = NULL, y = expression(theta[YC]), shape = 'Outcome') +
+#		scale_color_manual(breaks = c('Streptomycin', 'Cefoperazone', 'Clindamycin'),
+#			values = c('#D37A1F', '#3A9CBC', '#A40019')) +
+#		guides(color = 'none') +
+#		theme(legend.position = 'bottom',
+#			legend.key.size = unit(0.2, 'in'),
+#			legend.background = element_rect(color = "black")) +
+#		geom_text(data = beta_sig_end_df,
+#			aes(x = xnote, y = ynote, label = label),
+#			show.legend = F, color = 'black') +
+#		geom_segment(data = beta_sig_end_df,
+#			aes(x = x1, xend = x2, y = y1, yend = y1),
+#			size = 0.25, show.legend = F, color = 'black')
+#
+#beta_supp_plot <- edit_facet_background(beta_supp_plot, abx_color$color)
 
 ggsave('results/figures/figure_2.jpg',
 	plot_grid(
@@ -394,5 +456,7 @@ ggsave('results/figures/figure_2.jpg',
 		ncol = 1),
 	width = 10, height = 11, units = 'in')
 
-#ggsave('results/figures/figure_S#.jpg', beta_supp_plot,
-#	width = 10, height = 5, units = 'in')
+ggsave('results/figures/figure_S3.jpg',
+         plot_grid(alpha_sobs_plot_by_dose, plot_grid(NULL, alpha_invsimpson_plot_by_dose, rel_widths = c(1,40)), 
+                   ncol = 1, rel_heights = c(4,5)),
+       width = 5, height = 11, units = 'in')
