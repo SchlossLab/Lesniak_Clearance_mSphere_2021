@@ -100,7 +100,7 @@ get_cdiff_network <- function(antibiotic, clearance_status){
 		sel.criterion = 'bstars', pulsar.select = TRUE, pulsar.params = se_pargs)
 	
 	# set size of vertex proportional to clr-mean
-	vsize    <- rowMeans(clr(se_df, 1))+6
+	vsize <- rowMeans(clr(se_df, 1))+6
 	# determine edge weights
 	se_beta <- symBeta(getOptBeta(se_model), mode='maxabs')
 	se_edges <- Matrix::summary(se_beta)
@@ -134,15 +134,21 @@ get_cdiff_network <- function(antibiotic, clearance_status){
 		vertex.attr = list(name = colnames(wt_cdiff_interactions)))
 
 	# setup network attributes to create igraph network graph for output
-	vsize <- vsize[gsub('Otu0*', '', names(vsize)) %in% first_order_otus]
+	names(vsize) <- gsub('Otu0*', '', names(vsize))
+  vsize_order <- c()
+	for( i in 1:length(first_order_otus)){
+	  vsize_order <- c(vsize_order, vsize[names(vsize) == first_order_otus[i]])
+	}
+  vsize <- vsize_order
+	vsize['Cdiff'] <- 7.0711
 	edge_wt <- abs(E(wt_first_order_network)$weight)
 	edge_direction <- ifelse(E(wt_first_order_network)$weight < 0, 'red', 'blue')
 	lab.locs <- radian.rescale(x=1:length(first_order_otus), direction=-1, start=0)
 	network <- adj2igraph(cdiff_interactions, 
-		vertex.attr = list(name = colnames(cdiff_interactions), size = vsize^2/10, 
+		vertex.attr = list(name = colnames(cdiff_interactions), size = round(vsize^2/10, 2), 
 			color = abx_col, label.color='black', label.cex = 0.7, label.dist = 2, 
 			label.degree = lab.locs),
-		edge.attr = list(width = edge_wt*10, color = edge_direction))
+		edge.attr = list(width = round(edge_wt*10, 2), color = edge_direction))
 
 	se_output <- list(edge_wts = se_edges, degree_dist = se_dd, stability = se_stability, 
 		all_otus = colnames(se_df), otus = first_order_otus, full_network = se_network, 
@@ -159,27 +165,74 @@ cef_colonized_network <- get_cdiff_network('Cefoperazone', 'Colonized')
 
 set.seed(2)
 clinda_network_graph <- ggnet2(clinda_network$cdiff_network, mode = 'kamadakawai',
-		color = 'color', label = T, size = 'size', vjust = 1.3, label.size = 3.5,
-		edge.size = 'width', edge.color = 'color', layout.exp = 0.2) +
-	guides(size = FALSE) +
+		color = c(rep('#A40019', 5),'black'), size = "size",
+		label = T, vjust = 1.3, label.size = 3.5,
+		edge.label = 'width', edge.size = 'width', edge.color = 'color', edge.label.size = 3,
+		layout.exp = 0.2) +
 	ylim(-0.1, 1) + xlim(-0.1, 1.1) + 
 	theme(axis.title = element_blank(), axis.text =element_blank(),
-	    axis.ticks = element_blank())
+	    axis.ticks = element_blank(),
+	    legend.position ='bottom') + 
+  guides(size = guide_legend(override.aes = list(color = '#A40019'))) + 
+  scale_size_manual(name = '',
+                  breaks = c(5, 7.02, 2.67, 3.43, 3.38, 3.28), 
+                  labels = c('5', '8.58', '0.07', '0.17', '0.13', '0.125'), 
+                  values = c(5, 7.02, 2.67, 3.43, 3.38, 3.28)) +
+  guides(size = F)
+clinda_legend <- tibble(x = c(1,1.2,1.4), y = 1, size = c(0.1, 1, 10), label = c('0.1', '1', '10')) %>% 
+  ggplot(aes(x = x, y = y, size = size)) + 
+  geom_point(color = '#A40019', fill = '#A40019', shape = 21, stroke = 2.5) +
+  geom_text(aes(label = label), vjust = 2.7, size = 3) +
+  annotate(geom = 'text', x = 1.2, y = 1, label = 'Mean relative abundance', vjust = -2.2) +
+  theme_nothing() + theme(panel.border = element_rect(colour = "black", fill=NA)) +
+  xlim(0.9, 1.5) + ylim(0.95, 1.08)
+
 cef_network_graph <- ggnet2(cef_network$cdiff_network, mode = 'kamadakawai',
-		color = 'color', label = T, size = 'size', vjust = 1.3, label.size = 3.5,
-		edge.size = 'width', edge.color = 'color', layout.exp = 0.2) +
-	guides(size = FALSE) +
+    color = c(rep('#3A9CBC', 2),'black'), size = 'size',
+		label = T, vjust = 1.3, label.size = 3.5,
+		edge.label = 'width', edge.size = 'width', edge.color = 'color', edge.label.size = 3,
+		layout.exp = 0.2) +
 	ylim(-0.4, 1.2) + xlim(-0.25, 1.25) + 
-	theme(axis.title = element_blank(), axis.text = element_blank(),
-	    axis.ticks = element_blank())
+	theme(axis.title = element_blank(), 
+	      axis.text = element_blank(),
+	      axis.ticks = element_blank(),
+	      legend.position = 'bottom') + 
+  guides(size = guide_legend(override.aes = list(color = '#3A9CBC'))) +
+  scale_size_manual(name = '',
+                    breaks = c(2.29, 3.51, 5),
+                    labels = c('0.98', '1.73', '5'), 
+                    values = c(2.29, 3.51, 5)) + 
+  guides(size = F)
+cef_legend <- tibble(x = c(1,1.2,1.4), y = 1, size = c(0.1, 1, 10), label = c('0.1', '1', '10')) %>% 
+  ggplot(aes(x = x, y = y, size = size)) + 
+    geom_point(color = '#3A9CBC', fill = '#3A9CBC', shape = 21, stroke = 2.5) +
+  geom_text(aes(label = label), vjust = 2.7, size = 3) +
+  annotate(geom = 'text', x = 1.2, y = 1, label = 'Mean relative abundance', vjust = -2.2) +
+    theme_nothing() + theme(panel.border = element_rect(colour = "black", fill=NA)) +
+  xlim(0.9, 1.5) + ylim(0.95, 1.08)
+
 strep_network_graph <- ggnet2(strep_network$cdiff_network, mode = 'kamadakawai',
-		color = 'color', label = T, size = 'size', vjust = 1.3, label.size = 3.5,
-		edge.size = 'width', edge.color = 'color', layout.exp = 0.2) +
-	guides(size = FALSE) + 
+		color = c(rep('#D37A1F', 6), 'black'),
+		label = T, size = 'size', vjust = 1.3, label.size = 3.5,
+		edge.label = 'width', edge.size = 'width', edge.color = 'color', edge.label.size = 3,
+		layout.exp = 0.2) +
 	ylim(-0.1, 1) + xlim(-0.1, 1.1) + 
 	theme(axis.title = element_blank(), axis.text = element_blank(),
-	    axis.ticks = element_blank())
-
+	    axis.ticks = element_blank(),
+	    legend.position = 'bottom') + 
+  guides(size = guide_legend(override.aes = list(color = '#D37A1F'))) +
+  scale_size_manual(name = '',
+                    breaks = c(1.73, 1.85, 1.98, 4.99, 5, 6.83, 7.7),
+                    values = c(1.73, 1.85, 1.98, 4.99, 5, 6.83, 7.7),
+                    labels = c('0.02', '0.03', '0.04', '1.61', '5', '5.42', '8.22')) + 
+  guides(size = F)
+strep_legend <- tibble(x = c(1,1.2,1.4), y = 1, size = c(0.1, 1, 10), label = c('0.1', '1', '10')) %>% 
+  ggplot(aes(x = x, y = y, size = size)) + 
+  geom_point(color = '#D37A1F', fill = '#D37A1F', shape = 21, stroke = 2.5) +
+  geom_text(aes(label = label), vjust = 2.7, size = 3) +
+  annotate(geom = 'text', x = 1.2, y = 1, label = 'Mean relative abundance', vjust = -2.2) +
+  theme_nothing() + theme(panel.border = element_rect(colour = "black", fill=NA)) +
+  xlim(0.9, 1.5) + ylim(0.95, 1.08)
 
 networks <- list(clinda_network, strep_network, cef_network, strep_colonized_network, cef_colonized_network)
 # centrality
@@ -263,10 +316,13 @@ centrality_plot <- centrality_df %>%
 ggsave('results/figures/figure_6.jpg',
 		plot_grid(
 			plot_grid(
-				plot_grid(clinda_network_graph, labels = c('Clindamycin'), label_colour = '#A40019'),
-				plot_grid(plot_grid(NULL, cef_network_graph, ncol = 1, rel_heights = c(1, 10)), 
-					labels = c('Cefoperazone'), label_colour = '#3A9CBC'),
-				plot_grid(strep_network_graph, labels = c('Streptomycin'), label_colour = '#D37A1F'), nrow = 1),
-		centrality_plot, 
-		ncol = 1, rel_heights = c(3,2), labels = c('A', 'B')), 
+				plot_grid(clinda_network_graph, plot_grid(NULL, clinda_legend, NULL, nrow = 1), 
+				          labels = c('Clindamycin'), label_colour = '#A40019', ncol = 1, rel_heights = c(10, 1)),
+				plot_grid(cef_network_graph, plot_grid(NULL, cef_legend, NULL, nrow = 1), 
+				          labels = c('Cefoperazone'), label_colour = '#3A9CBC', ncol = 1, rel_heights = c(10, 1)),
+				plot_grid(strep_network_graph, plot_grid(NULL, strep_legend, NULL, nrow = 1), 
+				          labels = c('Streptomycin'), label_colour = '#D37A1F', ncol = 1, rel_heights = c(10, 1)),
+				nrow = 1),
+		NULL, centrality_plot, 
+		ncol = 1, rel_heights = c(7,1,4), labels = c('A', '', 'B')), 
 	width = 18, height = 13)
