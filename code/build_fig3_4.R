@@ -309,9 +309,10 @@ plot_temporal_diff_by_clearance <- function(end_status, antibiotics, lod_label_d
 					arrow = arrow(type = 'closed', angle = 10), color = 'black', size = 0.5) + 
 			geom_segment(aes(y = TOC, yend = End, xend = -order), 
 					arrow = arrow(type = 'closed', angle = 10), color = 'black', size = 0.25) + 
-			geom_point(aes(y = (abundance) + 0.04, , shape = Outcome), 
+	    geom_point(aes(y = (abundance) + 0.04), shape = point_shape, 
 				position = position_dodge(width = .7), alpha = 0.3) + 
-			geom_point(aes(y = Initial), color = 'green4', size = 3, 
+	    geom_point(aes(y = abundance, shape = Outcome), color = 'black', alpha = 0) +
+	    geom_point(aes(y = Initial), color = 'green4', size = 3, 
 				shape = point_shape, stroke = point_stroke) + 
 			geom_point(aes(y = TOC), color = 'blue3', size = 3, 
 				shape = point_shape, stroke = point_stroke) + 
@@ -342,7 +343,7 @@ diff_abund_cleared_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared
 	theme(panel.spacing.y = unit(1, 'lines'),
 		legend.position = 'right', 
 		legend.background = element_rect(colour = 'black')) + 
-	guides(colour = guide_legend(override.aes = list(alpha = 1)),
+	guides(colour = guide_legend(override.aes = list(alpha = 1, shape = 16)),
 		shape = guide_legend(override.aes = list(alpha = 1)))
 # edit colors of facet label backgrounds
 fills <- c(pull(filter(abx_color, abx == 'Clindamycin'), color),
@@ -392,5 +393,5 @@ ggsave('results/figures/figure_4.jpg',
 	plot_grid(diff_abund_cleared_plot, diff_abund_colon_plot, nrow = 1, rel_widths = c(8,7)),
 	width = 20, height = 10, units = 'in')
 
-ggsave('results/figures/figure_S2.jpg', cef_cleared_supp_plot, 
+ggsave('results/figures/figure_S4.jpg', cef_cleared_supp_plot, 
 	width = 6, height = 4, units = 'in')

@@ -140,13 +140,9 @@ mediandf <-  median(data_base$new_auc) %>%
 
 # Plot the figure
 perm_imp_plot <- ggplot(data_full, aes(fct_reorder(names, -new_auc), new_auc)) +
-	#geom_rect(aes(ymin=lowerq, ymax=upperq, xmin=1, xmax=length(unique(data_full$names))), 
-	#	fill="gray80", alpha = 0.2, inherit.aes = F) +
-	geom_boxplot(fill = NA, width = 0.5) +
-	geom_hline(yintercept = lowerq, linetype="dotted") +
-	geom_hline(yintercept = upperq, linetype="dotted") +
-	#geom_hline(yintercept = 0.5, linetype="dashed") +
-	geom_hline(yintercept = data_base_medians$imp , linetype="dashed") +
+	annotate('ribbon', x = c(-Inf, Inf), ymin= lowerq, ymax= upperq, fill = 'green4', alpha = 0.2) +
+	geom_hline(yintercept = data_base_medians$imp , color = 'green4') +
+	geom_boxplot(fill = 'white', width = 0.5) +
 	coord_flip() +
 	theme_bw() +
 	labs(y = "AUROC", x = NULL) + 
@@ -374,7 +370,7 @@ ggsave(paste0("results/figures/figure_5.jpg"),
 			labels = c('A', 'B', 'C'), nrow = 1, rel_widths = c(4,4,5)),
 	width = 18, height = 10, units="in")
 
-ggsave(paste0("results/figures/figure_S3.jpg"), 
+ggsave(paste0("results/figures/figure_S5.jpg"), 
 	plot = model_perf_plot,
 	width = 6, height = 6, units="in")
 
