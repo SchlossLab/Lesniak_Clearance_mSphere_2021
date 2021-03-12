@@ -1,6 +1,6 @@
 ##############
 #
-# run script to generate plots for Figure 3
+# run script to generate plots for Figure 3 and 4 and S4
 #	What associates with clearance?
 # 
 # Nick Lesniak 04-08-2020
@@ -10,9 +10,6 @@
 #	data/mothur/sample.final.0.03.subsample.shared
 #	data/process/abx_cdiff_taxonomy_clean.tsv
 #	code/sum_otu_by_taxa.R
-#	data/mothur/sample.final.groups.ave-std.summary
-#	data/mothur/sample.final.thetayc.0.03.lt.ave.dist
-#	code/read.dist.R
 #
 ##############
 
@@ -27,7 +24,6 @@ meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
 sum_taxa_function <- 'code/sum_otu_by_taxa.R'
 shared_file <- 'data/mothur/sample.final.0.03.subsample.shared'
-alpha_div_file <- 'data/mothur/sample.final.groups.ave-std.summary'
 
 # read in data
 meta_df   <- read_tsv(meta_file) %>% 
@@ -36,8 +32,7 @@ shared_df <- read_tsv(shared_file) %>%
 	select(-label, -numOtus) %>% 
 	filter(Group %in% meta_df$group)
 tax_df <- read_tsv(tax_file)
-alpha_df <- read_tsv(alpha_div_file) %>% 
-	filter(group %in% meta_df$group)
+
 source(sum_taxa_function) # function to create taxanomic labels for OTUs
 	# sum_otu_by_taxa(taxonomy_df, otu_df, taxa_level = 'NA', top_n = 0, silent = T){
 
@@ -181,8 +176,8 @@ diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
 			legend.position = 'bottom', 
 			legend.background = element_rect(colour = 'black'),
 			panel.spacing.y = unit(1.5, 'lines'),
-			text = element_text(size = 10), 
-			axis.text.y = element_markdown(), axis.text.x = element_markdown()) + 
+			axis.text.x = element_markdown(size = 12),
+			axis.text.y = element_markdown(size = 12)) + 
 		guides(shape = guide_legend(override.aes = list(alpha = 1)),
 			color = guide_legend(override.aes = list(linetype = 0))) +
 		facet_grid(abx~time_point, scales = 'free', space = 'free') 
@@ -328,8 +323,8 @@ plot_temporal_diff_by_clearance <- function(end_status, antibiotics, lod_label_d
 			labs(x = NULL, y = 'Relative Abundance (%)', color = 'Time Point') + 
 			theme(panel.grid.minor = element_blank(),
 				legend.position = 'none', 
-				text = element_text(size = 10),
-				axis.text.y = element_markdown(), axis.text.x = element_markdown())
+				axis.text.x = element_markdown(size = 12),
+				axis.text.y = element_markdown(size = 12))
 }
 
 ###############################################################################
@@ -341,7 +336,7 @@ diff_abund_cleared_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared
 		labeller = labeller(comparison = c(Initial_TOC = "Initial vs Time of challenge", TOC_End = "Time of challenge vs End of experiment"))) + 
 	scale_shape_manual(values = c(1,16), limits = c('Cleared', 'Colonized')) + 
 	theme(panel.spacing.y = unit(1, 'lines'),
-		legend.position = 'right', 
+		legend.position = 'right',
 		legend.background = element_rect(colour = 'black')) + 
 	guides(colour = guide_legend(override.aes = list(alpha = 1, shape = 16)),
 		shape = guide_legend(override.aes = list(alpha = 1)))
@@ -378,20 +373,23 @@ cef_cleared_supp_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared',
 	facet_grid(abx~comparison, scales = 'free_y', space = 'free',
 		labeller = labeller(comparison = c(Initial_TOC = "Initial vs Time of challenge", TOC_End = "Time of challenge vs End of experiment"))) +
 	theme(legend.position = 'bottom',
-		legend.background = element_rect(colour = 'black')) + 
+		    legend.background = element_rect(colour = 'black')) + 
 	guides(shape = 'none',
 		colour = guide_legend(override.aes = list(alpha = 1)))
 fills <- c(pull(filter(abx_color, abx == 'Cefoperazone'), color))
 cef_cleared_supp_plot <- edit_facet_background(cef_cleared_supp_plot, fills)
 
 
-ggsave('results/figures/figure_3.jpg', 
+ggsave('submission/figure_3.tiff', 
 	diff_abund_clear_colon_plot,
-	width = 10, height = 10, units = 'in')
+	width = 10, height = 10, units = 'in', compression = 'lzw')
 
-ggsave('results/figures/figure_4.jpg', 
-	plot_grid(diff_abund_cleared_plot, diff_abund_colon_plot, nrow = 1, rel_widths = c(8,7)),
-	width = 20, height = 10, units = 'in')
+ggsave('submission/figure_4.tiff', 
+	plot_grid(diff_abund_cleared_plot, 
+	          diff_abund_colon_plot,
+	          nrow = 1, rel_widths = c(8,7)),
+	width = 20, height = 10, units = 'in', compression = 'lzw')
 
-ggsave('results/figures/figure_S4.jpg', cef_cleared_supp_plot, 
-	width = 6, height = 4, units = 'in')
+ggsave('submission/figure_S4.tiff', 
+       cef_cleared_supp_plot, 
+	width = 8, height = 3, units = 'in', compression = 'lzw')

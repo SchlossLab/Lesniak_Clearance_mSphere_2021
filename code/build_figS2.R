@@ -80,6 +80,6 @@ cef_alpha_diff_plot <- cef_shared %>%
           panel.grid.minor = element_blank(),
           panel.grid.major.x = element_blank())
 
-ggsave('results/figures/figure_S2.jpg',
-       cef_alpha_diff_plot,
-       width = 6, height = 11, units = 'in')
+ggsave('submission/figure_S2.tiff',
+       cef_alpha_diff_plot + theme(text = element_text(size = 12)),
+       width = 8, height = 8, units = 'in', compression = 'lzw')

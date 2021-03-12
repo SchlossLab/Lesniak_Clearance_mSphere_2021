@@ -7,9 +7,9 @@
 #
 #  need files:
 #	data/process/abx_cdiff_metadata_clean.txt
-#	data/mothur/sample.final.0.03.subsample.shared
-#	data/process/abx_cdiff_taxonomy_clean.tsv
-#	code/sum_otu_by_taxa.R
+#	data/mothur/sample.final.groups.ave-std.summary
+#	data/mothur/sample.final.thetayc.0.03.lt.ave.dist
+#	code/read_dist.R
 #
 ##############
 
@@ -146,8 +146,10 @@ alpha_sobs_plot <- alpha_df %>%
 			position = position_jitterdodge()) +
 		scale_shape_manual(values = c(1, 16), limits = c('Cleared', 'Colonized')) +
 		scale_color_manual(values = abx_color$color, limits = abx_color$abx) +
-		theme_bw() + labs(x = 'Day', y = expression(~S[obs])) +
+		theme_bw() + labs(x = NULL, y = expression(~S[obs])) +
 		theme(panel.grid.minor = element_blank(),
+		  axis.title = element_text(size = 14),
+		  strip.text = element_text(size = 14),
 			legend.position = 'none',
 			panel.spacing = unit(c(3,3),'lines')) +
 		facet_wrap(.~abx) +
@@ -171,10 +173,11 @@ alpha_invsimpson_plot <- alpha_df %>%
 			position = position_jitterdodge()) +
 		scale_shape_manual(values = c(1, 16), limits = c('Cleared', 'Colonized')) +
 		scale_color_manual(values = abx_color$color, limits = abx_color$abx) +
-		theme_bw() + labs(x = 'Day', y = 'Inverse Simpson') +
+		theme_bw() + labs(x = NULL, y = 'Inverse Simpson') +
 		theme(panel.grid.minor = element_blank(),
 			legend.position = 'none',
 			panel.spacing = unit(c(3,3),'lines'),
+			axis.title = element_text(size = 14),
 			strip.background = element_blank(),
 			strip.text = element_blank()) +
 		facet_wrap(.~abx) +
@@ -210,37 +213,39 @@ alpha_invsimpson_plot <- alpha_df %>%
 #
 alpha_sobs_plot_by_dose <- alpha_df %>%
   filter(abx =='Cefoperazone') %>% 
+  mutate(dose = paste(dose, 'mg/mL')) %>% 
   ggplot(aes(x = time_point, y = sobs)) +
-  geom_point(aes(shape = interaction(dose, clearance)),
+  geom_point(aes(shape = clearance),
              color = abx_color$color[2],
              position = position_jitterdodge()) +
-  scale_shape_manual(values = c(1, 2, 17, 15), 
-                     limits = c('0.1.Cleared', '0.3.Cleared', '0.3.Colonized', '0.5.Colonized')) +
+  scale_shape_manual(values = c(1, 16), 
+                     limits = c('Cleared', 'Colonized')) +
   theme_bw() + labs(x = NULL, y = expression(~S[obs])) +
   theme(panel.grid.minor = element_blank(),
         strip.background =element_rect(fill=abx_color$color[2]), 
-        strip.text = element_text(colour = 'white'),
+        axis.title = element_text(size = 14),
+        strip.text = element_text(colour = 'white', size = 12),
         legend.position = 'none',
         axis.text.x = element_blank(),
         axis.ticks.x = element_blank()) +
-  facet_wrap(.~abx)
+  facet_wrap(.~dose)
+
 
 alpha_invsimpson_plot_by_dose <- alpha_df %>%
   filter(abx == 'Cefoperazone') %>% 
   ggplot(aes(x = time_point, y = invsimpson)) +
-  geom_point(aes(shape = interaction(dose, clearance)),
+  geom_point(aes(shape = clearance),
              color = abx_color$color[2],
              position = position_jitterdodge()) +
-  scale_shape_manual(values = c(1, 2, 17, 15), 
-                     limits = c('0.1.Cleared', '0.3.Cleared', '0.3.Colonized', '0.5.Colonized'),
-                     labels = c('0.1 mg/mL\nCleared', '0.3 mg/mL\nCleared', '0.3 mg/mL\nColonized', '0.5 mg/mL\nColonized')) +
-  scale_color_manual(values = abx_color$color, limits = abx_color$abx) +
+  scale_shape_manual(values = c(1, 16), 
+                     limits = c('Cleared', 'Colonized')) +
   theme_bw() + labs(x = 'Day', y = 'Inverse Simpson', shape = NULL) +
   theme(panel.grid.minor = element_blank(),
         legend.position = 'bottom',
+        axis.title = element_text(size = 14),
         strip.background = element_blank(),
         strip.text = element_blank()) +
-  facet_wrap(.~abx)
+  facet_wrap(.~dose)
 
 
 
@@ -402,6 +407,7 @@ beta_plot <- beta_div_df %>%
 			legend.key.size = unit(0.2, 'in'),
 			legend.background = element_rect(color = "black"),
 			panel.spacing = unit(c(3,3),'lines'),
+			axis.title = element_text(size = 14),
 			strip.background = element_blank(),
 			strip.text = element_blank()) +
 		geom_text(data = beta_sig_initial_df,
@@ -450,13 +456,13 @@ beta_plot <- beta_div_df %>%
 #
 #beta_supp_plot <- edit_facet_background(beta_supp_plot, abx_color$color)
 
-ggsave('results/figures/figure_2.jpg',
+ggsave('submission/figure_2.tiff',
 	plot_grid(
-		plot_grid(alpha_sobs_plot, alpha_invsimpson_plot, beta_plot, ncol = 1),
+		plot_grid(alpha_sobs_plot + theme(), alpha_invsimpson_plot, beta_plot, ncol = 1),
 		ncol = 1),
-	width = 10, height = 11, units = 'in')
+	width = 10, height = 11, units = 'in', compression = 'lzw')
 
-ggsave('results/figures/figure_S3.jpg',
+ggsave('submission/figure_S3.tiff',
          plot_grid(alpha_sobs_plot_by_dose, plot_grid(NULL, alpha_invsimpson_plot_by_dose, rel_widths = c(1,40)), 
                    ncol = 1, rel_heights = c(4,5)),
-       width = 5, height = 11, units = 'in')
+       width = 8, height = 8, units = 'in', compression = 'lzw')

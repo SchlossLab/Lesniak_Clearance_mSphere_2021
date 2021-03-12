@@ -7,7 +7,15 @@
 #
 #  need files:
 #	data/process/abx_cdiff_taxonomy_clean.tsv
-#	
+#	data/process/abx_cdiff_metadata_clean.txt
+#	data/process/l2_otu/combined_best_hp_results_L2_Logistic_Regression.csv
+#	data/process/l2_otu/combined_all_sample_results_L2_Logistic_Regression.csv
+#	data/process/l2_otu/combined_L2_Logistic_Regression_feature_ranking.tsv
+#	data/process/l2_otu/combined_best_hp_results_L2_Logistic_Regression.csv
+#	data/process/l2_otu/L2_Logistic_Regression_non_cor_importance.tsv
+#	data/process/l2_otu/combined_all_imp_features_non_cor_results_L2_Logistic_Regression.csv
+#	data/mothur/sample.final.0.03.subsample.shared
+#	code/R/functions.R
 #
 ##############
 
@@ -148,7 +156,7 @@ perm_imp_plot <- ggplot(data_full, aes(fct_reorder(names, -new_auc), new_auc)) +
 	labs(y = "AUROC", x = NULL) + 
 		#x = expression(paste(L[2], "-regularized logistic regression"))) +
 	theme(legend.position="none",
-		panel.grid.major = element_blank(),
+		panel.grid.major.x = element_blank(),
 		panel.grid.minor = element_blank(),
 		panel.background = element_blank(),
 		axis.text.y=element_markdown())
@@ -190,10 +198,11 @@ coef_plot <- logit_imp %>%
       theme_bw() +
       theme(legend.title = element_blank(),
           legend.position = c(0.85,0.05),
-          panel.grid.major = element_blank(),
+          panel.grid.major.x = element_blank(),
           panel.grid.minor = element_blank(),
           panel.background = element_blank(),
-          axis.text.y=element_markdown(color = axis_colors)) + 
+          axis.ticks.y = element_blank(),
+          axis.text.y = element_blank()) + 
 	  guides(colour = guide_legend(override.aes = list(size = 5))) + 
       labs(y = 'Odds ratio', x = NULL) 
 # -------------------------------------------------------------------->
@@ -232,13 +241,14 @@ plot_abundance <- function(antibiotic){
 			facet_wrap(.~abx) + 
 			theme_bw() +
 			labs(x = NULL, color = NULL) + 
-			theme(panel.grid.minor.y = element_blank(),
-				axis.text.y = element_markdown(),
+			theme(panel.grid.minor = element_blank(),
 				axis.text.x = element_markdown(),
 				strip.background = element_rect(fill = abx_col),
 				strip.text = element_text(color = 'white'))
 	if(antibiotic == 'Clindamycin'){
-		p + theme(legend.position = 'none') + 
+		p + theme(legend.position = 'none',
+		          axis.ticks.y = element_blank(),
+		          axis.text.y = element_blank()) + 
 			labs(y = NULL)
 	} else if(antibiotic == 'Cefoperazone') {
 		p + theme(legend.position = 'none',
@@ -258,7 +268,7 @@ top_otu_abundance_plot <- plot_grid(
 	plot_grid(plot_abundance('Clindamycin'), NULL, ncol = 1, rel_heights = c(50, 1)), 
 	plot_abundance('Cefoperazone'), 
 	plot_grid(plot_abundance('Streptomycin'), NULL, ncol = 1, rel_heights = c(50, 1)), 
-	nrow = 1, rel_widths = c(7, 4, 4))
+	nrow = 1)
 
 # -------------------------------------------------------------------->
 
@@ -362,25 +372,28 @@ top_otu_abundance_plot <- plot_grid(
 #combine with cowplot
 
 
-ggsave(paste0("results/figures/figure_5.jpg"), 
+ggsave(paste0("submission/figure_5.tiff"), 
 	plot = plot_grid(
+	  plot_grid(NULL, NULL, NULL, labels = c('A', 'B', 'C'), nrow = 1, rel_widths = c(5,4,4)),
+	  plot_grid(
 			plot_grid(NULL, perm_imp_plot, rel_heights = c(1,45), ncol = 1),
 			plot_grid(NULL, coef_plot, rel_heights = c(1,45), ncol = 1),
 			top_otu_abundance_plot,
-			labels = c('A', 'B', 'C'), nrow = 1, rel_widths = c(4,4,5)),
-	width = 18, height = 10, units="in")
+			nrow = 1, rel_widths = c(5,4,4)),
+	  ncol = 1, rel_heights = c(1, 40)),
+	width = 18, height = 10, units="in", compression = 'lzw')
 
-ggsave(paste0("results/figures/figure_S5.jpg"), 
+ggsave(paste0("submission/figure_S5.tiff"), 
 	plot = model_perf_plot,
-	width = 6, height = 6, units="in")
+	width = 6, height = 6, units="in", compression = 'lzw')
 
-#ggsave(paste0("results/figures/Figure_S4_L2_Logistic_Regression_sample_dist_", model_dir, ".jpg"), 
+#ggsave(paste0("submission/Figure_S4_L2_Logistic_Regression_sample_dist_", model_dir, ".jpg"), 
 #	plot = plot_grid(plot_grid(NULL, perf_by_sample_plot, rel_heights = c(1, 19), ncol = 1), 
 #			rel_abund_misclass_samples, 
 #		labels = c('A', 'B'), rel_widths = c(1,2)), 
 #	width = 16, height = 8, units="in")
 #
-#ggsave(paste0("results/figures/Figure_S4_fac_anaerobes_", model_dir, ".jpg"), 
+#ggsave(paste0("submission/Figure_S4_fac_anaerobes_", model_dir, ".jpg"), 
 #	plot = plot_grid(fac_anaerobe_plot, cfu_plot, 
 #		labels = c('A', 'B')),  
 #	width = 16, height = 8, units="in")
