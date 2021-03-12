@@ -1,6 +1,6 @@
 The MIT License (MIT)
 
-Copyright (c) 2015 Alyxandria M. Schubert and Patrick D. Schloss
+Copyright (c) 2021 Nicholas A. Lesniak and Patrick D. Schloss
 
 
 
