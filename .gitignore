@@ -11,10 +11,8 @@ data/
 *.qsub*
 mothur*logfile
 *temp*
-*.docx
 *.gif
 *.png
-*.tiff
 *.jpg
 *.jpeg
 
@@ -22,3 +20,5 @@ mothur*logfile
 scratch/*/
 
 code/old/
+
+!submission/
