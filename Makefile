@@ -154,79 +154,78 @@ $FINAL_DIR/combined_all_imp_features_cor_results_L2_Logistic_Regression.csv : co
 # Create figures
 ################################################################################
 
-# Figure 1
-results/figures/figure_1.jpg : code/build_fig1.R\
+# Figure 1 and S1
+submission/figure_1.tiff submission/figure_S1.tiff : code/build_fig1.R\
+							data/process/abx_cdiff_metadata_clean.txt\
+							data/mothur/sample.final.0.03.subsample.shared\
+							data/process/abx_cdiff_taxonomy_clean.tsv\
+							code/sum_otu_by_taxa.R
+	Rscript code/build_fig1.R
+
+# Figure S2
+submission/figure_S2.tiff : code/build_figS2.R\
+							data/process/abx_cdiff_metadata_clean.txt\
+							data/mothur/sample.final.0.03.subsample.shared
+	Rscript code/build_figS2.R
+
+# Figure 2 and S3
+submission/figure_2.tiff submission/figure_S3.tiff : code/build_fig2.R\
 								data/process/abx_cdiff_metadata_clean.txt\
-								data/mothur/sample.final.0.03.subsample.shared\
-								data/process/abx_cdiff_taxonomy_clean.tsv\
-								code/sum_otu_by_taxa.R\
 								data/mothur/sample.final.groups.ave-std.summary\
 								data/mothur/sample.final.thetayc.0.03.lt.ave.dist\
 								code/read.dist.R
-	Rscript code/build_fig1.R
+	Rscript code/build_fig2.R
 
-# Figure 2
-results/figures/figure_2.jpg : code/build_fig2.R\
+# Figure 3, 4, S4
+submission/figure_3.tiff submission/figure_4.tiff submission/figure_S4.tiff : code/build_fig3_4.R\
 								data/process/abx_cdiff_metadata_clean.txt\
 								data/mothur/sample.final.0.03.subsample.shared\
 								data/process/abx_cdiff_taxonomy_clean.tsv\
 								code/sum_otu_by_taxa.R
-	Rscript code/build_fig2.R
+	Rscript code/build_fig3_4.R
 
-# Figure 3
-results/figures/figure_3.jpg results/figures/figure_S1.jpg results/figures/figure_S2.jpg : code/build_fig3.R\
-								data/process/abx_cdiff_metadata_clean.txt\
-								data/mothur/sample.final.0.03.subsample.shared\
-								data/process/abx_cdiff_taxonomy_clean.tsv\
-								code/sum_otu_by_taxa.R\
-								data/mothur/sample.final.groups.ave-std.summary\
-								data/mothur/sample.final.thetayc.0.03.lt.ave.dist\
-								code/read.dist.R
-	Rscript code/build_fig3.R
-
-# Figure S3
-results/figures/figure_S3.jpg : code/build_figS3.R\
-								data/process/abx_cdiff_metadata_clean.txt\
-								data/mothur/sample.final.0.03.subsample.shared\
-								data/process/abx_cdiff_taxonomy_clean.tsv\
-								code/sum_otu_by_taxa.R\
-								data/mothur/sample.final.groups.ave-std.summary\
-								data/mothur/sample.final.thetayc.0.03.lt.ave.dist\
-								code/read.dist.R
-	Rscript code/build_figS3.R
-
-# Figure 4
-results/figures/figure_4.jpg results/figures/figure_S4.jpg : code/build_fig4.R\
+# Figure 5 and S5
+submission/figure_5.tiff submission/figure_S5.tiff : code/build_fig5.R\
 								code/R/functions.R\
 								data/process/abx_cdiff_metadata_clean.txt\
 								data/process/abx_cdiff_taxonomy_clean.tsv\
-								data/process/otu/combined_best_hp_results_L2_Logistic_Regression.csv\
-								data/process/otu/combined_all_sample_results_L2_Logistic_Regression.csv\
-								data/process/otu/combined_L2_Logistic_Regression_feature_ranking.tsv\
-								data/process/otu/combined_best_hp_results_L2_Logistic_Regression.csv\
-								data/process/otu/L2_Logistic_Regression_non_cor_importance.tsv\
-								data/process/otu/combined_all_imp_features_non_cor_results_L2_Logistic_Regression.csv\
+								data/process/l2_otu/combined_best_hp_results_L2_Logistic_Regression.csv\
+								data/process/l2_otu/combined_all_sample_results_L2_Logistic_Regression.csv\
+								data/process/l2_otu/combined_L2_Logistic_Regression_feature_ranking.tsv\
+								data/process/l2_otu/combined_best_hp_results_L2_Logistic_Regression.csv\
+								data/process/l2_otu/L2_Logistic_Regression_non_cor_importance.tsv\
+								data/process/l2_otu/combined_all_imp_features_non_cor_results_L2_Logistic_Regression.csv\
 								data/mothur/sample.final.0.03.subsample.shared
-	Rscript code/build_fig4.R otu
+	Rscript code/build_fig5.R otu
 
-# Figure 5
-results/figures/figure_5.jpg : code/build_fig5.R\
+# Figure 6
+submission/figure_6.tiff : code/build_fig5.R\
 								data/process/abx_cdiff_metadata_clean.txt\
 								data/mothur/sample,final.shared\
 								data/mothur/sample.final.0.03.subsample.shared\
 								data/process/abx_cdiff_taxonomy_clean.tsv
-	Rscript code/build_fig5.R
+	Rscript code/build_fig6.R
+
 
 ################################################################################
-# commands for processing the dependencies to create the targets
+# Create manuscript
+################################################################################
 
-target : dependencies
-	commands
 
-write.paper : $(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.subsample.shared\
-		$(BASIC_STEM).pick.pick.pick.an.unique_list.0.03.cons.taxonomy\
-		$(BASIC_STEM).pick.pick.pick.an.unique_list.groups.ave-std.summary\
-		$(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.cons.taxonomy\
-		$(BASIC_STEM).pick.v4.wang.pick.pick.tx.5.subsample.shared\
-		$(BASIC_STEM).pick.pick.pick.error.summary\
-		$(MOTHUR)abxD1.counts
+submission/manuscript.pdf submission/manuscript.docx : submission/manuscript.Rmd\
+		data/process/data/process/l2_otu/combined_best_hp_results_L2_Logistic_Regression.csv\
+		submission/figure_1.tiff\
+		submission/figure_2.tiff\
+		submission/figure_3.tiff\
+		submission/figure_4.tiff\
+		submission/figure_5.tiff\
+		submission/figure_6.tiff\
+		submission/figure_S1.tiff\
+		submission/figure_S2.tiff\
+		submission/figure_S3.tiff\
+		submission/figure_S4.tiff\
+		submission/figure_S5.tiff\
+		submission/msphere.csl\
+		submission/references.bib
+	R -e 'library(rmarkdown);render("submission/manuscript.Rmd", output_format="all")'
+

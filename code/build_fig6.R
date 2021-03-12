@@ -305,6 +305,7 @@ centrality_plot <- centrality_df %>%
 		labs(x = NULL, y = NULL, fill = NULL) +
 		theme(legend.position = c(0.5, 0.565),
 			panel.spacing = unit(5,'lines'),
+			panel.grid.minor = element_blank(),
 			strip.background = element_blank(),
 			strip.text = element_text(size = 14)) +
 		guides(fill = guide_legend(override.aes = list(size = 5))) + 
@@ -313,7 +314,7 @@ centrality_plot <- centrality_df %>%
 		geom_segment(data = annotation_df, aes(x = x1, xend = x2, y = y1, yend = y1), 
 			color = 'black', size = 0.25)
 
-ggsave('results/figures/figure_6.jpg',
+ggsave('submission/figure_6.tiff',
 		plot_grid(
 			plot_grid(
 				plot_grid(clinda_network_graph, plot_grid(NULL, clinda_legend, NULL, nrow = 1), 
@@ -325,4 +326,4 @@ ggsave('results/figures/figure_6.jpg',
 				nrow = 1),
 		NULL, centrality_plot, 
 		ncol = 1, rel_heights = c(7,1,4), labels = c('A', '', 'B')), 
-	width = 18, height = 13)
+	width = 18, height = 13, compression = 'lzw')
