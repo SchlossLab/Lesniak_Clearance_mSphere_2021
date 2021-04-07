@@ -206,6 +206,9 @@ submission/figure_6.tiff : code/build_fig5.R\
 								data/process/abx_cdiff_taxonomy_clean.tsv
 	Rscript code/build_fig6.R
 
+# Resize figures for publication
+submission/figure_1.tiff submission/figure_2.tiff submission/figure_3.tiff submission/figure_4.tiff submission/figure_5.tiff submission/figure_6.tiff : code/bash/resize_figures
+	bash code/bash/resize_figures
 
 ################################################################################
 # Create manuscript

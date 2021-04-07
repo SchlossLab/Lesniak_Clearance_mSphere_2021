@@ -18,7 +18,7 @@ library(tidyverse)
 library(cowplot) 
 library(grid) # convert plot to grob to edit individual facet labels
 library(ggpubr) # as_ggplot to convert grob to ggplot for creating figure panels
-library(ggtext)  # element_markdown to allow italicized and normal text on axis ticks
+library(ggtext)  # element_markdown size = 12to allow italicized and normal text on axis ticks
 
 meta_file   <- 'data/process/abx_cdiff_metadata_clean.txt'
 tax_file <- 'data/process/abx_cdiff_taxonomy_clean.tsv'
@@ -155,8 +155,8 @@ diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
 			linetype = 'solid', color = 'black') + 
 		geom_hline(data = lod_df, aes(yintercept = y), size = 1, 
 			linetype = 'dashed', color = 'white') + 
-		geom_label(data = lod_label_df, aes(y = y), label = 'LOD', color = 'white') + 
-		geom_text(data = lod_label_df, aes(y = y), label = 'LOD', color = 'black') + 
+		#geom_label(data = lod_label_df, aes(y = y), label = 'LOD', color = 'white') + 
+		#geom_text(data = lod_label_df, aes(y = y), label = 'LOD', color = 'black') + 
 		#  barbell geom
 		geom_segment(aes(y = Cleared, yend = Colonized, xend = -order)) +
 		geom_point(aes(y = (abundance) + 0.04, shape = clearance), 
@@ -165,22 +165,27 @@ diff_abund_clear_colon_plot <- pval_diff_colon_clear_df %>%
 		geom_point(aes(y = Colonized), shape = 16, size = 3) + 
 		scale_shape_manual(values = c(1,16), breaks = c('Cleared', 'Colonized')) + 
 		scale_color_manual(values = c('green4', 'blue3', 'red3'),
-			breaks = c('Initial', 'Time of challenge', 'End of experiment')) + 
+			breaks = c('Initial', 'Time of challenge', 'End of experiment'),
+			labels = c('Initial', 'TOC', 'End')) + 
 		# plot layout
 		scale_y_log10(limits = c(0.04,100),
 	   		breaks = c(0.01, 0.1, 1, 10, 100),
 	   		labels = c('10^-2', '10^-1', '10^0', '10^1', '10^2')) + 
 		coord_flip() + theme_bw() + 
 		labs(x = NULL, y = 'Relative Abundance (%)', shape = 'Outcome', color = 'Time Point') + 
+		guides(shape = guide_legend(override.aes = list(alpha = 1)),
+			color = guide_legend(override.aes = list(linetype = 0, size = 1))) +
+		facet_grid(abx~time_point, scales = 'free', space = 'free') + 
 		theme(panel.grid.minor.x = element_blank(),
 			legend.position = 'bottom', 
+			legend.justification='left',
+        	legend.direction='horizontal',
 			legend.background = element_rect(colour = 'black'),
 			panel.spacing.y = unit(1.5, 'lines'),
+			axis.text.y = element_markdown(size = 12),
 			axis.text.x = element_markdown(size = 12),
-			axis.text.y = element_markdown(size = 12)) + 
-		guides(shape = guide_legend(override.aes = list(alpha = 1)),
-			color = guide_legend(override.aes = list(linetype = 0))) +
-		facet_grid(abx~time_point, scales = 'free', space = 'free') 
+			strip.text = element_text(size = 12),
+			legend.text = element_text(size = 12)) 
 # edit color of facet label background
 fills <- c(pull(filter(abx_color, abx == 'Cefoperazone'), color),
 		pull(filter(abx_color, abx == 'Streptomycin'), color))
@@ -295,19 +300,19 @@ plot_temporal_diff_by_clearance <- function(end_status, antibiotics, lod_label_d
 				linetype = 'solid', color = 'black') + 
 			geom_hline(data = lod_df, aes(yintercept = y), size = 1, 
 				linetype = 'dashed', color = 'white') + 
-			geom_label(data = filter(lod_label_df, clearance == end_status), 
-				aes(y = y), label = 'LOD', color = 'white') + 
-			geom_text(data = filter(lod_label_df, clearance == end_status), 
-				aes(y = y), label = 'LOD', color = 'black') + 
+			#geom_label(data = filter(lod_label_df, clearance == end_status), 
+			#	aes(y = y), label = 'LOD', color = 'white') + 
+			#geom_text(data = filter(lod_label_df, clearance == end_status), 
+			#	aes(y = y), label = 'LOD', color = 'black') + 
 			# points with arrows indicating direction of change
 			geom_segment(aes(y = Initial, yend = TOC, xend = -order), 
 					arrow = arrow(type = 'closed', angle = 10), color = 'black', size = 0.5) + 
 			geom_segment(aes(y = TOC, yend = End, xend = -order), 
 					arrow = arrow(type = 'closed', angle = 10), color = 'black', size = 0.25) + 
-	    geom_point(aes(y = (abundance) + 0.04), shape = point_shape, 
+	    	geom_point(aes(y = (abundance) + 0.04), shape = point_shape, 
 				position = position_dodge(width = .7), alpha = 0.3) + 
-	    geom_point(aes(y = abundance, shape = Outcome), color = 'black', alpha = 0) +
-	    geom_point(aes(y = Initial), color = 'green4', size = 3, 
+	    	geom_point(aes(y = abundance, shape = Outcome), color = 'black', alpha = 0) +
+	    	geom_point(aes(y = Initial), color = 'green4', size = 3, 
 				shape = point_shape, stroke = point_stroke) + 
 			geom_point(aes(y = TOC), color = 'blue3', size = 3, 
 				shape = point_shape, stroke = point_stroke) + 
@@ -323,8 +328,10 @@ plot_temporal_diff_by_clearance <- function(end_status, antibiotics, lod_label_d
 			labs(x = NULL, y = 'Relative Abundance (%)', color = 'Time Point') + 
 			theme(panel.grid.minor = element_blank(),
 				legend.position = 'none', 
+				axis.text.y = element_markdown(size = 12),
 				axis.text.x = element_markdown(size = 12),
-				axis.text.y = element_markdown(size = 12))
+				strip.text = element_text(size = 12),
+				legend.text = element_text(size = 12))
 }
 
 ###############################################################################
@@ -336,7 +343,7 @@ diff_abund_cleared_plot <- plot_temporal_diff_by_clearance(end_status = 'Cleared
 		labeller = labeller(comparison = c(Initial_TOC = "Initial vs Time of challenge", TOC_End = "Time of challenge vs End of experiment"))) + 
 	scale_shape_manual(values = c(1,16), limits = c('Cleared', 'Colonized')) + 
 	theme(panel.spacing.y = unit(1, 'lines'),
-		legend.position = 'right',
+		legend.position = 'bottom',
 		legend.background = element_rect(colour = 'black')) + 
 	guides(colour = guide_legend(override.aes = list(alpha = 1, shape = 16)),
 		shape = guide_legend(override.aes = list(alpha = 1)))
@@ -382,13 +389,13 @@ cef_cleared_supp_plot <- edit_facet_background(cef_cleared_supp_plot, fills)
 
 ggsave('submission/figure_3.tiff', 
 	diff_abund_clear_colon_plot,
-	width = 10, height = 10, units = 'in', compression = 'lzw')
+	width = 10, height = 9, units = 'in', compression = 'lzw')
 
 ggsave('submission/figure_4.tiff', 
 	plot_grid(diff_abund_cleared_plot, 
 	          diff_abund_colon_plot,
-	          nrow = 1, rel_widths = c(8,7)),
-	width = 20, height = 10, units = 'in', compression = 'lzw')
+	          ncol = 1),
+	width = 9, height = 18, units = 'in', compression = 'lzw')
 
 ggsave('submission/figure_S4.tiff', 
        cef_cleared_supp_plot, 

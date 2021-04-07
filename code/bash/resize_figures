@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+##############
+#
+# run script to resize all figures to meet publisher dimensions
+# 
+# Nick Lesniak 04-07-2021
+#
+#  need files:
+#	submission/figure_{1-6}.tiff
+#
+##############
+
+convert submission/figure_1.tiff -resize 50% submission/figure_1.tiff
+convert submission/figure_2.tiff -resize 68.7% submission/figure_2.tiff
+convert submission/figure_3.tiff -resize 68.7% submission/figure_3.tiff
+convert submission/figure_4.tiff -resize 50% submission/figure_4.tiff
+convert submission/figure_5.tiff -resize 50% submission/figure_5.tiff
+convert submission/figure_6.tiff -resize 50% submission/figure_6.tiff

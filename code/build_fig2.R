@@ -148,8 +148,8 @@ alpha_sobs_plot <- alpha_df %>%
 		scale_color_manual(values = abx_color$color, limits = abx_color$abx) +
 		theme_bw() + labs(x = NULL, y = expression(~S[obs])) +
 		theme(panel.grid.minor = element_blank(),
-		  axis.title = element_text(size = 14),
-		  strip.text = element_text(size = 14),
+		  axis.text = element_text(size = 12),
+		  strip.text = element_text(size = 12),
 			legend.position = 'none',
 			panel.spacing = unit(c(3,3),'lines')) +
 		facet_wrap(.~abx) +
@@ -177,7 +177,7 @@ alpha_invsimpson_plot <- alpha_df %>%
 		theme(panel.grid.minor = element_blank(),
 			legend.position = 'none',
 			panel.spacing = unit(c(3,3),'lines'),
-			axis.title = element_text(size = 14),
+			axis.text = element_text(size = 12),
 			strip.background = element_blank(),
 			strip.text = element_blank()) +
 		facet_wrap(.~abx) +
@@ -223,7 +223,7 @@ alpha_sobs_plot_by_dose <- alpha_df %>%
   theme_bw() + labs(x = NULL, y = expression(~S[obs])) +
   theme(panel.grid.minor = element_blank(),
         strip.background =element_rect(fill=abx_color$color[2]), 
-        axis.title = element_text(size = 14),
+        axis.title = element_text(size = 12),
         strip.text = element_text(colour = 'white', size = 12),
         legend.position = 'none',
         axis.text.x = element_blank(),
@@ -242,7 +242,7 @@ alpha_invsimpson_plot_by_dose <- alpha_df %>%
   theme_bw() + labs(x = 'Day', y = 'Inverse Simpson', shape = NULL) +
   theme(panel.grid.minor = element_blank(),
         legend.position = 'bottom',
-        axis.title = element_text(size = 14),
+        axis.title = element_text(size = 12),
         strip.background = element_blank(),
         strip.text = element_blank()) +
   facet_wrap(.~dose)
@@ -407,7 +407,8 @@ beta_plot <- beta_div_df %>%
 			legend.key.size = unit(0.2, 'in'),
 			legend.background = element_rect(color = "black"),
 			panel.spacing = unit(c(3,3),'lines'),
-			axis.title = element_text(size = 14),
+			legend.text = element_text(size = 12),
+			axis.text = element_text(size = 12),
 			strip.background = element_blank(),
 			strip.text = element_blank()) +
 		geom_text(data = beta_sig_initial_df,

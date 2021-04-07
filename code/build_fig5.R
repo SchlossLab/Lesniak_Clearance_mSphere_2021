@@ -159,7 +159,8 @@ perm_imp_plot <- ggplot(data_full, aes(fct_reorder(names, -new_auc), new_auc)) +
 		panel.grid.major.x = element_blank(),
 		panel.grid.minor = element_blank(),
 		panel.background = element_blank(),
-		axis.text.y=element_markdown())
+        axis.text.x = element_text(size = 12),
+		axis.text.y=element_markdown(size = 12))
 
 # -------------------------------------------------------------------->
 
@@ -197,11 +198,13 @@ coef_plot <- logit_imp %>%
       coord_flip() +
       theme_bw() +
       theme(legend.title = element_blank(),
-          legend.position = c(0.85,0.05),
+          legend.position = c(0.8,0.05),
           panel.grid.major.x = element_blank(),
           panel.grid.minor = element_blank(),
           panel.background = element_blank(),
           axis.ticks.y = element_blank(),
+          axis.text.x = element_text(size = 12),
+          legend.text = element_text(size = 12),
           axis.text.y = element_blank()) + 
 	  guides(colour = guide_legend(override.aes = list(size = 5))) + 
       labs(y = 'Odds ratio', x = NULL) 
@@ -242,9 +245,9 @@ plot_abundance <- function(antibiotic){
 			theme_bw() +
 			labs(x = NULL, color = NULL) + 
 			theme(panel.grid.minor = element_blank(),
-				axis.text.x = element_markdown(),
+				axis.text.x = element_markdown(size = 12),
 				strip.background = element_rect(fill = abx_col),
-				strip.text = element_text(color = 'white'))
+				strip.text = element_text(color = 'white', size = 12))
 	if(antibiotic == 'Clindamycin'){
 		p + theme(legend.position = 'none',
 		          axis.ticks.y = element_blank(),
@@ -280,12 +283,12 @@ ggsave(paste0("submission/figure_5.tiff"),
 	plot = plot_grid(
 	  plot_grid(NULL, NULL, NULL, labels = c('A', 'B', 'C'), nrow = 1, rel_widths = c(5,4,4)),
 	  plot_grid(
-			plot_grid(NULL, perm_imp_plot, rel_heights = c(1,45), ncol = 1),
-			plot_grid(NULL, coef_plot, rel_heights = c(1,45), ncol = 1),
+			plot_grid(NULL, perm_imp_plot, NULL, rel_heights = c(1.5 ,45, .25), ncol = 1),
+			plot_grid(NULL, coef_plot, NULL, rel_heights = c(1.5, 45, .25), ncol = 1),
 			top_otu_abundance_plot,
 			nrow = 1, rel_widths = c(5,4,4)),
 	  ncol = 1, rel_heights = c(1, 40)),
-	width = 18, height = 10, units="in", compression = 'lzw')
+	width = 6.87*2, height = 10, units="in", compression = 'lzw')
 
 ggsave(paste0("submission/figure_S5.tiff"), 
 	plot = model_perf_plot,
